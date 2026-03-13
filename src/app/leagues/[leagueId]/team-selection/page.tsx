@@ -53,10 +53,15 @@ const getUpcomingGrandPrix = async (supabase: ReturnType<typeof createServerSupa
       nowIso,
       error,
     });
-    return null;
+    return { grandPrix: null, hasError: true };
   }
 
-  return selectableGrandPrix ?? null;
+  console.log("[TeamSelection] Selectable Grand Prix result", {
+    nowIso,
+    selectableGrandPrix,
+  });
+
+  return { grandPrix: selectableGrandPrix ?? null, hasError: false };
 };
 
 export default async function TeamSelectionPage({ params }: TeamSelectionPageProps) {
@@ -86,7 +91,21 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
     return null;
   }
 
-  const upcomingGrandPrix = await getUpcomingGrandPrix(supabase);
+  const { grandPrix: upcomingGrandPrix, hasError: upcomingGrandPrixLoadFailed } = await getUpcomingGrandPrix(supabase);
+
+  if (upcomingGrandPrixLoadFailed) {
+    return (
+      <main className="leagues-page">
+        <section className="leagues-card league-access-card">
+          <h1>Team kiezen</h1>
+          <p>Er ging iets mis bij het laden van de Grand Prix.</p>
+          <Link href={`/leagues/${league.id}`} className="league-back-link">
+            ← Terug naar competitie
+          </Link>
+        </section>
+      </main>
+    );
+  }
 
   if (!upcomingGrandPrix) {
     return (
