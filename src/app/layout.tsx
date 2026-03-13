@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import '@/styles/globals.css';
 
 export const metadata: Metadata = {
-  title: 'Fantasy F1 Manager',
-  description: 'A production-ready starting point for a fantasy Formula 1 manager web app.'
+  title: 'Het betere GP spel',
+  description: 'Het betere GP spel web app.'
 };
 
 export default function RootLayout({

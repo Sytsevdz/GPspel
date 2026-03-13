@@ -1,6 +1,6 @@
-# Fantasy F1 Manager
+# Het betere GP spel
 
-Initial production-ready project structure built with **Next.js 14**, **TypeScript**, and the **App Router**.
+Production-ready project structure built with **Next.js 14**, **TypeScript**, and the **App Router**.
 
 ## Tech stack
 
@@ -51,3 +51,15 @@ Open [http://localhost:3000](http://localhost:3000) to view the app.
 - `npm run build` – Build for production.
 - `npm run start` – Run the production server.
 - `npm run lint` – Run ESLint checks.
+
+## Deploying to Vercel
+
+1. Push this repository to GitHub.
+2. Import the repository in Vercel.
+3. Vercel detects Next.js automatically; keep the default build settings.
+4. Add environment variables in the Vercel project settings before deploying when needed.
+
+## Planned environment variables (Supabase)
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
