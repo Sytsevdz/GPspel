@@ -32,6 +32,16 @@ const getAuthErrorMessage = (message?: string) => {
   return fallbackErrorMessage;
 };
 
+const sanitizeDisplayName = (rawValue: FormDataEntryValue | null) => {
+  const value = String(rawValue ?? "").trim();
+
+  if (!value) {
+    return null;
+  }
+
+  return value.slice(0, 50);
+};
+
 export async function login(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "").trim();
@@ -53,6 +63,7 @@ export async function login(formData: FormData) {
 export async function register(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "").trim();
+  const displayName = sanitizeDisplayName(formData.get("display_name"));
 
   if (!email || !password) {
     redirect(toRedirectUrl("/register", "error", "Email and password are required."));
@@ -67,6 +78,7 @@ export async function register(formData: FormData) {
     email,
     password,
     options: {
+      data: displayName ? { display_name: displayName } : undefined,
       emailRedirectTo: `${getSiteUrl()}/auth/callback?next=/dashboard`,
     },
   });
@@ -86,6 +98,34 @@ export async function register(formData: FormData) {
       "Account created successfully. Check your email to confirm your account before logging in.",
     ),
   );
+}
+
+export async function updateDisplayName(formData: FormData) {
+  const displayName = sanitizeDisplayName(formData.get("display_name"));
+
+  if (!displayName) {
+    redirect(toRedirectUrl("/profile", "error", "Display name is required."));
+  }
+
+  const supabase = createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ display_name: displayName, updated_at: new Date().toISOString() })
+    .eq("id", user.id);
+
+  if (error) {
+    redirect(toRedirectUrl("/profile", "error", "Unable to update display name. Please try again."));
+  }
+
+  redirect(toRedirectUrl("/profile", "message", "Profile updated."));
 }
 
 export async function logout() {
