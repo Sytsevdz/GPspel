@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 
-import { createServerSupabaseClient } from "@/lib/supabase";
+import { createServerSupabaseActionClient } from "@/lib/supabase";
 import { getSiteUrl } from "@/lib/supabase/env";
 
 const fallbackErrorMessage = "Something went wrong. Please try again.";
@@ -50,7 +50,7 @@ export async function login(formData: FormData) {
     redirect(toRedirectUrl("/login", "error", "Email and password are required."));
   }
 
-  const supabase = createServerSupabaseClient();
+  const supabase = createServerSupabaseActionClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
@@ -73,7 +73,7 @@ export async function register(formData: FormData) {
     redirect(toRedirectUrl("/register", "error", "Password must be at least 6 characters."));
   }
 
-  const supabase = createServerSupabaseClient();
+  const supabase = createServerSupabaseActionClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -107,7 +107,7 @@ export async function updateDisplayName(formData: FormData) {
     redirect(toRedirectUrl("/profile", "error", "Display name is required."));
   }
 
-  const supabase = createServerSupabaseClient();
+  const supabase = createServerSupabaseActionClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -129,7 +129,7 @@ export async function updateDisplayName(formData: FormData) {
 }
 
 export async function logout() {
-  const supabase = createServerSupabaseClient();
+  const supabase = createServerSupabaseActionClient();
   await supabase.auth.signOut();
   redirect(toRedirectUrl("/login", "message", "Logged out successfully."));
 }

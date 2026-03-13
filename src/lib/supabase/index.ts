@@ -1,2 +1,6 @@
 export { createBrowserSupabaseClient } from "./client";
-export { createAdminSupabaseClient, createServerSupabaseClient } from "./server";
+export {
+  createAdminSupabaseClient,
+  createServerSupabaseActionClient,
+  createServerSupabaseClient,
+} from "./server";

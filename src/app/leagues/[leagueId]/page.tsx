@@ -28,7 +28,7 @@ type GrandPrix = {
 };
 
 const getCurrentOrUpcomingGrandPrix = async (supabase: ReturnType<typeof createServerSupabaseClient>) => {
-  const { data: openGrandPrix } = await supabase
+  const { data: openGrandPrix, error: openGrandPrixError } = await supabase
     .from("grand_prix")
     .select("id, name, status, qualification_start, deadline, is_sprint_weekend")
     .eq("status", "open")
@@ -36,11 +36,15 @@ const getCurrentOrUpcomingGrandPrix = async (supabase: ReturnType<typeof createS
     .limit(1)
     .maybeSingle<GrandPrix>();
 
+  if (openGrandPrixError) {
+    console.error("[LeaguePage] open Grand Prix lookup failed", openGrandPrixError);
+  }
+
   if (openGrandPrix) {
     return openGrandPrix;
   }
 
-  const { data: upcomingGrandPrix } = await supabase
+  const { data: upcomingGrandPrix, error: upcomingGrandPrixError } = await supabase
     .from("grand_prix")
     .select("id, name, status, qualification_start, deadline, is_sprint_weekend")
     .eq("status", "upcoming")
@@ -48,7 +52,11 @@ const getCurrentOrUpcomingGrandPrix = async (supabase: ReturnType<typeof createS
     .limit(1)
     .maybeSingle<GrandPrix>();
 
-  return upcomingGrandPrix;
+  if (upcomingGrandPrixError) {
+    console.error("[LeaguePage] upcoming Grand Prix lookup failed", upcomingGrandPrixError);
+  }
+
+  return upcomingGrandPrix ?? null;
 };
 
 export default async function LeaguePage({ params }: LeaguePageProps) {
