@@ -39,14 +39,21 @@ type ExistingTeamSelection = {
 const getUpcomingGrandPrix = async (supabase: ReturnType<typeof createServerSupabaseClient>) => {
   const nowIso = new Date().toISOString();
 
-  const { data: selectableGrandPrix } = await supabase
+  const { data: selectableGrandPrix, error } = await supabase
     .from("grand_prix")
     .select("id, name, status, qualification_start, deadline")
+    .in("status", ["upcoming", "open"])
     .gt("deadline", nowIso)
     .order("qualification_start", { ascending: true })
-    .order("deadline", { ascending: true })
     .limit(1)
     .maybeSingle<GrandPrix>();
+
+  console.log("[TeamSelection] Selecteerbare Grand Prix queryresultaat", {
+    nowIso,
+    statuses: ["upcoming", "open"],
+    grandPrix: selectableGrandPrix,
+    error,
+  });
 
   return selectableGrandPrix;
 };

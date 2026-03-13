@@ -61,7 +61,7 @@ export async function saveTeamSelection(
   if (!league) {
     return {
       status: "error",
-      message: "Je hebt geen toegang tot deze league.",
+      message: "Je hebt geen toegang tot deze competitie.",
     };
   }
 
