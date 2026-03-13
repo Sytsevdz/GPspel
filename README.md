@@ -8,6 +8,7 @@ Production-ready project structure built with **Next.js 14**, **TypeScript**, an
 - React 18
 - TypeScript
 - ESLint (`next/core-web-vitals` + `next/typescript`)
+- Supabase (`@supabase/supabase-js` + `@supabase/ssr`)
 
 ## Project structure
 
@@ -20,8 +21,14 @@ Production-ready project structure built with **Next.js 14**, **TypeScript**, an
 │   │   └── page.tsx
 │   ├── components/
 │   ├── lib/
+│   │   └── supabase/
+│   │       ├── client.ts
+│   │       ├── env.ts
+│   │       ├── index.ts
+│   │       └── server.ts
 │   └── styles/
 │       └── globals.css
+├── .env.example
 ├── .eslintrc.json
 ├── next.config.mjs
 ├── package.json
@@ -37,13 +44,49 @@ Production-ready project structure built with **Next.js 14**, **TypeScript**, an
 npm install
 ```
 
-### 2) Start the development server
+### 2) Configure environment variables
+
+Copy `.env.example` to `.env.local` and fill in your Supabase project values.
+
+```bash
+cp .env.example .env.local
+```
+
+Required variables:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+### 3) Start the development server
 
 ```bash
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to view the app.
+
+## Supabase setup
+
+This project includes minimal Supabase helpers for both browser and server usage in the App Router:
+
+- `src/lib/supabase/env.ts` – validates required environment variables.
+- `src/lib/supabase/client.ts` – creates a browser client.
+- `src/lib/supabase/server.ts` – creates a server client with Next.js cookies.
+- `src/lib/supabase/index.ts` – exports both helper creators.
+
+Example usage:
+
+```ts
+import { createBrowserSupabaseClient } from "@/lib/supabase";
+
+const supabase = createBrowserSupabaseClient();
+```
+
+```ts
+import { createServerSupabaseClient } from "@/lib/supabase";
+
+const supabase = createServerSupabaseClient();
+```
 
 ## Available scripts
 
@@ -57,9 +100,4 @@ Open [http://localhost:3000](http://localhost:3000) to view the app.
 1. Push this repository to GitHub.
 2. Import the repository in Vercel.
 3. Vercel detects Next.js automatically; keep the default build settings.
-4. Add environment variables in the Vercel project settings before deploying when needed.
-
-## Planned environment variables (Supabase)
-
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+4. Add environment variables in the Vercel project settings before deploying.
