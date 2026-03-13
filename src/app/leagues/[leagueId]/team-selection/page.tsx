@@ -43,10 +43,10 @@ const getUpcomingGrandPrix = async (supabase: ReturnType<typeof createServerSupa
     table: "grand_prix",
     select: "id, name, status, qualification_start, deadline",
     filters: {
-      statusIn: ["upcoming", "open"],
-      deadlineGt: "now()",
+      deadlineGt: serverNowIso,
+      statusNeq: "finished",
     },
-    orderBy: "qualification_start asc",
+    orderBy: "deadline asc",
     limit: 1,
   };
 
@@ -58,9 +58,9 @@ const getUpcomingGrandPrix = async (supabase: ReturnType<typeof createServerSupa
   const { data: selectableGrandPrix, error } = await supabase
     .from("grand_prix")
     .select("id, name, status, qualification_start, deadline")
-    .in("status", ["upcoming", "open"])
-    .filter("deadline", "gt", "now()")
-    .order("qualification_start", { ascending: true })
+    .gt("deadline", serverNowIso)
+    .neq("status", "finished")
+    .order("deadline", { ascending: true })
     .limit(1)
     .maybeSingle<GrandPrix>();
 
