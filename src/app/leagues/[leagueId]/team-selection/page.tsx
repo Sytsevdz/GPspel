@@ -48,14 +48,15 @@ const getUpcomingGrandPrix = async (supabase: ReturnType<typeof createServerSupa
     .limit(1)
     .maybeSingle<GrandPrix>();
 
-  console.log("[TeamSelection] Selecteerbare Grand Prix queryresultaat", {
-    nowIso,
-    statuses: ["upcoming", "open"],
-    grandPrix: selectableGrandPrix,
-    error,
-  });
+  if (error) {
+    console.error("[TeamSelection] Grand Prix lookup failed", {
+      nowIso,
+      error,
+    });
+    return null;
+  }
 
-  return selectableGrandPrix;
+  return selectableGrandPrix ?? null;
 };
 
 export default async function TeamSelectionPage({ params }: TeamSelectionPageProps) {
