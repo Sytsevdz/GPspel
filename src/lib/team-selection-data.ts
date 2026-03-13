@@ -35,17 +35,19 @@ export async function getSelectableGrandPrixAndDrivers(
 ): Promise<TeamSelectionDataResult> {
   const serverNowIso = new Date().toISOString();
 
-  const { data: grandPrix, error: grandPrixError } = await supabase
+  const { data, error: grandPrixError } = await supabase
     .from("grand_prix")
     .select("id, name, status, qualification_start, deadline")
     .in("status", ["upcoming", "open"])
     .gt("deadline", serverNowIso)
     .order("qualification_start", { ascending: true })
     .limit(1)
-    .maybeSingle<SelectableGrandPrix>();
+    .returns<SelectableGrandPrix[]>();
 
-  console.log("Grand Prix query result:", grandPrix);
+  console.log("Grand Prix query result:", data);
   console.log("Grand Prix query error:", grandPrixError);
+
+  const grandPrix = data?.[0] ?? null;
 
   if (grandPrixError || !grandPrix) {
     throw new Error(grandPrixError?.message ?? "Geen komende Grand Prix gevonden");

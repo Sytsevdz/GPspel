@@ -47,7 +47,28 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
     redirect("/login");
   }
 
-  const teamSelectionData = await getSelectableGrandPrixAndDrivers(supabase);
+  let teamSelectionData: Awaited<ReturnType<typeof getSelectableGrandPrixAndDrivers>>;
+
+  try {
+    teamSelectionData = await getSelectableGrandPrixAndDrivers(supabase);
+  } catch (error) {
+    return (
+      <main className="leagues-page">
+        <section className="leagues-card">
+          <div className="league-detail-header">
+            <div>
+              <h1>Team kiezen</h1>
+              <p>Kon geen selecteerbare Grand Prix laden.</p>
+              <p style={{ fontSize: "0.875rem", opacity: 0.85 }}>Debug: {(error as Error).message}</p>
+            </div>
+            <Link href={`/leagues/${league.id}`} className="league-back-link">
+              ← Terug naar competitie
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   const { data: existingTeamSelection } = await supabase
     .from("team_selections")

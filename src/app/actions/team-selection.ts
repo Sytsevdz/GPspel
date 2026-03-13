@@ -73,7 +73,16 @@ export async function saveTeamSelection(
     };
   }
 
-  const teamSelectionData = await getSelectableGrandPrixAndDrivers(supabase);
+  let teamSelectionData: Awaited<ReturnType<typeof getSelectableGrandPrixAndDrivers>>;
+
+  try {
+    teamSelectionData = await getSelectableGrandPrixAndDrivers(supabase);
+  } catch (error) {
+    return {
+      status: "error",
+      message: `Kon geen selecteerbare Grand Prix laden: ${(error as Error).message}`,
+    };
+  }
 
   if (teamSelectionData.grandPrix.id !== grandPrixId) {
     return {
