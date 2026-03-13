@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
 
@@ -44,7 +45,7 @@ const getUpcomingGrandPrix = async (supabase: ReturnType<typeof createServerSupa
     select: "id, name, status, qualification_start, deadline",
     filters: {
       statusIn: ["upcoming", "open"],
-      deadlineGt: "now()",
+      deadlineGt: serverNowIso,
     },
     orderBy: "qualification_start asc",
     limit: 1,
@@ -59,7 +60,7 @@ const getUpcomingGrandPrix = async (supabase: ReturnType<typeof createServerSupa
     .from("grand_prix")
     .select("id, name, status, qualification_start, deadline")
     .in("status", ["upcoming", "open"])
-    .filter("deadline", "gt", "now()")
+    .gt("deadline", serverNowIso)
     .order("qualification_start", { ascending: true })
     .limit(1)
     .maybeSingle<GrandPrix>();
@@ -147,7 +148,7 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return null;
+    redirect("/login");
   }
 
   const { grandPrix: upcomingGrandPrix, hasError: upcomingGrandPrixLoadFailed } = await getUpcomingGrandPrix(supabase);
