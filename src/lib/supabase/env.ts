@@ -1,4 +1,6 @@
-const getRequiredEnv = (name: "NEXT_PUBLIC_SUPABASE_URL" | "NEXT_PUBLIC_SUPABASE_ANON_KEY"): string => {
+const getRequiredEnv = (
+  name: "NEXT_PUBLIC_SUPABASE_URL" | "NEXT_PUBLIC_SUPABASE_ANON_KEY" | "SUPABASE_SERVICE_ROLE_KEY",
+): string => {
   const value = process.env[name];
 
   if (!value) {
@@ -30,3 +32,4 @@ export const getSiteUrl = () => {
 
 export const supabaseUrl = getRequiredEnv("NEXT_PUBLIC_SUPABASE_URL");
 export const supabaseAnonKey = getRequiredEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+export const getSupabaseServiceRoleKey = () => getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY");

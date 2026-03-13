@@ -33,6 +33,7 @@ export default async function RootLayout({
               <div className="nav-auth">
                 <Link href="/dashboard">Dashboard</Link>
                 <Link href="/profile">Profile</Link>
+                <Link href="/leagues">Leagues</Link>
                 <form action={logout}>
                   <button type="submit" className="link-button">
                     Log out

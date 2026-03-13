@@ -1,7 +1,8 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
-import { supabaseAnonKey, supabaseUrl } from "./env";
+import { getSupabaseServiceRoleKey, supabaseAnonKey, supabaseUrl } from "./env";
 
 export const createServerSupabaseClient = () => {
   const cookieStore = cookies();
@@ -20,3 +21,11 @@ export const createServerSupabaseClient = () => {
     },
   });
 };
+
+export const createAdminSupabaseClient = () =>
+  createClient(supabaseUrl, getSupabaseServiceRoleKey(), {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
