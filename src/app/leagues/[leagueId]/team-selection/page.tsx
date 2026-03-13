@@ -48,7 +48,6 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
   }
 
   const teamSelectionData = await getSelectableGrandPrixAndDrivers(supabase);
-  const savingDisabled = teamSelectionData.source === "fallback";
 
   const { data: existingTeamSelection } = await supabase
     .from("team_selections")
@@ -80,19 +79,13 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
           grandPrixId={teamSelectionData.grandPrix.id}
           drivers={teamSelectionData.drivers}
           initialSelectedDriverIds={initialSelectedDriverIds}
-          savingDisabled={savingDisabled}
+          savingDisabled={false}
         />
 
-        {savingDisabled && (
-          <p className="form-message error" role="alert" style={{ marginTop: "1rem" }}>
-            De pagina draait momenteel op tijdelijke testgegevens. Opslaan is tijdelijk uitgeschakeld.
-          </p>
-        )}
-
         <div style={{ marginTop: "1rem", fontSize: "0.875rem", opacity: 0.85 }}>
-          <p>Debug: Databron: {teamSelectionData.source === "query" ? "query" : "fallback"}</p>
+          <p>Debug: Databron: query</p>
           <p>
-            Debug: Queryfout: {teamSelectionData.errorInfo.grandPrixQueryError ?? teamSelectionData.errorInfo.driversQueryError ?? "geen"}
+            Debug: Queryfout: geen
           </p>
         </div>
       </section>

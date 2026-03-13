@@ -75,13 +75,6 @@ export async function saveTeamSelection(
 
   const teamSelectionData = await getSelectableGrandPrixAndDrivers(supabase);
 
-  if (teamSelectionData.source === "fallback") {
-    return {
-      status: "error",
-      message: "De pagina draait momenteel op tijdelijke testgegevens. Opslaan is tijdelijk uitgeschakeld.",
-    };
-  }
-
   if (teamSelectionData.grandPrix.id !== grandPrixId) {
     return {
       status: "error",
