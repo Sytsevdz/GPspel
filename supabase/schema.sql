@@ -129,6 +129,150 @@ create index if not exists idx_team_selections_gp on public.team_selections(gran
 create index if not exists idx_predictions_gp on public.predictions(grand_prix_id);
 
 -- -------------------------
+-- Row Level Security (release 1)
+-- -------------------------
+
+alter table public.profiles enable row level security;
+alter table public.leagues enable row level security;
+alter table public.league_members enable row level security;
+alter table public.team_selections enable row level security;
+alter table public.team_selection_drivers enable row level security;
+alter table public.predictions enable row level security;
+
+-- release 1 note: grand_prix, drivers, and driver_prices are treated as public read-only tables,
+-- so RLS is intentionally not enabled on those tables yet.
+
+drop policy if exists "profiles_select_own" on public.profiles;
+create policy "profiles_select_own"
+on public.profiles
+for select
+using (auth.uid() = id);
+
+drop policy if exists "profiles_update_own" on public.profiles;
+create policy "profiles_update_own"
+on public.profiles
+for update
+using (auth.uid() = id)
+with check (auth.uid() = id);
+
+drop policy if exists "leagues_select_member" on public.leagues;
+create policy "leagues_select_member"
+on public.leagues
+for select
+using (
+  exists (
+    select 1
+    from public.league_members lm
+    where lm.league_id = leagues.id
+      and lm.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "league_members_select_member" on public.league_members;
+create policy "league_members_select_member"
+on public.league_members
+for select
+using (
+  exists (
+    select 1
+    from public.league_members lm
+    where lm.league_id = league_members.league_id
+      and lm.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "team_selections_select_own" on public.team_selections;
+create policy "team_selections_select_own"
+on public.team_selections
+for select
+using (auth.uid() = user_id);
+
+drop policy if exists "team_selections_insert_own" on public.team_selections;
+create policy "team_selections_insert_own"
+on public.team_selections
+for insert
+with check (auth.uid() = user_id);
+
+drop policy if exists "team_selections_update_own" on public.team_selections;
+create policy "team_selections_update_own"
+on public.team_selections
+for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+drop policy if exists "team_selection_drivers_select_own_team_selection" on public.team_selection_drivers;
+create policy "team_selection_drivers_select_own_team_selection"
+on public.team_selection_drivers
+for select
+using (
+  exists (
+    select 1
+    from public.team_selections ts
+    where ts.id = team_selection_drivers.team_selection_id
+      and ts.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "team_selection_drivers_insert_own_team_selection" on public.team_selection_drivers;
+create policy "team_selection_drivers_insert_own_team_selection"
+on public.team_selection_drivers
+for insert
+with check (
+  exists (
+    select 1
+    from public.team_selections ts
+    where ts.id = team_selection_drivers.team_selection_id
+      and ts.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "team_selection_drivers_update_own_team_selection" on public.team_selection_drivers;
+create policy "team_selection_drivers_update_own_team_selection"
+on public.team_selection_drivers
+for update
+using (
+  exists (
+    select 1
+    from public.team_selections ts
+    where ts.id = team_selection_drivers.team_selection_id
+      and ts.user_id = auth.uid()
+  )
+)
+with check (
+  exists (
+    select 1
+    from public.team_selections ts
+    where ts.id = team_selection_drivers.team_selection_id
+      and ts.user_id = auth.uid()
+  )
+);
+
+-- release 1 note: team_selection_drivers policies are scoped to owner access via parent team_selection;
+-- no separate league or lock-window constraints are enforced in RLS yet.
+
+drop policy if exists "predictions_select_own" on public.predictions;
+create policy "predictions_select_own"
+on public.predictions
+for select
+using (auth.uid() = user_id);
+
+drop policy if exists "predictions_insert_own" on public.predictions;
+create policy "predictions_insert_own"
+on public.predictions
+for insert
+with check (auth.uid() = user_id);
+
+drop policy if exists "predictions_update_own" on public.predictions;
+create policy "predictions_update_own"
+on public.predictions
+for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+-- release 1 note: insert policies for profiles, leagues, and league_members are intentionally omitted.
+-- account creation and league membership management are expected to run via trusted backend flows.
+
+-- -------------------------
 -- Example seed inserts
 -- -------------------------
 -- Note: These profile IDs must exist in auth.users first.
