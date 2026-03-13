@@ -32,6 +32,7 @@ export default async function RootLayout({
             {user ? (
               <div className="nav-auth">
                 <Link href="/dashboard">Dashboard</Link>
+                <Link href="/profile">Profile</Link>
                 <form action={logout}>
                   <button type="submit" className="link-button">
                     Log out

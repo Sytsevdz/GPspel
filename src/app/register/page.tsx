@@ -29,6 +29,9 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
         {searchParams.error ? <p className="form-message error">{searchParams.error}</p> : null}
 
         <form className="auth-form" action={register}>
+          <label htmlFor="display_name">Display name</label>
+          <input id="display_name" name="display_name" type="text" autoComplete="nickname" maxLength={50} />
+
           <label htmlFor="email">Email</label>
           <input id="email" name="email" type="email" required autoComplete="email" />
 
