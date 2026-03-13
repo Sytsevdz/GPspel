@@ -8,7 +8,7 @@ Production-ready project structure built with **Next.js 14**, **TypeScript**, an
 - React 18
 - TypeScript
 - ESLint (`next/core-web-vitals` + `next/typescript`)
-- Supabase (`@supabase/supabase-js`)
+- Supabase (`@supabase/supabase-js` + `@supabase/ssr`)
 
 ## Project structure
 
@@ -67,12 +67,12 @@ Open [http://localhost:3000](http://localhost:3000) to view the app.
 
 ## Supabase setup
 
-Minimal helper files are included in `src/lib/supabase`:
+This project includes minimal Supabase helpers for both browser and server usage in the App Router:
 
-- `client.ts` – create a browser-side Supabase client.
-- `server.ts` – create a server-side Supabase client for App Router server code.
-- `env.ts` – centralized environment variable validation.
-- `index.ts` – barrel exports for convenient imports.
+- `src/lib/supabase/env.ts` – validates required environment variables.
+- `src/lib/supabase/client.ts` – creates a browser client.
+- `src/lib/supabase/server.ts` – creates a server client with Next.js cookies.
+- `src/lib/supabase/index.ts` – exports both helper creators.
 
 Example usage:
 
