@@ -36,91 +36,29 @@ type ExistingTeamSelection = {
   }>;
 };
 
-const getUpcomingGrandPrix = async (supabase: ReturnType<typeof createServerSupabaseClient>) => {
-  const serverNowIso = new Date().toISOString();
-  const knownSeededGrandPrixId = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
-  const primaryQueryDescription = {
-    table: "grand_prix",
-    select: "id, name, status, qualification_start, deadline",
-    filters: {
-      statusIn: ["upcoming", "open"],
-      deadlineGt: "now()",
-    },
-    orderBy: "qualification_start asc",
-    limit: 1,
-  };
+const SEEDED_GRAND_PRIX_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
 
-  console.log("[TeamSelection] Grand Prix lookup started", {
-    serverNowIso,
-    query: primaryQueryDescription,
-  });
-
-  const { data: selectableGrandPrix, error } = await supabase
+const getSeededGrandPrix = async (supabase: ReturnType<typeof createServerSupabaseClient>) => {
+  const { data: seededGrandPrix, error } = await supabase
     .from("grand_prix")
     .select("id, name, status, qualification_start, deadline")
-    .in("status", ["upcoming", "open"])
-    .filter("deadline", "gt", "now()")
-    .order("qualification_start", { ascending: true })
-    .limit(1)
+    .eq("id", SEEDED_GRAND_PRIX_ID)
     .maybeSingle<GrandPrix>();
 
-  console.log("[TeamSelection] Grand Prix primary query result", {
-    serverNowIso,
-    query: primaryQueryDescription,
-    result: selectableGrandPrix,
-    error,
+  console.log("[TeamSelection][TEMP] fetched GP", {
+    seededGrandPrixId: SEEDED_GRAND_PRIX_ID,
+    data: seededGrandPrix,
   });
 
   if (error) {
-    console.error("[TeamSelection] Grand Prix lookup failed", {
-      serverNowIso,
-      query: primaryQueryDescription,
+    console.error("[TeamSelection][TEMP] Supabase error while fetching GP", {
+      seededGrandPrixId: SEEDED_GRAND_PRIX_ID,
       error,
     });
     return { grandPrix: null, hasError: true };
   }
 
-  if (selectableGrandPrix) {
-    return { grandPrix: selectableGrandPrix, hasError: false };
-  }
-
-  const fallbackQueryDescription = {
-    table: "grand_prix",
-    select: "id, name, status, qualification_start, deadline",
-    filters: {
-      idEq: knownSeededGrandPrixId,
-    },
-    limit: 1,
-  };
-
-  console.warn("[TeamSelection] No upcoming Grand Prix found, trying seeded fallback", {
-    serverNowIso,
-    query: fallbackQueryDescription,
-  });
-
-  const { data: fallbackGrandPrix, error: fallbackError } = await supabase
-    .from("grand_prix")
-    .select("id, name, status, qualification_start, deadline")
-    .eq("id", knownSeededGrandPrixId)
-    .maybeSingle<GrandPrix>();
-
-  console.log("[TeamSelection] Grand Prix fallback query result", {
-    serverNowIso,
-    query: fallbackQueryDescription,
-    result: fallbackGrandPrix,
-    error: fallbackError,
-  });
-
-  if (fallbackError) {
-    console.error("[TeamSelection] Seeded Grand Prix fallback failed", {
-      serverNowIso,
-      query: fallbackQueryDescription,
-      error: fallbackError,
-    });
-    return { grandPrix: null, hasError: true };
-  }
-
-  return { grandPrix: fallbackGrandPrix ?? null, hasError: false };
+  return { grandPrix: seededGrandPrix ?? null, hasError: false };
 };
 
 export default async function TeamSelectionPage({ params }: TeamSelectionPageProps) {
@@ -150,14 +88,14 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
     return null;
   }
 
-  const { grandPrix: upcomingGrandPrix, hasError: upcomingGrandPrixLoadFailed } = await getUpcomingGrandPrix(supabase);
+  const { grandPrix: seededGrandPrix, hasError: seededGrandPrixLoadFailed } = await getSeededGrandPrix(supabase);
 
-  if (upcomingGrandPrixLoadFailed) {
+  if (seededGrandPrixLoadFailed) {
     return (
       <main className="leagues-page">
         <section className="leagues-card league-access-card">
           <h1>Team kiezen</h1>
-          <p>Er ging iets mis bij het laden van de Grand Prix.</p>
+          <p>Er ging iets mis bij het laden van de test-Grand Prix.</p>
           <Link href={`/leagues/${league.id}`} className="league-back-link">
             ← Terug naar competitie
           </Link>
@@ -166,12 +104,12 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
     );
   }
 
-  if (!upcomingGrandPrix) {
+  if (!seededGrandPrix) {
     return (
       <main className="leagues-page">
         <section className="leagues-card league-access-card">
           <h1>Team kiezen</h1>
-          <p>Er is momenteel geen komende Grand Prix beschikbaar.</p>
+          <p>De test-Grand Prix kon niet worden geladen.</p>
           <Link href={`/leagues/${league.id}`} className="league-back-link">
             ← Terug naar competitie
           </Link>
@@ -183,10 +121,22 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
   const { data: driverPriceRows, error: driversError } = await supabase
     .from("driver_prices")
     .select("price, drivers!inner(id, name, constructor_team, active)")
-    .eq("grand_prix_id", upcomingGrandPrix.id)
+    .eq("grand_prix_id", seededGrandPrix.id)
     .eq("drivers.active", true)
     .order("price", { ascending: true })
     .returns<DriverPriceRow[]>();
+
+  console.log("[TeamSelection][TEMP] fetched driver prices", {
+    grandPrixId: seededGrandPrix.id,
+    data: driverPriceRows,
+  });
+
+  if (driversError) {
+    console.error("[TeamSelection][TEMP] Supabase error while fetching driver prices", {
+      grandPrixId: seededGrandPrix.id,
+      error: driversError,
+    });
+  }
 
   if (driversError || !driverPriceRows || driverPriceRows.length === 0) {
     return (
@@ -206,7 +156,7 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
     .from("team_selections")
     .select("id, team_selection_drivers(driver_id)")
     .eq("user_id", user.id)
-    .eq("grand_prix_id", upcomingGrandPrix.id)
+    .eq("grand_prix_id", seededGrandPrix.id)
     .maybeSingle<ExistingTeamSelection>();
 
   const initialSelectedDriverIds =
@@ -221,6 +171,11 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
       price: row.price,
     }));
 
+  console.log("[TeamSelection][TEMP] fetched drivers", {
+    grandPrixId: seededGrandPrix.id,
+    data: drivers,
+  });
+
   return (
     <main className="leagues-page">
       <section className="leagues-card">
@@ -228,7 +183,7 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
           <div>
             <h1>Team kiezen</h1>
             <p>
-              Komende Grand Prix: <strong>{upcomingGrandPrix.name}</strong>
+              Komende Grand Prix: <strong>{seededGrandPrix.name}</strong>
             </p>
           </div>
           <Link href={`/leagues/${league.id}`} className="league-back-link">
@@ -238,7 +193,7 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
 
         <TeamSelectionForm
           leagueId={league.id}
-          grandPrixId={upcomingGrandPrix.id}
+          grandPrixId={seededGrandPrix.id}
           drivers={drivers}
           initialSelectedDriverIds={initialSelectedDriverIds}
         />
