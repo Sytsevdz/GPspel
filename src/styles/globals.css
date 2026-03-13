@@ -145,3 +145,10 @@ a {
   border: 1px solid #3b8451;
   background: rgba(59, 132, 81, 0.2);
 }
+
+.auth-form button:disabled,
+.dashboard-card button:disabled,
+.home-actions a[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

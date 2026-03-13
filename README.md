@@ -56,6 +56,7 @@ Required variables:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_SITE_URL` (your deployed app URL, e.g. `https://your-app.vercel.app`)
 
 ### 3) Start the development server
 
@@ -101,3 +102,15 @@ const supabase = createServerSupabaseClient();
 2. Import the repository in Vercel.
 3. Vercel detects Next.js automatically; keep the default build settings.
 4. Add environment variables in the Vercel project settings before deploying.
+
+## Auth redirect setup (Supabase)
+
+For production signups with email confirmation, make sure:
+
+1. `NEXT_PUBLIC_SITE_URL` is set in Vercel to your deployed app URL.
+2. Supabase **Auth > URL Configuration > Site URL** is your deployed app URL.
+3. Supabase **Auth > URL Configuration > Redirect URLs** includes:
+   - `https://your-app.vercel.app/auth/callback`
+   - `http://localhost:3000/auth/callback` (for local dev)
+
+The app sends `emailRedirectTo` to `/auth/callback` so confirmation links return to the correct environment.

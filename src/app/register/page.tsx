@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { register } from "@/app/actions/auth";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
+import { RegisterSubmitButton } from "./register-submit-button";
+
 type RegisterPageProps = {
   searchParams: {
     error?: string;
@@ -33,7 +35,7 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
           <label htmlFor="password">Password</label>
           <input id="password" name="password" type="password" required autoComplete="new-password" minLength={6} />
 
-          <button type="submit">Register</button>
+          <RegisterSubmitButton />
         </form>
 
         <p className="auth-link">

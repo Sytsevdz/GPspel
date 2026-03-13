@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { getSiteUrl } from "@/lib/supabase/env";
 
 const fallbackErrorMessage = "Something went wrong. Please try again.";
 
@@ -65,6 +66,9 @@ export async function register(formData: FormData) {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo: `${getSiteUrl()}/auth/callback?next=/dashboard`,
+    },
   });
 
   if (error) {
@@ -75,7 +79,13 @@ export async function register(formData: FormData) {
     redirect("/dashboard");
   }
 
-  redirect(toRedirectUrl("/login", "message", "Account created. Check your email to verify your account."));
+  redirect(
+    toRedirectUrl(
+      "/login",
+      "message",
+      "Account created successfully. Check your email to confirm your account before logging in.",
+    ),
+  );
 }
 
 export async function logout() {
