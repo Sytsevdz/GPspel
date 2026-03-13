@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 
-import { createAdminSupabaseClient, createServerSupabaseClient } from "@/lib/supabase";
+import { createServerSupabaseClient } from "@/lib/supabase";
 
 const toLeaguesRedirect = (key: "error" | "message", value: string) => {
   const params = new URLSearchParams({ [key]: value });
@@ -11,43 +11,54 @@ const toLeaguesRedirect = (key: "error" | "message", value: string) => {
 
 export async function joinLeague(formData: FormData) {
   const joinCode = String(formData.get("join_code") ?? "").trim();
+  const supabase = createServerSupabaseClient();
 
   if (!joinCode) {
     redirect(toLeaguesRedirect("error", "Join code is required."));
   }
 
-  const supabase = createServerSupabaseClient();
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
 
+  if (authError) {
+    console.error("[joinLeague] auth.getUser failed", {
+      message: authError.message,
+      code: authError.code,
+      status: authError.status,
+      joinCode,
+    });
+    redirect(toLeaguesRedirect("error", "Please sign in and try again."));
+  }
+
   if (!user) {
-    redirect("/login");
+    redirect(toLeaguesRedirect("error", "Please sign in to join a league."));
   }
 
-  const adminSupabase = createAdminSupabaseClient();
-
-  const { data: profile, error: profileError } = await adminSupabase
-    .from("profiles")
-    .select("id")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (profileError || !profile) {
-    redirect(toLeaguesRedirect("error", "Profile not found. Please contact support."));
-  }
-
-  const { data: league, error: leagueError } = await adminSupabase
+  const { data: league, error: leagueError } = await supabase
     .from("leagues")
     .select("id, name")
     .eq("join_code", joinCode)
     .maybeSingle();
 
-  if (leagueError || !league) {
+  if (leagueError) {
+    console.error("[joinLeague] league lookup failed", {
+      message: leagueError.message,
+      code: leagueError.code,
+      details: leagueError.details,
+      hint: leagueError.hint,
+      joinCode,
+      userId: user.id,
+    });
+    redirect(toLeaguesRedirect("error", "Unable to join league right now. Please try again."));
+  }
+
+  if (!league) {
     redirect(toLeaguesRedirect("error", "No league found for that join code."));
   }
 
-  const { data: existingMember, error: existingMemberError } = await adminSupabase
+  const { data: existingMember, error: existingMemberError } = await supabase
     .from("league_members")
     .select("id")
     .eq("league_id", league.id)
@@ -55,6 +66,15 @@ export async function joinLeague(formData: FormData) {
     .maybeSingle();
 
   if (existingMemberError) {
+    console.error("[joinLeague] membership check failed", {
+      message: existingMemberError.message,
+      code: existingMemberError.code,
+      details: existingMemberError.details,
+      hint: existingMemberError.hint,
+      joinCode,
+      leagueId: league.id,
+      userId: user.id,
+    });
     redirect(toLeaguesRedirect("error", "Unable to join league right now. Please try again."));
   }
 
@@ -62,13 +82,23 @@ export async function joinLeague(formData: FormData) {
     redirect(toLeaguesRedirect("message", `You are already a member of ${league.name}.`));
   }
 
-  const { error: insertError } = await adminSupabase.from("league_members").insert({
+  const { error: insertError } = await supabase.from("league_members").insert({
     league_id: league.id,
     user_id: user.id,
     role: "member",
   });
 
   if (insertError) {
+    console.error("[joinLeague] membership insert failed", {
+      message: insertError.message,
+      code: insertError.code,
+      details: insertError.details,
+      hint: insertError.hint,
+      joinCode,
+      leagueId: league.id,
+      userId: user.id,
+    });
+
     if (insertError.code === "23505") {
       redirect(toLeaguesRedirect("message", `You are already a member of ${league.name}.`));
     }
