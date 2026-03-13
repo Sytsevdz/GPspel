@@ -17,6 +17,7 @@ type TeamSelectionFormProps = {
   grandPrixId: string;
   drivers: DriverWithPrice[];
   initialSelectedDriverIds: string[];
+  savingDisabled?: boolean;
 };
 
 const MAX_BUDGET = 1000;
@@ -35,7 +36,13 @@ function SaveButton({ disabled }: { disabled: boolean }) {
   );
 }
 
-export function TeamSelectionForm({ leagueId, grandPrixId, drivers, initialSelectedDriverIds }: TeamSelectionFormProps) {
+export function TeamSelectionForm({
+  leagueId,
+  grandPrixId,
+  drivers,
+  initialSelectedDriverIds,
+  savingDisabled = false,
+}: TeamSelectionFormProps) {
   const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>(initialSelectedDriverIds);
   const [state, formAction] = useFormState(saveTeamSelection, INITIAL_STATE);
 
@@ -62,7 +69,7 @@ export function TeamSelectionForm({ leagueId, grandPrixId, drivers, initialSelec
     validationErrors.push("Je mag geen twee coureurs uit hetzelfde team kiezen");
   }
 
-  const canSave = validationErrors.length === 0;
+  const canSave = validationErrors.length === 0 && !savingDisabled;
 
   const toggleDriverSelection = (driverId: string) => {
     setSelectedDriverIds((current) => {

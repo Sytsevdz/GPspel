@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { getSelectableGrandPrixAndDrivers } from "@/lib/team-selection-data";
 
 const MAX_BUDGET = 1000;
 const REQUIRED_DRIVERS = 4;
@@ -10,15 +11,6 @@ const REQUIRED_DRIVERS = 4;
 export type TeamSelectionActionState = {
   status: "idle" | "success" | "error";
   message?: string;
-};
-
-type DriverValidationRow = {
-  price: number;
-  drivers: {
-    id: string;
-    constructor_team: string;
-    active: boolean;
-  } | null;
 };
 
 const initialState: TeamSelectionActionState = {
@@ -81,24 +73,28 @@ export async function saveTeamSelection(
     };
   }
 
-  const { data: selectedDrivers, error: selectedDriversError } = await supabase
-    .from("driver_prices")
-    .select("price, drivers!inner(id, constructor_team, active)")
-    .eq("grand_prix_id", grandPrixId)
-    .in("driver_id", uniqueDriverIds)
-    .returns<DriverValidationRow[]>();
+  const teamSelectionData = await getSelectableGrandPrixAndDrivers(supabase);
 
-  if (selectedDriversError || !selectedDrivers || selectedDrivers.length !== REQUIRED_DRIVERS) {
+  if (teamSelectionData.source === "fallback") {
     return {
       status: "error",
-      message: "Niet alle geselecteerde coureurs zijn beschikbaar voor deze Grand Prix.",
+      message: "De pagina draait momenteel op tijdelijke testgegevens. Opslaan is tijdelijk uitgeschakeld.",
     };
   }
 
-  if (selectedDrivers.some((row) => !row.drivers || !row.drivers.active)) {
+  if (teamSelectionData.grandPrix.id !== grandPrixId) {
     return {
       status: "error",
-      message: "Niet alle geselecteerde coureurs zijn actief.",
+      message: "De geselecteerde Grand Prix is niet meer beschikbaar. Vernieuw de pagina en probeer opnieuw.",
+    };
+  }
+
+  const selectedDrivers = teamSelectionData.drivers.filter((driver) => uniqueDriverIds.includes(driver.id));
+
+  if (selectedDrivers.length !== REQUIRED_DRIVERS) {
+    return {
+      status: "error",
+      message: "Niet alle geselecteerde coureurs zijn beschikbaar voor deze Grand Prix.",
     };
   }
 
@@ -110,7 +106,7 @@ export async function saveTeamSelection(
     };
   }
 
-  const constructorTeams = new Set(selectedDrivers.map((row) => row.drivers?.constructor_team));
+  const constructorTeams = new Set(selectedDrivers.map((row) => row.constructorTeam));
   if (constructorTeams.size !== REQUIRED_DRIVERS) {
     return {
       status: "error",
