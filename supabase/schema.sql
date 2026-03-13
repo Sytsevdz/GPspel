@@ -276,6 +276,21 @@ with check (
   )
 );
 
+
+
+drop policy if exists "team_selection_drivers_delete_own_team_selection" on public.team_selection_drivers;
+create policy "team_selection_drivers_delete_own_team_selection"
+on public.team_selection_drivers
+for delete
+using (
+  exists (
+    select 1
+    from public.team_selections ts
+    where ts.id = team_selection_drivers.team_selection_id
+      and ts.user_id = auth.uid()
+  )
+);
+
 -- release 1 note: team_selection_drivers policies are scoped to owner access via parent team_selection;
 -- no separate league or lock-window constraints are enforced in RLS yet.
 

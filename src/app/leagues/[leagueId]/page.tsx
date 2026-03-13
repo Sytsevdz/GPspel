@@ -95,7 +95,7 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
         </div>
 
         <nav className="league-actions" aria-label="League actions">
-          <Link href={`/leagues/${league.id}/team-selection`}>Team selection</Link>
+          <Link href={`/leagues/${league.id}/team-selection`}>Team kiezen</Link>
           <Link href={`/leagues/${league.id}/predictions`}>Predictions</Link>
           <Link href={`/leagues/${league.id}/standings`}>Standings (soon)</Link>
         </nav>
