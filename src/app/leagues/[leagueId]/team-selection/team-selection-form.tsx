@@ -96,7 +96,7 @@ export function TeamSelectionForm({ leagueId, grandPrixId, drivers, initialSelec
             ))}
           </ul>
         ) : (
-          <p className="league-list-empty">Nog geen coureurs gekozen.</p>
+          <p className="league-list-empty">Nog geen coureurs geselecteerd.</p>
         )}
 
         <p>
@@ -123,8 +123,8 @@ export function TeamSelectionForm({ leagueId, grandPrixId, drivers, initialSelec
         <SaveButton disabled={!canSave} />
       </section>
 
-      <section className="team-selection-driver-list" aria-label="Beschikbare coureurs">
-        <h2>Beschikbare coureurs</h2>
+      <section className="team-selection-driver-list" aria-label="Coureurs">
+        <h2>Coureurs</h2>
         <ul>
           {drivers.map((driver) => {
             const isChecked = selectedDriverIds.includes(driver.id);

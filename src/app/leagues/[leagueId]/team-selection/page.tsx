@@ -14,7 +14,8 @@ type TeamSelectionPageProps = {
 type GrandPrix = {
   id: string;
   name: string;
-  status: "upcoming" | "open";
+  status: "upcoming" | "open" | "locked" | "finished";
+  qualification_start: string;
   deadline: string;
 };
 
@@ -36,27 +37,18 @@ type ExistingTeamSelection = {
 };
 
 const getUpcomingGrandPrix = async (supabase: ReturnType<typeof createServerSupabaseClient>) => {
-  const { data: openGrandPrix } = await supabase
+  const nowIso = new Date().toISOString();
+
+  const { data: selectableGrandPrix } = await supabase
     .from("grand_prix")
-    .select("id, name, status, deadline")
-    .eq("status", "open")
+    .select("id, name, status, qualification_start, deadline")
+    .gt("deadline", nowIso)
+    .order("qualification_start", { ascending: true })
     .order("deadline", { ascending: true })
     .limit(1)
     .maybeSingle<GrandPrix>();
 
-  if (openGrandPrix) {
-    return openGrandPrix;
-  }
-
-  const { data: upcomingGrandPrix } = await supabase
-    .from("grand_prix")
-    .select("id, name, status, deadline")
-    .eq("status", "upcoming")
-    .order("deadline", { ascending: true })
-    .limit(1)
-    .maybeSingle<GrandPrix>();
-
-  return upcomingGrandPrix;
+  return selectableGrandPrix;
 };
 
 export default async function TeamSelectionPage({ params }: TeamSelectionPageProps) {
@@ -67,9 +59,9 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
       <main className="leagues-page">
         <section className="leagues-card league-access-card">
           <h1>Geen toegang</h1>
-          <p>Deze pagina is alleen beschikbaar voor leden van deze league.</p>
+          <p>Deze pagina is alleen beschikbaar voor leden van deze competitie.</p>
           <Link href="/leagues" className="league-back-link">
-            ← Terug naar je leagues
+            ← Terug naar je competities
           </Link>
         </section>
       </main>
@@ -93,9 +85,9 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
       <main className="leagues-page">
         <section className="leagues-card league-access-card">
           <h1>Team kiezen</h1>
-          <p>Er is nog geen aankomende Grand Prix beschikbaar.</p>
+          <p>Er is momenteel geen komende Grand Prix beschikbaar.</p>
           <Link href={`/leagues/${league.id}`} className="league-back-link">
-            ← Terug naar league
+            ← Terug naar competitie
           </Link>
         </section>
       </main>
@@ -117,7 +109,7 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
           <h1>Team kiezen</h1>
           <p>Coureurs en prijzen konden niet worden geladen.</p>
           <Link href={`/leagues/${league.id}`} className="league-back-link">
-            ← Terug naar league
+            ← Terug naar competitie
           </Link>
         </section>
       </main>
@@ -150,11 +142,11 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
           <div>
             <h1>Team kiezen</h1>
             <p>
-              Aankomende Grand Prix: <strong>{upcomingGrandPrix.name}</strong>
+              Komende Grand Prix: <strong>{upcomingGrandPrix.name}</strong>
             </p>
           </div>
           <Link href={`/leagues/${league.id}`} className="league-back-link">
-            ← Terug naar league
+            ← Terug naar competitie
           </Link>
         </div>
 

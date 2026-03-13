@@ -39,7 +39,7 @@ export async function saveTeamSelection(
   if (!leagueId || !grandPrixId) {
     return {
       status: "error",
-      message: "Er ging iets mis. Vernieuw de pagina en probeer het opnieuw.",
+      message: "Er ging iets mis bij het opslaan van je team",
     };
   }
 
@@ -135,7 +135,7 @@ export async function saveTeamSelection(
   if (selectionError || !upsertedSelection) {
     return {
       status: "error",
-      message: "Opslaan mislukt. Probeer het opnieuw.",
+      message: "Er ging iets mis bij het opslaan van je team",
     };
   }
 
@@ -147,7 +147,7 @@ export async function saveTeamSelection(
   if (deleteError) {
     return {
       status: "error",
-      message: "Opslaan mislukt. Probeer het opnieuw.",
+      message: "Er ging iets mis bij het opslaan van je team",
     };
   }
 
@@ -161,7 +161,7 @@ export async function saveTeamSelection(
   if (insertDriversError) {
     return {
       status: "error",
-      message: "Opslaan mislukt. Probeer het opnieuw.",
+      message: "Er ging iets mis bij het opslaan van je team",
     };
   }
 
@@ -169,6 +169,6 @@ export async function saveTeamSelection(
 
   return {
     status: "success",
-    message: "Team opgeslagen.",
+    message: "Team succesvol opgeslagen",
   };
 }
