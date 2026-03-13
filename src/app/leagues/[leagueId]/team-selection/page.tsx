@@ -37,9 +37,46 @@ type ExistingTeamSelection = {
   }>;
 };
 
+const SEEDED_GRAND_PRIX: GrandPrix = {
+  id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+  name: "Dutch Grand Prix 2026",
+  status: "open",
+  qualification_start: "2026-08-29T13:00:00+00:00",
+  deadline: "2026-08-29T13:00:00+00:00",
+};
+
+const SEEDED_DRIVERS = [
+  {
+    id: "d1111111-1111-1111-1111-111111111111",
+    name: "Max Verstappen",
+    constructorTeam: "Red Bull",
+    price: 250,
+  },
+  {
+    id: "d2222222-2222-2222-2222-222222222222",
+    name: "Lando Norris",
+    constructorTeam: "McLaren",
+    price: 240,
+  },
+  {
+    id: "d3333333-3333-3333-3333-333333333333",
+    name: "Charles Leclerc",
+    constructorTeam: "Ferrari",
+    price: 230,
+  },
+  {
+    id: "d4444444-4444-4444-4444-444444444444",
+    name: "George Russell",
+    constructorTeam: "Mercedes",
+    price: 220,
+  },
+];
+
+type DataSource = "query" | "fallback";
+
 const getUpcomingGrandPrix = async (supabase: ReturnType<typeof createServerSupabaseClient>) => {
   const serverNowIso = new Date().toISOString();
-  const knownSeededGrandPrixId = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+  const knownSeededGrandPrixId = SEEDED_GRAND_PRIX.id;
   const primaryQueryDescription = {
     table: "grand_prix",
     select: "id, name, status, qualification_start, deadline",
@@ -78,11 +115,15 @@ const getUpcomingGrandPrix = async (supabase: ReturnType<typeof createServerSupa
       query: primaryQueryDescription,
       error,
     });
-    return { grandPrix: null, hasError: true };
+    return {
+      grandPrix: SEEDED_GRAND_PRIX,
+      source: "fallback" as const,
+      errorMessage: error.message,
+    };
   }
 
   if (selectableGrandPrix) {
-    return { grandPrix: selectableGrandPrix, hasError: false };
+    return { grandPrix: selectableGrandPrix, source: "query" as const, errorMessage: null };
   }
 
   const fallbackQueryDescription = {
@@ -118,10 +159,18 @@ const getUpcomingGrandPrix = async (supabase: ReturnType<typeof createServerSupa
       query: fallbackQueryDescription,
       error: fallbackError,
     });
-    return { grandPrix: null, hasError: true };
+    return {
+      grandPrix: SEEDED_GRAND_PRIX,
+      source: "fallback" as const,
+      errorMessage: fallbackError.message,
+    };
   }
 
-  return { grandPrix: fallbackGrandPrix ?? null, hasError: false };
+  if (!fallbackGrandPrix) {
+    return { grandPrix: SEEDED_GRAND_PRIX, source: "fallback" as const, errorMessage: null };
+  }
+
+  return { grandPrix: fallbackGrandPrix, source: "query" as const, errorMessage: null };
 };
 
 export default async function TeamSelectionPage({ params }: TeamSelectionPageProps) {
@@ -151,21 +200,11 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
     redirect("/login");
   }
 
-  const { grandPrix: upcomingGrandPrix, hasError: upcomingGrandPrixLoadFailed } = await getUpcomingGrandPrix(supabase);
-
-  if (upcomingGrandPrixLoadFailed) {
-    return (
-      <main className="leagues-page">
-        <section className="leagues-card league-access-card">
-          <h1>Team kiezen</h1>
-          <p>Er ging iets mis bij het laden van de Grand Prix.</p>
-          <Link href={`/leagues/${league.id}`} className="league-back-link">
-            ← Terug naar competitie
-          </Link>
-        </section>
-      </main>
-    );
-  }
+  const {
+    grandPrix: upcomingGrandPrix,
+    source: grandPrixSource,
+    errorMessage: grandPrixErrorMessage,
+  } = await getUpcomingGrandPrix(supabase);
 
   if (!upcomingGrandPrix) {
     return (
@@ -189,7 +228,21 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
     .order("price", { ascending: true })
     .returns<DriverPriceRow[]>();
 
-  if (driversError || !driverPriceRows || driverPriceRows.length === 0) {
+  const queriedDrivers =
+    driverPriceRows
+      ?.filter((row) => row.drivers)
+      .map((row) => ({
+        id: row.drivers!.id,
+        name: row.drivers!.name,
+        constructorTeam: row.drivers!.constructor_team,
+        price: row.price,
+      })) ?? [];
+
+  const driversSource: DataSource = driversError || queriedDrivers.length === 0 ? "fallback" : "query";
+  const drivers = driversSource === "query" ? queriedDrivers : SEEDED_DRIVERS;
+  const driversErrorMessage = driversError?.message ?? null;
+
+  if (!upcomingGrandPrix || drivers.length === 0) {
     return (
       <main className="leagues-page">
         <section className="leagues-card league-access-card">
@@ -213,15 +266,6 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
   const initialSelectedDriverIds =
     existingTeamSelection?.team_selection_drivers.map((teamSelectionDriver) => teamSelectionDriver.driver_id) ?? [];
 
-  const drivers = driverPriceRows
-    .filter((row) => row.drivers)
-    .map((row) => ({
-      id: row.drivers!.id,
-      name: row.drivers!.name,
-      constructorTeam: row.drivers!.constructor_team,
-      price: row.price,
-    }));
-
   return (
     <main className="leagues-page">
       <section className="leagues-card">
@@ -243,6 +287,14 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
           drivers={drivers}
           initialSelectedDriverIds={initialSelectedDriverIds}
         />
+
+        <div style={{ marginTop: "1rem", fontSize: "0.875rem", opacity: 0.85 }}>
+          <p>Debug: Grand Prix bron: {grandPrixSource === "query" ? "query" : "fallback"}</p>
+          <p>Debug: Coureurs bron: {driversSource === "query" ? "query" : "fallback"}</p>
+          <p>
+            Debug: Queryfout: {grandPrixErrorMessage ?? driversErrorMessage ?? "geen"}
+          </p>
+        </div>
       </section>
     </main>
   );
