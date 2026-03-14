@@ -73,12 +73,14 @@ export async function saveTeamSelection(
     };
   }
 
-  const teamSelectionData = await getSelectableGrandPrixAndDrivers(supabase);
+  let teamSelectionData: Awaited<ReturnType<typeof getSelectableGrandPrixAndDrivers>>;
 
-  if (teamSelectionData.source === "fallback") {
+  try {
+    teamSelectionData = await getSelectableGrandPrixAndDrivers(supabase);
+  } catch (error) {
     return {
       status: "error",
-      message: "De pagina draait momenteel op tijdelijke testgegevens. Opslaan is tijdelijk uitgeschakeld.",
+      message: `Kon geen selecteerbare Grand Prix laden: ${(error as Error).message}`,
     };
   }
 
