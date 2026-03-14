@@ -103,12 +103,6 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
           savingDisabled={false}
         />
 
-        <div style={{ marginTop: "1rem", fontSize: "0.875rem", opacity: 0.85 }}>
-          <p>Debug: Databron: query</p>
-          <p>
-            Debug: Queryfout: geen
-          </p>
-        </div>
       </section>
     </main>
   );

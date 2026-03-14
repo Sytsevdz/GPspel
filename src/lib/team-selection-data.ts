@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from "@/lib/supabase";
+import { createAdminSupabaseClient, createServerSupabaseClient } from "@/lib/supabase";
 
 export type SelectableGrandPrix = {
   id: string;
@@ -31,9 +31,12 @@ export type TeamSelectionDataResult = {
 };
 
 export async function getSelectableGrandPrixAndDrivers(
-  supabase: ReturnType<typeof createServerSupabaseClient>,
+  _supabase: ReturnType<typeof createServerSupabaseClient>,
 ): Promise<TeamSelectionDataResult> {
+  const supabase = createAdminSupabaseClient();
   const serverNowIso = new Date().toISOString();
+
+  console.log("Grand Prix query timestamp:", serverNowIso);
 
   const { data, error: grandPrixError } = await supabase
     .from("grand_prix")
