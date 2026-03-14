@@ -1,11 +1,25 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+
+import { createServerSupabaseClient } from "@/lib/supabase";
+import { getSelectableGrandPrixAndDrivers } from "@/lib/team-selection-data";
 
 import { getAccessibleLeague } from "../league-access";
+import { PredictionsForm } from "./predictions-form";
 
 type PredictionsPageProps = {
   params: {
     leagueId: string;
   };
+};
+
+type ExistingPrediction = {
+  quali_p1: string;
+  quali_p2: string;
+  quali_p3: string;
+  race_p1: string;
+  race_p2: string;
+  race_p3: string;
 };
 
 export default async function PredictionsPage({ params }: PredictionsPageProps) {
@@ -15,24 +29,90 @@ export default async function PredictionsPage({ params }: PredictionsPageProps) 
     return (
       <main className="leagues-page">
         <section className="leagues-card league-access-card">
-          <h1>Access denied</h1>
-          <p>This page is only available to members of this league.</p>
+          <h1>Geen toegang</h1>
+          <p>Deze pagina is alleen beschikbaar voor leden van deze competitie.</p>
           <Link href="/leagues" className="league-back-link">
-            ← Back to your leagues
+            ← Terug naar je competities
           </Link>
         </section>
       </main>
     );
   }
 
+  const supabase = createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  let predictionData: Awaited<ReturnType<typeof getSelectableGrandPrixAndDrivers>>;
+
+  try {
+    predictionData = await getSelectableGrandPrixAndDrivers(supabase);
+  } catch {
+    return (
+      <main className="leagues-page">
+        <section className="leagues-card">
+          <div className="league-detail-header">
+            <div>
+              <h1>Voorspellingen</h1>
+              <p>Kon geen selecteerbare Grand Prix laden.</p>
+            </div>
+            <Link href={`/leagues/${league.id}`} className="league-back-link">
+              ← Terug naar competitie
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  const { data: existingPrediction } = await supabase
+    .from("predictions")
+    .select("quali_p1, quali_p2, quali_p3, race_p1, race_p2, race_p3")
+    .eq("user_id", user.id)
+    .eq("grand_prix_id", predictionData.grandPrix.id)
+    .maybeSingle<ExistingPrediction>();
+
+  const fallbackIds = [
+    predictionData.drivers[0]?.id ?? "",
+    predictionData.drivers[1]?.id ?? predictionData.drivers[0]?.id ?? "",
+    predictionData.drivers[2]?.id ?? predictionData.drivers[0]?.id ?? "",
+  ];
+
+  const initialValues = {
+    qualiP1: existingPrediction?.quali_p1 ?? fallbackIds[0],
+    qualiP2: existingPrediction?.quali_p2 ?? fallbackIds[1],
+    qualiP3: existingPrediction?.quali_p3 ?? fallbackIds[2],
+    raceP1: existingPrediction?.race_p1 ?? fallbackIds[0],
+    raceP2: existingPrediction?.race_p2 ?? fallbackIds[1],
+    raceP3: existingPrediction?.race_p3 ?? fallbackIds[2],
+  };
+
   return (
     <main className="leagues-page">
-      <section className="leagues-card league-access-card">
-        <h1>Predictions</h1>
-        <p>Predictions for {league.name} will be available here.</p>
-        <Link href={`/leagues/${league.id}`} className="league-back-link">
-          ← Back to league
-        </Link>
+      <section className="leagues-card">
+        <div className="league-detail-header">
+          <div>
+            <h1>Voorspellingen</h1>
+            <p>
+              Grand Prix: <strong>{predictionData.grandPrix.name}</strong>
+            </p>
+          </div>
+          <Link href={`/leagues/${league.id}`} className="league-back-link">
+            ← Terug naar competitie
+          </Link>
+        </div>
+
+        <PredictionsForm
+          leagueId={league.id}
+          grandPrixId={predictionData.grandPrix.id}
+          drivers={predictionData.drivers}
+          initialValues={initialValues}
+        />
       </section>
     </main>
   );
