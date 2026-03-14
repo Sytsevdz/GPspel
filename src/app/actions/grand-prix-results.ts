@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { createAdminSupabaseClient, createServerSupabaseClient } from "@/lib/supabase";
+import { createServerSupabaseClient } from "@/lib/supabase";
 
 export type GrandPrixResultActionState = {
   status: "idle" | "success" | "error";
@@ -60,9 +60,8 @@ export async function saveGrandPrixResult(
     };
   }
 
-  const adminSupabase = createAdminSupabaseClient();
 
-  const { data: grandPrix } = await adminSupabase
+  const { data: grandPrix } = await supabase
     .from("grand_prix")
     .select("id")
     .eq("id", grandPrixId)
@@ -75,7 +74,7 @@ export async function saveGrandPrixResult(
     };
   }
 
-  const { data: drivers } = await adminSupabase.from("drivers").select("id").eq("active", true);
+  const { data: drivers } = await supabase.from("drivers").select("id").eq("active", true);
 
   const activeDriverIds = new Set((drivers ?? []).map((driver) => driver.id));
   const selectedDriverIds = [qualiP1, qualiP2, qualiP3, raceP1, raceP2, raceP3];
@@ -87,7 +86,7 @@ export async function saveGrandPrixResult(
     };
   }
 
-  const { error: upsertError } = await adminSupabase.from("grand_prix_results").upsert(
+  const { error: upsertError } = await supabase.from("grand_prix_results").upsert(
     {
       grand_prix_id: grandPrixId,
       quali_p1: qualiP1,

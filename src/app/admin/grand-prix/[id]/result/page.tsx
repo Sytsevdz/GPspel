@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { createAdminSupabaseClient, createServerSupabaseClient } from "@/lib/supabase";
+import { createServerSupabaseClient } from "@/lib/supabase";
 
 import { ResultForm } from "./result-form";
 
@@ -30,9 +30,8 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
     redirect("/login");
   }
 
-  const adminSupabase = createAdminSupabaseClient();
 
-  const { data: grandPrix } = await adminSupabase
+  const { data: grandPrix } = await supabase
     .from("grand_prix")
     .select("id, name")
     .eq("id", params.id)
@@ -52,7 +51,7 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
     );
   }
 
-  const { data: drivers } = await adminSupabase
+  const { data: drivers } = await supabase
     .from("drivers")
     .select("id, name, constructor_team")
     .eq("active", true)
@@ -72,7 +71,7 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
     );
   }
 
-  const { data: existingResult } = await adminSupabase
+  const { data: existingResult } = await supabase
     .from("grand_prix_results")
     .select("quali_p1, quali_p2, quali_p3, race_p1, race_p2, race_p3")
     .eq("grand_prix_id", grandPrix.id)
