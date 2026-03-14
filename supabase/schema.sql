@@ -152,10 +152,29 @@ create table if not exists public.predictions (
   check (race_p1 <> race_p2 and race_p1 <> race_p3 and race_p2 <> race_p3)
 );
 
+-- 10) grand_prix_results
+-- Stores the official result per Grand Prix.
+create table if not exists public.grand_prix_results (
+  id uuid primary key default gen_random_uuid(),
+  grand_prix_id uuid not null references public.grand_prix(id) on delete cascade,
+  quali_p1 uuid not null references public.drivers(id) on delete restrict,
+  quali_p2 uuid not null references public.drivers(id) on delete restrict,
+  quali_p3 uuid not null references public.drivers(id) on delete restrict,
+  race_p1 uuid not null references public.drivers(id) on delete restrict,
+  race_p2 uuid not null references public.drivers(id) on delete restrict,
+  race_p3 uuid not null references public.drivers(id) on delete restrict,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (grand_prix_id),
+  check (quali_p1 <> quali_p2 and quali_p1 <> quali_p3 and quali_p2 <> quali_p3),
+  check (race_p1 <> race_p2 and race_p1 <> race_p3 and race_p2 <> race_p3)
+);
+
 -- Helpful indexes
 create index if not exists idx_league_members_user_id on public.league_members(user_id);
 create index if not exists idx_team_selections_gp on public.team_selections(grand_prix_id);
 create index if not exists idx_predictions_gp on public.predictions(grand_prix_id);
+create index if not exists idx_grand_prix_results_gp on public.grand_prix_results(grand_prix_id);
 
 -- -------------------------
 -- Row Level Security (release 1)
