@@ -80,7 +80,7 @@ export async function saveTeamSelection(
   } catch (error) {
     return {
       status: "error",
-      message: `Kon geen selecteerbare Grand Prix laden: ${(error as Error).message}`,
+      message: "Kon geen selecteerbare Grand Prix laden",
     };
   }
 
