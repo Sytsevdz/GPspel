@@ -35,8 +35,6 @@ export async function getSelectableGrandPrixAndDrivers(
 ): Promise<TeamSelectionDataResult> {
   const serverNowIso = new Date().toISOString();
 
-  console.log("Grand Prix query timestamp:", serverNowIso);
-
   const { data, error: grandPrixError } = await supabase
     .from("grand_prix")
     .select("id, name, status, qualification_start, deadline")
@@ -46,9 +44,6 @@ export async function getSelectableGrandPrixAndDrivers(
     .limit(1)
     .returns<SelectableGrandPrix[]>();
 
-  console.log("Grand Prix query result:", data);
-  console.log("Grand Prix query error:", grandPrixError);
-
   const grandPrix = data?.[0] ?? null;
 
   if (grandPrixError) {
@@ -56,28 +51,7 @@ export async function getSelectableGrandPrixAndDrivers(
   }
 
   if (!grandPrix) {
-    const { data: statusCandidates, error: statusCandidatesError } = await supabase
-      .from("grand_prix")
-      .select("id, name, status, qualification_start, deadline")
-      .in("status", ["upcoming", "open"])
-      .order("qualification_start", { ascending: true })
-      .limit(3)
-      .returns<SelectableGrandPrix[]>();
-
-    console.log("Grand Prix status-only candidates:", statusCandidates);
-    console.log("Grand Prix status-only candidates error:", statusCandidatesError);
-
-    if (statusCandidatesError) {
-      throw new Error(statusCandidatesError.message);
-    }
-
-    if ((statusCandidates?.length ?? 0) === 0) {
-      throw new Error("Geen Grand Prix met status upcoming/open gevonden");
-    }
-
-    throw new Error(
-      `Geen komende Grand Prix gevonden (deadline moet in de toekomst liggen). Servertijd: ${serverNowIso}, eerstvolgende deadline: ${statusCandidates?.[0]?.deadline ?? "onbekend"}`,
-    );
+    throw new Error("Geen komende Grand Prix beschikbaar");
   }
 
   const { data: driverPriceRows, error: driversError } = await supabase
@@ -87,9 +61,6 @@ export async function getSelectableGrandPrixAndDrivers(
     .eq("drivers.active", true)
     .order("price", { ascending: true })
     .returns<DriverPriceRow[]>();
-
-  console.log("[TeamSelectionData] driver_prices result count", driverPriceRows?.length ?? 0);
-  console.log("[TeamSelectionData] driver_prices error", driversError);
 
   const drivers =
     driverPriceRows

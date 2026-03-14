@@ -51,7 +51,7 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
 
   try {
     teamSelectionData = await getSelectableGrandPrixAndDrivers(supabase);
-  } catch (error) {
+  } catch {
     return (
       <main className="leagues-page">
         <section className="leagues-card">
@@ -59,7 +59,6 @@ export default async function TeamSelectionPage({ params }: TeamSelectionPagePro
             <div>
               <h1>Team kiezen</h1>
               <p>Kon geen selecteerbare Grand Prix laden.</p>
-              <p style={{ fontSize: "0.875rem", opacity: 0.85 }}>Debug: {(error as Error).message}</p>
             </div>
             <Link href={`/leagues/${league.id}`} className="league-back-link">
               ← Terug naar competitie
