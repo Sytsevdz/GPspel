@@ -17,6 +17,7 @@ const initialState: TeamSelectionActionState = {
   status: "idle",
 };
 
+
 export async function saveTeamSelection(
   _prevState: TeamSelectionActionState = initialState,
   formData: FormData,
@@ -27,6 +28,15 @@ export async function saveTeamSelection(
     .split(",")
     .map((id) => id.trim())
     .filter(Boolean);
+
+  const invocationId = crypto.randomUUID();
+
+  console.info("[team-selection] saveTeamSelection called", {
+    invocationId,
+    leagueId,
+    grandPrixId,
+    selectedDriverIds,
+  });
 
   if (!leagueId || !grandPrixId) {
     return {
@@ -131,37 +141,113 @@ export async function saveTeamSelection(
     .single<{ id: string }>();
 
   if (selectionError || !upsertedSelection) {
+    console.error("[team-selection] Failed to resolve team_selection", {
+      invocationId,
+      userId: user.id,
+      grandPrixId,
+      selectionError,
+    });
+
     return {
       status: "error",
       message: "Er ging iets mis bij het opslaan van je team",
     };
   }
 
-  const { error: deleteError } = await supabase
+  const teamSelectionId = upsertedSelection.id;
+
+  console.info("[team-selection] Resolved team_selection_id", {
+    invocationId,
+    teamSelectionId,
+    userId: user.id,
+    grandPrixId,
+  });
+
+  const { data: existingDriversBeforeDelete, error: existingDriversError } = await supabase
+    .from("team_selection_drivers")
+    .select("driver_id")
+    .eq("team_selection_id", teamSelectionId);
+
+  if (existingDriversError) {
+    console.error("[team-selection] Failed to load existing team_selection_drivers", {
+      invocationId,
+      teamSelectionId,
+      existingDriversError,
+    });
+
+    return {
+      status: "error",
+      message: "Er ging iets mis bij het opslaan van je team",
+    };
+  }
+
+  console.info("[team-selection] Existing team_selection_drivers before delete", {
+    invocationId,
+    teamSelectionId,
+    existingDriverIds: existingDriversBeforeDelete?.map((row) => row.driver_id) ?? [],
+    existingCount: existingDriversBeforeDelete?.length ?? 0,
+  });
+
+  const { data: deletedDrivers, error: deleteError } = await supabase
     .from("team_selection_drivers")
     .delete()
-    .eq("team_selection_id", upsertedSelection.id);
+    .eq("team_selection_id", teamSelectionId)
+    .select("driver_id");
 
   if (deleteError) {
+    console.error("[team-selection] Failed to delete existing team_selection_drivers", {
+      invocationId,
+      teamSelectionId,
+      deleteError,
+    });
+
     return {
       status: "error",
       message: "Er ging iets mis bij het opslaan van je team",
     };
   }
 
-  const { error: insertDriversError } = await supabase.from("team_selection_drivers").insert(
-    uniqueDriverIds.map((driverId) => ({
-      team_selection_id: upsertedSelection.id,
-      driver_id: driverId,
-    })),
-  );
+  console.info("[team-selection] Deleted existing team_selection_drivers", {
+    invocationId,
+    teamSelectionId,
+    deletedCount: deletedDrivers?.length ?? 0,
+  });
+
+  const insertPayload = uniqueDriverIds.map((driverId) => ({
+    team_selection_id: teamSelectionId,
+    driver_id: driverId,
+  }));
+
+  console.info("[team-selection] Insert payload for team_selection_drivers", {
+    invocationId,
+    teamSelectionId,
+    insertPayload,
+  });
+
+  const { data: insertedDrivers, error: insertDriversError } = await supabase
+    .from("team_selection_drivers")
+    .upsert(insertPayload, { onConflict: "team_selection_id,driver_id" })
+    .select("driver_id");
 
   if (insertDriversError) {
+    console.error("[team-selection] Failed to insert team_selection_drivers", {
+      invocationId,
+      teamSelectionId,
+      insertPayload,
+      insertDriversError,
+    });
+
     return {
       status: "error",
       message: "Er ging iets mis bij het opslaan van je team",
     };
   }
+
+  console.info("[team-selection] Inserted new team_selection_drivers", {
+    invocationId,
+    teamSelectionId,
+    insertedCount: insertedDrivers?.length ?? 0,
+  });
 
   revalidatePath(`/leagues/${leagueId}/team-selection`);
 
