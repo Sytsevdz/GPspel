@@ -18,32 +18,19 @@ export async function saveGrandPrixResult(
   formData: FormData,
 ): Promise<GrandPrixResultActionState> {
   const grandPrixId = String(formData.get("grand_prix_id") ?? "").trim();
+  const qualificationOrder = String(formData.get("qualification_order") ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const raceOrder = String(formData.get("race_order") ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
 
-  const qualiP1 = String(formData.get("quali_p1") ?? "").trim();
-  const qualiP2 = String(formData.get("quali_p2") ?? "").trim();
-  const qualiP3 = String(formData.get("quali_p3") ?? "").trim();
-  const raceP1 = String(formData.get("race_p1") ?? "").trim();
-  const raceP2 = String(formData.get("race_p2") ?? "").trim();
-  const raceP3 = String(formData.get("race_p3") ?? "").trim();
-
-  if (!grandPrixId || !qualiP1 || !qualiP2 || !qualiP3 || !raceP1 || !raceP2 || !raceP3) {
+  if (!grandPrixId || qualificationOrder.length === 0 || raceOrder.length === 0) {
     return {
       status: "error",
       message: "Er ging iets mis bij het opslaan",
-    };
-  }
-
-  if (new Set([qualiP1, qualiP2, qualiP3]).size !== 3) {
-    return {
-      status: "error",
-      message: "Binnen kwalificatie mag je geen coureur dubbel kiezen",
-    };
-  }
-
-  if (new Set([raceP1, raceP2, raceP3]).size !== 3) {
-    return {
-      status: "error",
-      message: "Binnen race mag je geen coureur dubbel kiezen",
     };
   }
 
@@ -60,7 +47,6 @@ export async function saveGrandPrixResult(
     };
   }
 
-
   const { data: grandPrix } = await supabase
     .from("grand_prix")
     .select("id")
@@ -76,30 +62,40 @@ export async function saveGrandPrixResult(
 
   const { data: drivers } = await supabase.from("drivers").select("id").eq("active", true);
 
-  const activeDriverIds = new Set((drivers ?? []).map((driver) => driver.id));
-  const selectedDriverIds = [qualiP1, qualiP2, qualiP3, raceP1, raceP2, raceP3];
+  const activeDriverIds = (drivers ?? []).map((driver) => driver.id);
+  const activeDriverSet = new Set(activeDriverIds);
 
-  if (selectedDriverIds.some((driverId) => !activeDriverIds.has(driverId))) {
+  if (
+    qualificationOrder.length !== activeDriverIds.length ||
+    raceOrder.length !== activeDriverIds.length ||
+    new Set(qualificationOrder).size !== activeDriverIds.length ||
+    new Set(raceOrder).size !== activeDriverIds.length
+  ) {
+    return {
+      status: "error",
+      message: "Elke actieve coureur moet precies één positie hebben in kwalificatie en race",
+    };
+  }
+
+  const selectedDriverIds = [...qualificationOrder, ...raceOrder];
+
+  if (selectedDriverIds.some((driverId) => !activeDriverSet.has(driverId))) {
     return {
       status: "error",
       message: "Er ging iets mis bij het opslaan",
     };
   }
 
-  const { error: upsertError } = await supabase.from("grand_prix_results").upsert(
-    {
-      grand_prix_id: grandPrixId,
-      quali_p1: qualiP1,
-      quali_p2: qualiP2,
-      quali_p3: qualiP3,
-      race_p1: raceP1,
-      race_p2: raceP2,
-      race_p3: raceP3,
-    },
-    {
-      onConflict: "grand_prix_id",
-    },
-  );
+  const rows = activeDriverIds.map((driverId) => ({
+    grand_prix_id: grandPrixId,
+    driver_id: driverId,
+    quali_position: qualificationOrder.indexOf(driverId) + 1,
+    race_position: raceOrder.indexOf(driverId) + 1,
+  }));
+
+  const { error: upsertError } = await supabase.from("grand_prix_driver_results").upsert(rows, {
+    onConflict: "grand_prix_id,driver_id",
+  });
 
   if (upsertError) {
     return {
