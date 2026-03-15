@@ -114,8 +114,8 @@ export async function getGrandPrixAndDriversById(
         price: row.price,
       })) ?? [];
 
-  if (driversError || drivers.length === 0) {
-    throw new Error(driversError?.message ?? "Geen coureurs met prijs gevonden");
+  if (driversError) {
+    throw new Error(driversError.message);
   }
 
   return {
