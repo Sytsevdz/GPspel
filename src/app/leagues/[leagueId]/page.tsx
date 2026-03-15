@@ -110,7 +110,7 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
           ) : (
             <span aria-disabled="true">Uitslag invoeren (geen Grand Prix beschikbaar)</span>
           )}
-          <Link href={`/leagues/${league.id}/standings`}>Standings (soon)</Link>
+          <Link href={`/leagues/${league.id}/standings`}>Bekijk klassement</Link>
         </nav>
 
         <section className="league-section">
