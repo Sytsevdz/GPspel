@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { isRedirectError } from "next/dist/client/components/redirect";
 
 import { generateGrandPrixPricesFromPreviousResult } from "@/app/actions/driver-prices";
 import { calculateGrandPrixScores } from "@/app/actions/grand-prix-scores";
@@ -71,6 +72,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       await generateGrandPrixPricesFromPreviousResult(grandPrixId);
       redirect("/admin?message=Prijzen+succesvol+berekend");
     } catch (error) {
+      if (isRedirectError(error)) {
+        throw error;
+      }
+
       const message =
         error instanceof Error && error.message
           ? error.message
