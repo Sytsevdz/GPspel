@@ -18,6 +18,7 @@ type TeamSelectionFormProps = {
   drivers: DriverWithPrice[];
   initialSelectedDriverIds: string[];
   savingDisabled?: boolean;
+  readOnly?: boolean;
 };
 
 const MAX_BUDGET = 1000;
@@ -42,6 +43,7 @@ export function TeamSelectionForm({
   drivers,
   initialSelectedDriverIds,
   savingDisabled = false,
+  readOnly = false,
 }: TeamSelectionFormProps) {
   const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>(initialSelectedDriverIds);
   const [state, formAction] = useFormState(saveTeamSelection, INITIAL_STATE);
@@ -69,9 +71,12 @@ export function TeamSelectionForm({
     validationErrors.push("Je mag geen twee coureurs uit hetzelfde team kiezen");
   }
 
-  const canSave = validationErrors.length === 0 && !savingDisabled;
+  const canSave = validationErrors.length === 0 && !savingDisabled && !readOnly;
 
   const toggleDriverSelection = (driverId: string) => {
+    if (readOnly) {
+      return;
+    }
     setSelectedDriverIds((current) => {
       if (current.includes(driverId)) {
         return current.filter((id) => id !== driverId);
@@ -127,7 +132,7 @@ export function TeamSelectionForm({
           <p className={`form-message ${state.status === "success" ? "success" : "error"}`}>{state.message}</p>
         )}
 
-        <SaveButton disabled={!canSave} />
+        {readOnly ? <p className="league-list-empty">Deze Grand Prix is gesloten. Je team is alleen-lezen.</p> : <SaveButton disabled={!canSave} />}
       </section>
 
       <section className="team-selection-driver-list" aria-label="Coureurs">
@@ -144,7 +149,7 @@ export function TeamSelectionForm({
                     type="checkbox"
                     checked={isChecked}
                     onChange={() => toggleDriverSelection(driver.id)}
-                    disabled={!isChecked && limitReached}
+                    disabled={readOnly || (!isChecked && limitReached)}
                   />
                   <span className="driver-grid">
                     <span>

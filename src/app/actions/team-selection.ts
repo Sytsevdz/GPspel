@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
-import { getSelectableGrandPrixAndDrivers } from "@/lib/team-selection-data";
+import { getGrandPrixAndDriversById } from "@/lib/team-selection-data";
 
 const MAX_BUDGET = 1000;
 const REQUIRED_DRIVERS = 4;
@@ -83,21 +83,21 @@ export async function saveTeamSelection(
     };
   }
 
-  let teamSelectionData: Awaited<ReturnType<typeof getSelectableGrandPrixAndDrivers>>;
+  let teamSelectionData: Awaited<ReturnType<typeof getGrandPrixAndDriversById>>;
 
   try {
-    teamSelectionData = await getSelectableGrandPrixAndDrivers(supabase);
-  } catch (error) {
+    teamSelectionData = await getGrandPrixAndDriversById(supabase, grandPrixId);
+  } catch {
     return {
       status: "error",
-      message: "Kon geen selecteerbare Grand Prix laden",
+      message: "Kon geen Grand Prix laden",
     };
   }
 
-  if (teamSelectionData.grandPrix.id !== grandPrixId) {
+  if (teamSelectionData.grandPrix.deadline <= new Date().toISOString()) {
     return {
       status: "error",
-      message: "De geselecteerde Grand Prix is niet meer beschikbaar. Vernieuw de pagina en probeer opnieuw.",
+      message: "De deadline van deze Grand Prix is verstreken.",
     };
   }
 
@@ -308,6 +308,7 @@ export async function saveTeamSelection(
   });
 
   revalidatePath(`/leagues/${leagueId}/team-selection`);
+  revalidatePath(`/leagues/${leagueId}/team-selection/${grandPrixId}`);
 
   return {
     status: "success",

@@ -8,6 +8,13 @@ export type SelectableGrandPrix = {
   deadline: string;
 };
 
+export type GrandPrixTimelineItem = {
+  id: string;
+  name: string;
+  qualification_start: string;
+  deadline: string;
+};
+
 export type SelectableDriver = {
   id: string;
   name: string;
@@ -21,50 +28,77 @@ type DriverPriceRow = {
     id: string;
     name: string;
     constructor_team: string;
-    active: boolean;
   } | null;
 };
 
 export type TeamSelectionDataResult = {
-  grandPrix: SelectableGrandPrix;
+  grandPrix: GrandPrixTimelineItem;
   drivers: SelectableDriver[];
 };
 
-export async function getSelectableGrandPrixAndDrivers(
+export async function getGrandPrixTimeline(
   supabase: ReturnType<typeof createServerSupabaseClient>,
-): Promise<TeamSelectionDataResult> {
+): Promise<GrandPrixTimelineItem[]> {
+  const { data, error } = await supabase
+    .from("grand_prix")
+    .select("id, name, qualification_start, deadline")
+    .order("qualification_start", { ascending: true })
+    .returns<GrandPrixTimelineItem[]>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error("Geen Grand Prix-weekenden gevonden");
+  }
+
+  return data;
+}
+
+export async function getCurrentSelectableGrandPrix(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+): Promise<GrandPrixTimelineItem> {
+  const timeline = await getGrandPrixTimeline(supabase);
   const serverNowIso = new Date().toISOString();
 
-  const { data, error: grandPrixError } = await supabase
-    .from("grand_prix")
-    .select("id, name, status, qualification_start, deadline")
-    .in("status", ["upcoming", "open"])
-    .gt("deadline", serverNowIso)
-    .order("qualification_start", { ascending: true })
-    .limit(1)
-    .returns<SelectableGrandPrix[]>();
+  const selectableGrandPrix = timeline.find((grandPrix) => grandPrix.deadline > serverNowIso);
 
-  const grandPrix = data?.[0] ?? null;
+  if (!selectableGrandPrix) {
+    throw new Error("Geen selecteerbare Grand Prix beschikbaar");
+  }
+
+  return selectableGrandPrix;
+}
+
+export async function getGrandPrixAndDriversById(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  grandPrixId: string,
+): Promise<TeamSelectionDataResult> {
+  const { data: grandPrix, error: grandPrixError } = await supabase
+    .from("grand_prix")
+    .select("id, name, qualification_start, deadline")
+    .eq("id", grandPrixId)
+    .maybeSingle<GrandPrixTimelineItem>();
 
   if (grandPrixError) {
     throw new Error(grandPrixError.message);
   }
 
   if (!grandPrix) {
-    throw new Error("Geen komende Grand Prix beschikbaar");
+    throw new Error("Grand Prix niet gevonden");
   }
 
   const { data: driverPriceRows, error: driversError } = await supabase
     .from("driver_prices")
-    .select("price, drivers!inner(id, name, constructor_team, active)")
+    .select("price, drivers!inner(id, name, constructor_team)")
     .eq("grand_prix_id", grandPrix.id)
-    .eq("drivers.active", true)
     .order("price", { ascending: true })
     .returns<DriverPriceRow[]>();
 
   const drivers =
     driverPriceRows
-      ?.filter((row) => row.drivers?.active)
+      ?.filter((row) => row.drivers)
       .map((row) => ({
         id: row.drivers!.id,
         name: row.drivers!.name,
@@ -73,11 +107,33 @@ export async function getSelectableGrandPrixAndDrivers(
       })) ?? [];
 
   if (driversError || drivers.length === 0) {
-    throw new Error(driversError?.message ?? "Geen actieve coureurs met prijs gevonden");
+    throw new Error(driversError?.message ?? "Geen coureurs met prijs gevonden");
   }
 
   return {
     grandPrix,
     drivers,
+  };
+}
+
+export function getGrandPrixNavigation(
+  timeline: GrandPrixTimelineItem[],
+  grandPrixId: string,
+): {
+  previousGrandPrixId: string | null;
+  nextGrandPrixId: string | null;
+} {
+  const currentIndex = timeline.findIndex((grandPrix) => grandPrix.id === grandPrixId);
+
+  if (currentIndex === -1) {
+    return {
+      previousGrandPrixId: null,
+      nextGrandPrixId: null,
+    };
+  }
+
+  return {
+    previousGrandPrixId: timeline[currentIndex - 1]?.id ?? null,
+    nextGrandPrixId: timeline[currentIndex + 1]?.id ?? null,
   };
 }
