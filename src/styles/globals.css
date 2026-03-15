@@ -481,3 +481,42 @@ a {
   justify-content: center;
   font-weight: 600;
 }
+
+
+.league-standings-card {
+  gap: 1rem;
+}
+
+.standings-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid #313131;
+  border-radius: 10px;
+}
+
+.standings-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 360px;
+}
+
+.standings-table th,
+.standings-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.standings-table th {
+  font-size: 0.9rem;
+  color: #d7d7d7;
+  font-weight: 600;
+}
+
+.standings-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.standings-table td:last-child,
+.standings-table th:last-child {
+  text-align: right;
+}
