@@ -29,11 +29,11 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("is_admin")
+    .select("role")
     .eq("id", user.id)
-    .maybeSingle<{ is_admin: boolean }>();
+    .maybeSingle<{ role: string | null }>();
 
-  if (!profile?.is_admin) {
+  if (profile?.role !== "admin") {
     return (
       <main className="leagues-page">
         <section className="leagues-card">
