@@ -156,6 +156,64 @@ export async function saveTeamSelection(
 
   const teamSelectionId = upsertedSelection.id;
 
+  const { data: relatedSelections, error: relatedSelectionsError } = await supabase
+    .from("team_selections")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("grand_prix_id", grandPrixId)
+    .returns<Array<{ id: string }>>();
+
+  if (relatedSelectionsError) {
+    console.error("[team-selection] Failed to load related team_selections", {
+      invocationId,
+      userId: user.id,
+      grandPrixId,
+      relatedSelectionsError,
+    });
+
+    return {
+      status: "error",
+      message: "Er ging iets mis bij het opslaan van je team",
+    };
+  }
+
+  const relatedSelectionIds = relatedSelections?.map((selection) => selection.id) ?? [];
+
+  if (relatedSelectionIds.length === 0) {
+    console.warn("[team-selection] No related team_selections returned, falling back to upserted selection", {
+      invocationId,
+      userId: user.id,
+      grandPrixId,
+      teamSelectionId,
+    });
+
+    relatedSelectionIds.push(teamSelectionId);
+  }
+  const staleSelectionIds = relatedSelectionIds.filter((selectionId) => selectionId !== teamSelectionId);
+
+  if (staleSelectionIds.length > 0) {
+    const { error: staleSelectionDeleteError } = await supabase
+      .from("team_selections")
+      .delete()
+      .in("id", staleSelectionIds)
+      .eq("user_id", user.id);
+
+    if (staleSelectionDeleteError) {
+      console.error("[team-selection] Failed to delete stale team_selections", {
+        invocationId,
+        userId: user.id,
+        grandPrixId,
+        staleSelectionIds,
+        staleSelectionDeleteError,
+      });
+
+      return {
+        status: "error",
+        message: "Er ging iets mis bij het opslaan van je team",
+      };
+    }
+  }
+
   console.info("[team-selection] Resolved team_selection_id", {
     invocationId,
     teamSelectionId,
@@ -191,7 +249,7 @@ export async function saveTeamSelection(
   const { data: deletedDrivers, error: deleteError } = await supabase
     .from("team_selection_drivers")
     .delete()
-    .eq("team_selection_id", teamSelectionId)
+    .in("team_selection_id", relatedSelectionIds)
     .select("driver_id");
 
   if (deleteError) {
