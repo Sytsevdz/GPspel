@@ -123,6 +123,7 @@ export default async function TeamSelectionGrandPrixPage({ params }: TeamSelecti
             initialSelectedDriverIds={initialSelectedDriverIds}
             savingDisabled={false}
             readOnly={isReadOnly}
+            showFallbackNotice={teamSelectionData.usesFallbackPrices}
           />
         </section>
       </main>

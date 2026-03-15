@@ -2,6 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { generateGrandPrixPricesFromPreviousResult } from "@/app/actions/driver-prices";
 import { calculateGrandPrixScores } from "@/app/actions/grand-prix-scores";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
@@ -55,6 +56,24 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </section>
       </main>
     );
+  }
+
+
+  async function recalculatePrices(formData: FormData) {
+    "use server";
+
+    const grandPrixId = String(formData.get("grand_prix_id") ?? "").trim();
+
+    if (!grandPrixId) {
+      redirect("/admin?error=Er+ging+iets+mis+bij+het+berekenen+van+de+prijzen");
+    }
+
+    try {
+      await generateGrandPrixPricesFromPreviousResult(grandPrixId);
+      redirect("/admin?message=Prijzen+succesvol+berekend");
+    } catch {
+      redirect("/admin?error=Er+ging+iets+mis+bij+het+berekenen+van+de+prijzen");
+    }
   }
 
   async function recalculateScores(formData: FormData) {
@@ -117,6 +136,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               <div className="home-actions">
                 <Link href={`/admin/grand-prix/${grandPrix.id}/result`}>Uitslag invoeren</Link>
                 <Link href={`/admin/grand-prix/${grandPrix.id}/deadline`}>Deadline aanpassen</Link>
+                <form action={recalculatePrices}>
+                  <input type="hidden" name="grand_prix_id" value={grandPrix.id} />
+                  <button type="submit">Prijzen berekenen</button>
+                </form>
                 <form action={recalculateScores}>
                   <input type="hidden" name="grand_prix_id" value={grandPrix.id} />
                   <button type="submit">Scores berekenen</button>
