@@ -1,6 +1,6 @@
 "use server";
 
-import { createAdminSupabaseClient } from "@/lib/supabase";
+import { createServerSupabaseClient } from "@/lib/supabase";
 
 type GrandPrixDriverResultRow = {
   driver_id: string;
@@ -73,7 +73,7 @@ export async function calculateGrandPrixScores(grandPrixId: string) {
 
   console.info(`[calculateGrandPrixScores] Starting calculation for grandPrixId=${normalizedGrandPrixId}`);
 
-  const supabase = createAdminSupabaseClient();
+  const supabase = createServerSupabaseClient();
 
   const { data: driverResultRows, error: driverResultsError } = await supabase
     .from("grand_prix_driver_results")
