@@ -116,6 +116,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               </div>
               <div className="home-actions">
                 <Link href={`/admin/grand-prix/${grandPrix.id}/result`}>Uitslag invoeren</Link>
+                <Link href={`/admin/grand-prix/${grandPrix.id}/deadline`}>Deadline aanpassen</Link>
                 <form action={recalculateScores}>
                   <input type="hidden" name="grand_prix_id" value={grandPrix.id} />
                   <button type="submit">Scores berekenen</button>
