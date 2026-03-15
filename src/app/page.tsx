@@ -10,13 +10,17 @@ export default async function HomePage() {
   } = await supabase.auth.getUser();
 
   if (user) {
-    const { count } = await supabase
+    const { data: memberships } = await supabase
       .from("league_members")
-      .select("league_id", { count: "exact", head: true })
-      .eq("user_id", user.id);
+      .select("league_id")
+      .eq("user_id", user.id)
+      .order("joined_at", { ascending: true })
+      .limit(1);
 
-    if ((count ?? 0) > 0) {
-      redirect("/leagues");
+    const firstLeagueId = memberships?.[0]?.league_id;
+
+    if (firstLeagueId) {
+      redirect(`/leagues/${firstLeagueId}`);
     }
 
     return (
