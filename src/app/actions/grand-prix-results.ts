@@ -86,23 +86,44 @@ export async function saveGrandPrixResult(
     };
   }
 
+  const qualiPositionByDriverId = new Map(qualificationOrder.map((driverId, index) => [driverId, index + 1]));
+  const racePositionByDriverId = new Map(raceOrder.map((driverId, index) => [driverId, index + 1]));
+
   const rows = activeDriverIds.map((driverId) => ({
     grand_prix_id: grandPrixId,
     driver_id: driverId,
-    quali_position: qualificationOrder.indexOf(driverId) + 1,
-    race_position: raceOrder.indexOf(driverId) + 1,
+    quali_position: qualiPositionByDriverId.get(driverId)!,
+    race_position: racePositionByDriverId.get(driverId)!,
   }));
 
-  const { error: upsertError } = await supabase.from("grand_prix_driver_results").upsert(rows, {
-    onConflict: "grand_prix_id,driver_id",
-  });
+  console.info(`[saveGrandPrixResult] Volledige uitslag opslaan voor grand_prix_id=${grandPrixId}`);
 
-  if (upsertError) {
+  const { error: deleteError, count: deletedCount } = await supabase
+    .from("grand_prix_driver_results")
+    .delete({ count: "exact" })
+    .eq("grand_prix_id", grandPrixId);
+
+  if (deleteError) {
     return {
       status: "error",
       message: "Er ging iets mis bij het opslaan",
     };
   }
+
+  console.info(`[saveGrandPrixResult] Aantal verwijderde rijen: ${deletedCount ?? 0}`);
+
+  const { error: insertError, count: insertedCount } = await supabase
+    .from("grand_prix_driver_results")
+    .insert(rows, { count: "exact" });
+
+  if (insertError) {
+    return {
+      status: "error",
+      message: "Er ging iets mis bij het opslaan",
+    };
+  }
+
+  console.info(`[saveGrandPrixResult] Aantal ingevoegde rijen: ${insertedCount ?? 0}`);
 
   revalidatePath(`/admin/grand-prix/${grandPrixId}/result`);
 
