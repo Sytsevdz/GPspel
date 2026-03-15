@@ -116,31 +116,60 @@ export async function saveTeamSelection(
     };
   }
 
-  const { data: upsertedSelection, error: selectionError } = await supabase
+  const { data: existingSelection, error: existingSelectionError } = await supabase
     .from("team_selections")
-    .upsert(
-      {
-        user_id: user.id,
-        grand_prix_id: grandPrixId,
-      },
-      {
-        onConflict: "user_id,grand_prix_id",
-      },
-    )
     .select("id")
-    .single<{ id: string }>();
+    .eq("user_id", user.id)
+    .eq("grand_prix_id", grandPrixId)
+    .maybeSingle<{ id: string }>();
 
-  if (selectionError || !upsertedSelection) {
+  if (existingSelectionError) {
     return {
       status: "error",
       message: "Er ging iets mis bij het opslaan van je team",
     };
   }
 
-  const { error: deleteError } = await supabase
+  let teamSelectionId = existingSelection?.id;
+
+  if (!teamSelectionId) {
+    const { data: createdSelection, error: createSelectionError } = await supabase
+      .from("team_selections")
+      .insert({
+        user_id: user.id,
+        grand_prix_id: grandPrixId,
+      })
+      .select("id")
+      .single<{ id: string }>();
+
+    if (createSelectionError || !createdSelection) {
+      return {
+        status: "error",
+        message: "Er ging iets mis bij het opslaan van je team",
+      };
+    }
+
+    teamSelectionId = createdSelection.id;
+  }
+
+  console.info("[team-selection] Resolved team_selection_id", {
+    teamSelectionId,
+    userId: user.id,
+    grandPrixId,
+  });
+
+  if (!teamSelectionId) {
+    return {
+      status: "error",
+      message: "Er ging iets mis bij het opslaan van je team",
+    };
+  }
+
+  const { data: deletedDrivers, error: deleteError } = await supabase
     .from("team_selection_drivers")
     .delete()
-    .eq("team_selection_id", upsertedSelection.id);
+    .eq("team_selection_id", teamSelectionId)
+    .select("driver_id");
 
   if (deleteError) {
     return {
@@ -149,12 +178,20 @@ export async function saveTeamSelection(
     };
   }
 
-  const { error: insertDriversError } = await supabase.from("team_selection_drivers").insert(
-    uniqueDriverIds.map((driverId) => ({
-      team_selection_id: upsertedSelection.id,
-      driver_id: driverId,
-    })),
-  );
+  console.info("[team-selection] Deleted existing team_selection_drivers", {
+    teamSelectionId,
+    deletedCount: deletedDrivers?.length ?? 0,
+  });
+
+  const { data: insertedDrivers, error: insertDriversError } = await supabase
+    .from("team_selection_drivers")
+    .insert(
+      uniqueDriverIds.map((driverId) => ({
+        team_selection_id: teamSelectionId,
+        driver_id: driverId,
+      })),
+    )
+    .select("driver_id");
 
   if (insertDriversError) {
     return {
@@ -162,6 +199,11 @@ export async function saveTeamSelection(
       message: "Er ging iets mis bij het opslaan van je team",
     };
   }
+
+  console.info("[team-selection] Inserted new team_selection_drivers", {
+    teamSelectionId,
+    insertedCount: insertedDrivers?.length ?? 0,
+  });
 
   revalidatePath(`/leagues/${leagueId}/team-selection`);
 
