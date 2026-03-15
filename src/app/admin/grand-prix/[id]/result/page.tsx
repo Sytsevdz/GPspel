@@ -39,8 +39,8 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
         <section className="leagues-card">
           <h1>Geen toegang</h1>
           <p>Je hebt geen toegang tot deze pagina.</p>
-          <Link href="/dashboard" className="league-back-link">
-            ← Terug naar dashboard
+          <Link href="/admin" className="league-back-link">
+            ← Terug naar admin dashboard
           </Link>
         </section>
       </main>
@@ -59,8 +59,8 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
         <section className="leagues-card">
           <h1>Grand Prix uitslag invoeren</h1>
           <p>Grand Prix niet gevonden.</p>
-          <Link href="/dashboard" className="league-back-link">
-            ← Terug naar dashboard
+          <Link href="/admin" className="league-back-link">
+            ← Terug naar admin dashboard
           </Link>
         </section>
       </main>
@@ -79,8 +79,8 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
         <section className="leagues-card">
           <h1>Grand Prix uitslag invoeren</h1>
           <p>Er zijn niet genoeg actieve coureurs beschikbaar.</p>
-          <Link href="/dashboard" className="league-back-link">
-            ← Terug naar dashboard
+          <Link href="/admin" className="league-back-link">
+            ← Terug naar admin dashboard
           </Link>
         </section>
       </main>
@@ -122,8 +122,8 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
               Grand Prix: <strong>{grandPrix.name}</strong>
             </p>
           </div>
-          <Link href="/dashboard" className="league-back-link">
-            ← Terug naar dashboard
+          <Link href="/admin" className="league-back-link">
+            ← Terug naar admin dashboard
           </Link>
         </div>
 
