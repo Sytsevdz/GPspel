@@ -19,6 +19,7 @@ type TeamSelectionFormProps = {
   initialSelectedDriverIds: string[];
   savingDisabled?: boolean;
   readOnly?: boolean;
+  showFallbackNotice?: boolean;
 };
 
 const MAX_BUDGET = 1000;
@@ -44,6 +45,7 @@ export function TeamSelectionForm({
   initialSelectedDriverIds,
   savingDisabled = false,
   readOnly = false,
+  showFallbackNotice = false,
 }: TeamSelectionFormProps) {
   const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>(initialSelectedDriverIds);
   const [state, formAction] = useFormState(saveTeamSelection, INITIAL_STATE);
@@ -110,6 +112,11 @@ export function TeamSelectionForm({
         ) : (
           <p className="league-list-empty">Nog geen coureurs geselecteerd.</p>
         )}
+
+
+        {showFallbackNotice ? (
+          <p className="form-message">Deze prijzen zijn onder voorbehoud en gebaseerd op de vorige Grand Prix.</p>
+        ) : null}
 
         <p>
           Totale prijs: <strong>{formatPrice(totalPrice)}</strong>

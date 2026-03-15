@@ -34,7 +34,35 @@ type DriverPriceRow = {
 export type TeamSelectionDataResult = {
   grandPrix: GrandPrixTimelineItem;
   drivers: SelectableDriver[];
+  usesFallbackPrices: boolean;
 };
+
+async function loadDriverPrices(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  grandPrixId: string,
+): Promise<SelectableDriver[]> {
+  const { data: driverPriceRows, error: driversError } = await supabase
+    .from("driver_prices")
+    .select("price, drivers!inner(id, name, constructor_team)")
+    .eq("grand_prix_id", grandPrixId)
+    .order("price", { ascending: true })
+    .returns<DriverPriceRow[]>();
+
+  if (driversError) {
+    throw new Error(driversError.message);
+  }
+
+  return (
+    driverPriceRows
+      ?.filter((row) => row.drivers)
+      .map((row) => ({
+        id: row.drivers!.id,
+        name: row.drivers!.name,
+        constructorTeam: row.drivers!.constructor_team,
+        price: row.price,
+      })) ?? []
+  );
+}
 
 export async function getGrandPrixTimeline(
   supabase: ReturnType<typeof createServerSupabaseClient>,
@@ -97,30 +125,43 @@ export async function getGrandPrixAndDriversById(
     throw new Error("Grand Prix niet gevonden");
   }
 
-  const { data: driverPriceRows, error: driversError } = await supabase
-    .from("driver_prices")
-    .select("price, drivers!inner(id, name, constructor_team)")
-    .eq("grand_prix_id", grandPrix.id)
-    .order("price", { ascending: true })
-    .returns<DriverPriceRow[]>();
+  const ownGrandPrixDrivers = await loadDriverPrices(supabase, grandPrix.id);
 
-  const drivers =
-    driverPriceRows
-      ?.filter((row) => row.drivers)
-      .map((row) => ({
-        id: row.drivers!.id,
-        name: row.drivers!.name,
-        constructorTeam: row.drivers!.constructor_team,
-        price: row.price,
-      })) ?? [];
+  if (ownGrandPrixDrivers.length > 0) {
+    return {
+      grandPrix,
+      drivers: ownGrandPrixDrivers,
+      usesFallbackPrices: false,
+    };
+  }
 
-  if (driversError) {
-    throw new Error(driversError.message);
+  const { data: earlierGrandPrixRows, error: earlierGrandPrixError } = await supabase
+    .from("grand_prix")
+    .select("id")
+    .lt("qualification_start", grandPrix.qualification_start)
+    .order("qualification_start", { ascending: false })
+    .returns<Array<{ id: string }>>();
+
+  if (earlierGrandPrixError) {
+    throw new Error(earlierGrandPrixError.message);
+  }
+
+  for (const earlierGrandPrix of earlierGrandPrixRows ?? []) {
+    const fallbackDrivers = await loadDriverPrices(supabase, earlierGrandPrix.id);
+
+    if (fallbackDrivers.length > 0) {
+      return {
+        grandPrix,
+        drivers: fallbackDrivers,
+        usesFallbackPrices: true,
+      };
+    }
   }
 
   return {
     grandPrix,
-    drivers,
+    drivers: [],
+    usesFallbackPrices: false,
   };
 }
 
