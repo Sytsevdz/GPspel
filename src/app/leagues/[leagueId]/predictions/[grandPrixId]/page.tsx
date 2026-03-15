@@ -9,6 +9,7 @@ import {
 } from "@/lib/team-selection-data";
 
 import { getAccessibleLeague } from "../../league-access";
+import { GrandPrixSelector } from "../../grand-prix-selector";
 import { PredictionsForm } from "../predictions-form";
 
 type PredictionsGrandPrixPageProps = {
@@ -101,6 +102,12 @@ export default async function PredictionsGrandPrixPage({ params }: PredictionsGr
           </div>
 
           <nav className="gp-navigation" aria-label="Grand Prix navigatie">
+            <GrandPrixSelector
+              timeline={timeline}
+              selectedGrandPrixId={predictionData.grandPrix.id}
+              routeBase={`/leagues/${league.id}/predictions`}
+            />
+
             {previousGrandPrixId ? (
               <Link href={`/leagues/${league.id}/predictions/${previousGrandPrixId}`} className="league-back-link">
                 ← Vorige GP
