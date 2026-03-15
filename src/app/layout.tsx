@@ -20,6 +20,12 @@ export default async function RootLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
+  const { data: profile } = user
+    ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle<{ role: string | null }>()
+    : { data: null };
+
+  const isAdmin = profile?.role === "admin";
+
   return (
     <html lang="en">
       <body>
@@ -31,9 +37,9 @@ export default async function RootLayout({
           <nav>
             {user ? (
               <div className="nav-auth">
-                <Link href="/dashboard">Dashboard</Link>
-                <Link href="/profile">Profile</Link>
-                <Link href="/leagues">Leagues</Link>
+                <Link href="/leagues">Competities</Link>
+                <Link href="/profile">Profiel</Link>
+                {isAdmin ? <Link href="/admin">Admin</Link> : null}
                 <form action={logout}>
                   <button type="submit" className="link-button">
                     Log out
