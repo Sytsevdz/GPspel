@@ -58,7 +58,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     );
   }
 
-
   async function recalculatePrices(formData: FormData) {
     "use server";
 
@@ -71,8 +70,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     try {
       await generateGrandPrixPricesFromPreviousResult(grandPrixId);
       redirect("/admin?message=Prijzen+succesvol+berekend");
-    } catch {
-      redirect("/admin?error=Er+ging+iets+mis+bij+het+berekenen+van+de+prijzen");
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Er ging iets mis bij het berekenen van de prijzen";
+
+      redirect(`/admin?error=${encodeURIComponent(message)}`);
     }
   }
 
