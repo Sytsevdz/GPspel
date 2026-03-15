@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { calculateGrandPrixScores } from "@/app/actions/grand-prix-scores";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 export type GrandPrixResultActionState = {
@@ -124,6 +125,8 @@ export async function saveGrandPrixResult(
   }
 
   console.info(`[saveGrandPrixResult] Aantal ingevoegde rijen: ${insertedCount ?? 0}`);
+
+  await calculateGrandPrixScores(grandPrixId);
 
   revalidatePath(`/admin/grand-prix/${grandPrixId}/result`);
 
