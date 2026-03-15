@@ -177,7 +177,18 @@ export async function saveTeamSelection(
     };
   }
 
-  const relatedSelectionIds = relatedSelections?.map((selection) => selection.id) ?? [teamSelectionId];
+  const relatedSelectionIds = relatedSelections?.map((selection) => selection.id) ?? [];
+
+  if (relatedSelectionIds.length === 0) {
+    console.warn("[team-selection] No related team_selections returned, falling back to upserted selection", {
+      invocationId,
+      userId: user.id,
+      grandPrixId,
+      teamSelectionId,
+    });
+
+    relatedSelectionIds.push(teamSelectionId);
+  }
   const staleSelectionIds = relatedSelectionIds.filter((selectionId) => selectionId !== teamSelectionId);
 
   if (staleSelectionIds.length > 0) {
