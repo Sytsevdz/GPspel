@@ -429,3 +429,38 @@ a {
   color: #f7f7f7;
   font: inherit;
 }
+
+.result-rankings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.result-rankings-item {
+  border: 1px solid #3a3a3a;
+  background: #121212;
+  border-radius: 10px;
+  padding: 0.7rem;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem;
+  align-items: center;
+  cursor: grab;
+}
+
+.result-rankings-item:active {
+  cursor: grabbing;
+}
+
+.result-position {
+  min-width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border: 1px solid #4a4a4a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}

@@ -12,12 +12,9 @@ type GrandPrixResultPageProps = {
 };
 
 type ExistingResult = {
-  quali_p1: string;
-  quali_p2: string;
-  quali_p3: string;
-  race_p1: string;
-  race_p2: string;
-  race_p3: string;
+  driver_id: string;
+  quali_position: number;
+  race_position: number;
 };
 
 export default async function GrandPrixResultPage({ params }: GrandPrixResultPageProps) {
@@ -57,7 +54,7 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
     .eq("active", true)
     .order("name", { ascending: true });
 
-  if (!drivers || drivers.length < 3) {
+  if (!drivers || drivers.length === 0) {
     return (
       <main className="leagues-page">
         <section className="leagues-card">
@@ -71,25 +68,29 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
     );
   }
 
-  const { data: existingResult } = await supabase
-    .from("grand_prix_results")
-    .select("quali_p1, quali_p2, quali_p3, race_p1, race_p2, race_p3")
+  const { data: existingResultRows } = await supabase
+    .from("grand_prix_driver_results")
+    .select("driver_id, quali_position, race_position")
     .eq("grand_prix_id", grandPrix.id)
-    .maybeSingle<ExistingResult>();
+    .returns<ExistingResult[]>();
 
-  const fallbackIds = [
-    drivers[0]?.id ?? "",
-    drivers[1]?.id ?? drivers[0]?.id ?? "",
-    drivers[2]?.id ?? drivers[0]?.id ?? "",
-  ];
+  const driverIds = drivers.map((driver) => driver.id);
+  const existingRows = existingResultRows ?? [];
+
+  const toOrderedIds = (positionField: "quali_position" | "race_position") => {
+    const orderedExistingIds = existingRows
+      .filter((row) => Number.isInteger(row[positionField]))
+      .sort((a, b) => a[positionField] - b[positionField])
+      .map((row) => row.driver_id)
+      .filter((driverId) => driverIds.includes(driverId));
+
+    const missingIds = driverIds.filter((driverId) => !orderedExistingIds.includes(driverId));
+    return [...orderedExistingIds, ...missingIds];
+  };
 
   const initialValues = {
-    qualiP1: existingResult?.quali_p1 ?? fallbackIds[0],
-    qualiP2: existingResult?.quali_p2 ?? fallbackIds[1],
-    qualiP3: existingResult?.quali_p3 ?? fallbackIds[2],
-    raceP1: existingResult?.race_p1 ?? fallbackIds[0],
-    raceP2: existingResult?.race_p2 ?? fallbackIds[1],
-    raceP3: existingResult?.race_p3 ?? fallbackIds[2],
+    qualificationOrder: toOrderedIds("quali_position"),
+    raceOrder: toOrderedIds("race_position"),
   };
 
   return (

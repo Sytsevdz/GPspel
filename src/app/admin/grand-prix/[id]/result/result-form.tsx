@@ -12,12 +12,8 @@ type DriverOption = {
 };
 
 type ResultValues = {
-  qualiP1: string;
-  qualiP2: string;
-  qualiP3: string;
-  raceP1: string;
-  raceP2: string;
-  raceP3: string;
+  qualificationOrder: string[];
+  raceOrder: string[];
 };
 
 type ResultFormProps = {
@@ -36,107 +32,120 @@ function SaveButton({ disabled }: { disabled: boolean }) {
 
 const buildDriverLabel = (driver: DriverOption) => `${driver.name} (${driver.constructorTeam})`;
 
+function ReorderList({
+  title,
+  order,
+  driversById,
+  onMove,
+}: {
+  title: string;
+  order: string[];
+  driversById: Map<string, DriverOption>;
+  onMove: (fromIndex: number, toIndex: number) => void;
+}) {
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  return (
+    <section className="predictions-section">
+      <h2>{title}</h2>
+      <ol className="result-rankings-list">
+        {order.map((driverId, index) => {
+          const driver = driversById.get(driverId);
+
+          if (!driver) {
+            return null;
+          }
+
+          return (
+            <li
+              key={driverId}
+              className="result-rankings-item"
+              draggable
+              onDragStart={() => setDraggedIndex(index)}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={() => {
+                if (draggedIndex === null) {
+                  return;
+                }
+
+                onMove(draggedIndex, index);
+                setDraggedIndex(null);
+              }}
+              onDragEnd={() => setDraggedIndex(null)}
+            >
+              <span className="result-position">{index + 1}</span>
+              <span>{buildDriverLabel(driver)}</span>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
 export function ResultForm({ grandPrixId, drivers, initialValues }: ResultFormProps) {
   const [state, formAction] = useFormState(saveGrandPrixResult, INITIAL_STATE);
   const [values, setValues] = useState<ResultValues>(initialValues);
 
+  const driversById = useMemo(() => new Map(drivers.map((driver) => [driver.id, driver])), [drivers]);
+
   const validationErrors = useMemo(() => {
     const errors: string[] = [];
 
-    if (new Set([values.qualiP1, values.qualiP2, values.qualiP3]).size !== 3) {
-      errors.push("Binnen kwalificatie mag je geen coureur dubbel kiezen");
+    if (values.qualificationOrder.length !== drivers.length || new Set(values.qualificationOrder).size !== drivers.length) {
+      errors.push("Binnen kwalificatie moet elke actieve coureur precies één positie hebben");
     }
 
-    if (new Set([values.raceP1, values.raceP2, values.raceP3]).size !== 3) {
-      errors.push("Binnen race mag je geen coureur dubbel kiezen");
+    if (values.raceOrder.length !== drivers.length || new Set(values.raceOrder).size !== drivers.length) {
+      errors.push("Binnen race moet elke actieve coureur precies één positie hebben");
     }
 
     return errors;
-  }, [values]);
+  }, [drivers.length, values]);
 
   const canSave = validationErrors.length === 0;
 
-  const onChangeValue = (field: keyof ResultValues, value: string) => {
-    setValues((current) => ({ ...current, [field]: value }));
+  const moveInList = (field: keyof ResultValues, fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) {
+      return;
+    }
+
+    setValues((current) => {
+      const next = [...current[field]];
+      const [moved] = next.splice(fromIndex, 1);
+
+      if (!moved) {
+        return current;
+      }
+
+      next.splice(toIndex, 0, moved);
+
+      return {
+        ...current,
+        [field]: next,
+      };
+    });
   };
 
   return (
     <form action={formAction} className="predictions-form">
       <input type="hidden" name="grand_prix_id" value={grandPrixId} />
+      <input type="hidden" name="qualification_order" value={values.qualificationOrder.join(",")} />
+      <input type="hidden" name="race_order" value={values.raceOrder.join(",")} />
 
-      <section className="predictions-section">
-        <h2>Kwalificatie</h2>
+      <ReorderList
+        title="Kwalificatie"
+        order={values.qualificationOrder}
+        driversById={driversById}
+        onMove={(from, to) => moveInList("qualificationOrder", from, to)}
+      />
 
-        <label className="predictions-field">
-          P1
-          <select name="quali_p1" value={values.qualiP1} onChange={(event) => onChangeValue("qualiP1", event.target.value)}>
-            {drivers.map((driver) => (
-              <option key={driver.id} value={driver.id}>
-                {buildDriverLabel(driver)}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="predictions-field">
-          P2
-          <select name="quali_p2" value={values.qualiP2} onChange={(event) => onChangeValue("qualiP2", event.target.value)}>
-            {drivers.map((driver) => (
-              <option key={driver.id} value={driver.id}>
-                {buildDriverLabel(driver)}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="predictions-field">
-          P3
-          <select name="quali_p3" value={values.qualiP3} onChange={(event) => onChangeValue("qualiP3", event.target.value)}>
-            {drivers.map((driver) => (
-              <option key={driver.id} value={driver.id}>
-                {buildDriverLabel(driver)}
-              </option>
-            ))}
-          </select>
-        </label>
-      </section>
-
-      <section className="predictions-section">
-        <h2>Race</h2>
-
-        <label className="predictions-field">
-          P1
-          <select name="race_p1" value={values.raceP1} onChange={(event) => onChangeValue("raceP1", event.target.value)}>
-            {drivers.map((driver) => (
-              <option key={driver.id} value={driver.id}>
-                {buildDriverLabel(driver)}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="predictions-field">
-          P2
-          <select name="race_p2" value={values.raceP2} onChange={(event) => onChangeValue("raceP2", event.target.value)}>
-            {drivers.map((driver) => (
-              <option key={driver.id} value={driver.id}>
-                {buildDriverLabel(driver)}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="predictions-field">
-          P3
-          <select name="race_p3" value={values.raceP3} onChange={(event) => onChangeValue("raceP3", event.target.value)}>
-            {drivers.map((driver) => (
-              <option key={driver.id} value={driver.id}>
-                {buildDriverLabel(driver)}
-              </option>
-            ))}
-          </select>
-        </label>
-      </section>
+      <ReorderList
+        title="Race"
+        order={values.raceOrder}
+        driversById={driversById}
+        onMove={(from, to) => moveInList("raceOrder", from, to)}
+      />
 
       {validationErrors.length > 0 && (
         <div className="form-message error" role="alert">
