@@ -14,7 +14,7 @@ export async function joinLeague(formData: FormData) {
   const supabase = createServerSupabaseClient();
 
   if (!joinCode) {
-    redirect(toLeaguesRedirect("error", "Join code is required."));
+    redirect(toLeaguesRedirect("error", "Deelnemingscode is verplicht."));
   }
 
   const {
@@ -29,11 +29,11 @@ export async function joinLeague(formData: FormData) {
       status: authError.status,
       joinCode,
     });
-    redirect(toLeaguesRedirect("error", "Please sign in and try again."));
+    redirect(toLeaguesRedirect("error", "Log in en probeer het opnieuw."));
   }
 
   if (!user) {
-    redirect(toLeaguesRedirect("error", "Please sign in to join a league."));
+    redirect(toLeaguesRedirect("error", "Log in om deel te nemen aan een competitie."));
   }
 
   const { data: league, error: leagueError } = await supabase
@@ -51,11 +51,11 @@ export async function joinLeague(formData: FormData) {
       joinCode,
       userId: user.id,
     });
-    redirect(toLeaguesRedirect("error", "Unable to join league right now. Please try again."));
+    redirect(toLeaguesRedirect("error", "Kon nu niet deelnemen aan de competitie. Probeer het opnieuw."));
   }
 
   if (!league) {
-    redirect(toLeaguesRedirect("error", "No league found for that join code."));
+    redirect(toLeaguesRedirect("error", "Geen competitie gevonden met deze deelnemingscode."));
   }
 
   const { data: existingMember, error: existingMemberError } = await supabase
@@ -75,11 +75,11 @@ export async function joinLeague(formData: FormData) {
       leagueId: league.id,
       userId: user.id,
     });
-    redirect(toLeaguesRedirect("error", "Unable to join league right now. Please try again."));
+    redirect(toLeaguesRedirect("error", "Kon nu niet deelnemen aan de competitie. Probeer het opnieuw."));
   }
 
   if (existingMember) {
-    redirect(toLeaguesRedirect("message", `You are already a member of ${league.name}.`));
+    redirect(toLeaguesRedirect("message", `Je bent al lid van ${league.name}.`));
   }
 
   const { error: insertError } = await supabase.from("league_members").insert({
@@ -100,11 +100,11 @@ export async function joinLeague(formData: FormData) {
     });
 
     if (insertError.code === "23505") {
-      redirect(toLeaguesRedirect("message", `You are already a member of ${league.name}.`));
+      redirect(toLeaguesRedirect("message", `Je bent al lid van ${league.name}.`));
     }
 
-    redirect(toLeaguesRedirect("error", "Unable to join league right now. Please try again."));
+    redirect(toLeaguesRedirect("error", "Kon nu niet deelnemen aan de competitie. Probeer het opnieuw."));
   }
 
-  redirect(toLeaguesRedirect("message", `Successfully joined ${league.name}.`));
+  redirect(toLeaguesRedirect("message", `Succesvol deelgenomen aan ${league.name}.`));
 }
