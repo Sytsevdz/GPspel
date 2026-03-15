@@ -27,6 +27,25 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
     redirect("/login");
   }
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .maybeSingle<{ is_admin: boolean }>();
+
+  if (!profile?.is_admin) {
+    return (
+      <main className="leagues-page">
+        <section className="leagues-card">
+          <h1>Geen toegang</h1>
+          <p>Je hebt geen toegang tot deze pagina.</p>
+          <Link href="/dashboard" className="league-back-link">
+            ← Terug naar dashboard
+          </Link>
+        </section>
+      </main>
+    );
+  }
 
   const { data: grandPrix } = await supabase
     .from("grand_prix")

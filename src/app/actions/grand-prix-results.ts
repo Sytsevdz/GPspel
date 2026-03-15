@@ -48,6 +48,19 @@ export async function saveGrandPrixResult(
     };
   }
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .maybeSingle<{ is_admin: boolean }>();
+
+  if (!profile?.is_admin) {
+    return {
+      status: "error",
+      message: "Je hebt geen toegang tot deze pagina.",
+    };
+  }
+
   const { data: grandPrix } = await supabase
     .from("grand_prix")
     .select("id")
