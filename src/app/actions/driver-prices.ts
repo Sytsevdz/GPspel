@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { calculateDriverPricesFromRaceResults } from "@/lib/driver-pricing";
+import { calculateDriverPricesFromSeasonResults } from "@/lib/driver-pricing";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 type GrandPrixCandidate = {
@@ -12,12 +12,14 @@ type GrandPrixCandidate = {
 };
 
 type DriverResultRow = {
+  grand_prix_id: string;
   driver_id: string;
+  quali_position: number;
   race_position: number;
 };
 
 const NO_SOURCE_RESULTS_MESSAGE =
-  "Er is nog geen eerdere Grand Prix met een volledige uitslag beschikbaar om prijzen op te baseren.";
+  "Er is nog geen afgeronde eerdere Grand Prix beschikbaar om prijzen op te baseren.";
 
 export async function generateGrandPrixPricesFromPreviousResult(grandPrixId: string): Promise<void> {
   const supabase = createServerSupabaseClient();
@@ -52,16 +54,16 @@ export async function generateGrandPrixPricesFromPreviousResult(grandPrixId: str
 
   const { data: activeDrivers, error: activeDriversError } = await supabase
     .from("drivers")
-    .select("id")
+    .select("id, name")
     .eq("active", true)
-    .returns<Array<{ id: string }>>();
+    .returns<Array<{ id: string; name: string }>>();
 
   if (activeDriversError) {
     throw new Error(activeDriversError.message);
   }
 
-  const activeDriverIds = (activeDrivers ?? []).map((driver) => driver.id);
-  const activeDriverSet = new Set(activeDriverIds);
+  const activeDriverRows = activeDrivers ?? [];
+  const activeDriverIds = activeDriverRows.map((driver) => driver.id);
 
   if (activeDriverIds.length === 0) {
     throw new Error("Geen actieve coureurs gevonden");
@@ -74,87 +76,59 @@ export async function generateGrandPrixPricesFromPreviousResult(grandPrixId: str
     expectedResultRows: activeDriverIds.length,
   });
 
-  const { data: previousGrandPrixCandidates, error: previousGrandPrixCandidatesError } = await supabase
+  const { data: completedGrandPrixBeforeTarget, error: completedGrandPrixError } = await supabase
     .from("grand_prix")
     .select("id, name, qualification_start")
+    .eq("status", "finished")
     .lt("qualification_start", targetGrandPrix.qualification_start)
-    .order("qualification_start", { ascending: false })
+    .order("qualification_start", { ascending: true })
     .returns<GrandPrixCandidate[]>();
 
-  if (previousGrandPrixCandidatesError) {
-    throw new Error(previousGrandPrixCandidatesError.message);
+  if (completedGrandPrixError) {
+    throw new Error(completedGrandPrixError.message);
   }
 
-  let selectedSourceGrandPrix: GrandPrixCandidate | null = null;
-  let selectedSourceResults: DriverResultRow[] | null = null;
-
-  for (const candidate of previousGrandPrixCandidates ?? []) {
-    const { data: candidateResults, error: candidateResultsError } = await supabase
-      .from("grand_prix_driver_results")
-      .select("driver_id, race_position")
-      .eq("grand_prix_id", candidate.id)
-      .returns<DriverResultRow[]>();
-
-    if (candidateResultsError) {
-      throw new Error(candidateResultsError.message);
-    }
-
-    const rows = candidateResults ?? [];
-    const uniqueDriverIds = new Set(rows.map((row) => row.driver_id));
-    const hasOnlyActiveDrivers = rows.every((row) => activeDriverSet.has(row.driver_id));
-    const uniqueRacePositions = new Set(rows.map((row) => row.race_position));
-
-    console.info("[driver-prices] Controle kandidaat eerdere GP", {
-      targetGrandPrixId: targetGrandPrix.id,
-      candidateGrandPrixId: candidate.id,
-      candidateGrandPrixName: candidate.name,
-      candidateQualificationStart: candidate.qualification_start,
-      resultRowsFound: rows.length,
-      hasCompleteRows: rows.length === activeDriverIds.length,
-      hasUniqueDriverIds: uniqueDriverIds.size === activeDriverIds.length,
-      hasOnlyActiveDrivers,
-      hasUniqueRacePositions: uniqueRacePositions.size === activeDriverIds.length,
-    });
-
-    const hasFullValidResult =
-      rows.length === activeDriverIds.length &&
-      uniqueDriverIds.size === activeDriverIds.length &&
-      hasOnlyActiveDrivers &&
-      uniqueRacePositions.size === activeDriverIds.length;
-
-    if (!hasFullValidResult) {
-      continue;
-    }
-
-    selectedSourceGrandPrix = candidate;
-    selectedSourceResults = rows;
-    break;
-  }
-
-  if (!selectedSourceGrandPrix || !selectedSourceResults) {
-    console.warn("[driver-prices] Geen geldige eerdere GP gevonden voor prijsberekening", {
+  if (!completedGrandPrixBeforeTarget || completedGrandPrixBeforeTarget.length === 0) {
+    console.warn("[driver-prices] Geen afgeronde eerdere GP gevonden voor prijsberekening", {
       targetGrandPrixId: targetGrandPrix.id,
       targetGrandPrixName: targetGrandPrix.name,
-      reason: "no_previous_gp_with_full_valid_results",
+      reason: "no_completed_previous_gp",
     });
 
     throw new Error(NO_SOURCE_RESULTS_MESSAGE);
   }
 
-  console.info("[driver-prices] Gekozen bron GP voor prijsberekening", {
+  const completedGrandPrixIds = completedGrandPrixBeforeTarget.map((grandPrix) => grandPrix.id);
+
+  console.info("[driver-prices] Afgeronde bron-GP's voor prijsberekening", {
     targetGrandPrixId: targetGrandPrix.id,
     targetGrandPrixName: targetGrandPrix.name,
-    sourceGrandPrixId: selectedSourceGrandPrix.id,
-    sourceGrandPrixName: selectedSourceGrandPrix.name,
-    sourceResultRows: selectedSourceResults.length,
+    completedGrandPrixCount: completedGrandPrixIds.length,
+    mostRecentCompletedGrandPrixId: completedGrandPrixIds[completedGrandPrixIds.length - 1],
   });
 
-  const calculatedPrices = calculateDriverPricesFromRaceResults(
-    activeDriverIds,
-    selectedSourceResults.map((row) => ({
+  const { data: completedDriverResults, error: completedDriverResultsError } = await supabase
+    .from("grand_prix_driver_results")
+    .select("grand_prix_id, driver_id, quali_position, race_position")
+    .in("grand_prix_id", completedGrandPrixIds)
+    .returns<DriverResultRow[]>();
+
+  if (completedDriverResultsError) {
+    throw new Error(completedDriverResultsError.message);
+  }
+
+  const calculatedPrices = calculateDriverPricesFromSeasonResults(
+    activeDriverRows.map((driver) => ({
+      driverId: driver.id,
+      name: driver.name,
+    })),
+    completedGrandPrixIds,
+    completedDriverResults?.map((row) => ({
+      grandPrixId: row.grand_prix_id,
       driverId: row.driver_id,
       racePosition: row.race_position,
-    })),
+      qualiPosition: row.quali_position,
+    })) ?? [],
   );
 
   const upsertRows = calculatedPrices.map((row) => ({
