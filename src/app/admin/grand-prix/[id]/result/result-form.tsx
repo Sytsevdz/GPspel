@@ -16,6 +16,8 @@ type ResultValues = {
   raceOrder: string[];
 };
 
+type ResultField = keyof ResultValues;
+
 type ResultFormProps = {
   grandPrixId: string;
   drivers: DriverOption[];
@@ -34,13 +36,25 @@ const buildDriverLabel = (driver: DriverOption) => `${driver.name} (${driver.con
 
 function ReorderList({
   title,
+  pasteLabel,
+  pasteButtonLabel,
   order,
   driversById,
+  pasteValue,
+  pasteError,
+  onPasteChange,
+  onImport,
   onMove,
 }: {
   title: string;
+  pasteLabel: string;
+  pasteButtonLabel: string;
   order: string[];
   driversById: Map<string, DriverOption>;
+  pasteValue: string;
+  pasteError: string | null;
+  onPasteChange: (value: string) => void;
+  onImport: () => void;
   onMove: (fromIndex: number, toIndex: number) => void;
 }) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -48,6 +62,22 @@ function ReorderList({
   return (
     <section className="predictions-section">
       <h2>{title}</h2>
+
+      <div className="result-import">
+        <label className="predictions-field">
+          <span>{pasteLabel}</span>
+          <textarea value={pasteValue} onChange={(event) => onPasteChange(event.target.value)} rows={6} />
+        </label>
+        <button type="button" onClick={onImport}>
+          {pasteButtonLabel}
+        </button>
+        {pasteError && (
+          <p className="form-message error" role="alert">
+            {pasteError}
+          </p>
+        )}
+      </div>
+
       <ol className="result-rankings-list">
         {order.map((driverId, index) => {
           const driver = driversById.get(driverId);
@@ -86,6 +116,14 @@ function ReorderList({
 export function ResultForm({ grandPrixId, drivers, initialValues }: ResultFormProps) {
   const [state, formAction] = useFormState(saveGrandPrixResult, INITIAL_STATE);
   const [values, setValues] = useState<ResultValues>(initialValues);
+  const [pasteValues, setPasteValues] = useState<Record<ResultField, string>>({
+    qualificationOrder: "",
+    raceOrder: "",
+  });
+  const [pasteErrors, setPasteErrors] = useState<Record<ResultField, string | null>>({
+    qualificationOrder: null,
+    raceOrder: null,
+  });
 
   const driversById = useMemo(() => new Map(drivers.map((driver) => [driver.id, driver])), [drivers]);
 
@@ -105,7 +143,7 @@ export function ResultForm({ grandPrixId, drivers, initialValues }: ResultFormPr
 
   const canSave = validationErrors.length === 0;
 
-  const moveInList = (field: keyof ResultValues, fromIndex: number, toIndex: number) => {
+  const moveInList = (field: ResultField, fromIndex: number, toIndex: number) => {
     if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) {
       return;
     }
@@ -127,6 +165,66 @@ export function ResultForm({ grandPrixId, drivers, initialValues }: ResultFormPr
     });
   };
 
+  const normalizeDriverName = (name: string) =>
+    name
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLocaleLowerCase("nl-NL")
+      .trim();
+
+  const cleanPastedLine = (line: string) => line.replace(/^\s*(?:(?:\d+\s*[.):-]?\s*)|(?:[-–—•*]\s*))+/u, "").trim();
+
+  const importOrder = (field: ResultField) => {
+    const pastedLines = pasteValues[field]
+      .split("\n")
+      .map(cleanPastedLine)
+      .filter((line) => line.length > 0);
+
+    if (pastedLines.length !== 22 || pastedLines.length !== drivers.length) {
+      setPasteErrors((current) => ({
+        ...current,
+        [field]: "Niet exact 22 coureurs gevonden in de geplakte lijst.",
+      }));
+      return;
+    }
+
+    const driverIdsByName = new Map(drivers.map((driver) => [normalizeDriverName(driver.name), driver.id]));
+    const nextOrder: string[] = [];
+    const seenDrivers = new Set<string>();
+
+    for (const pastedLine of pastedLines) {
+      const driverId = driverIdsByName.get(normalizeDriverName(pastedLine));
+
+      if (!driverId) {
+        setPasteErrors((current) => ({
+          ...current,
+          [field]: `Onbekende coureur in de lijst: \"${pastedLine}\".`,
+        }));
+        return;
+      }
+
+      if (seenDrivers.has(driverId)) {
+        setPasteErrors((current) => ({
+          ...current,
+          [field]: `Dubbele coureur gevonden in de lijst: \"${pastedLine}\".`,
+        }));
+        return;
+      }
+
+      seenDrivers.add(driverId);
+      nextOrder.push(driverId);
+    }
+
+    setValues((current) => ({
+      ...current,
+      [field]: nextOrder,
+    }));
+    setPasteErrors((current) => ({
+      ...current,
+      [field]: null,
+    }));
+  };
+
   return (
     <form action={formAction} className="predictions-form">
       <input type="hidden" name="grand_prix_id" value={grandPrixId} />
@@ -135,15 +233,37 @@ export function ResultForm({ grandPrixId, drivers, initialValues }: ResultFormPr
 
       <ReorderList
         title="Kwalificatie"
+        pasteLabel="Plak kwalificatievolgorde"
+        pasteButtonLabel="Verwerk kwalificatie"
         order={values.qualificationOrder}
         driversById={driversById}
+        pasteValue={pasteValues.qualificationOrder}
+        pasteError={pasteErrors.qualificationOrder}
+        onPasteChange={(value) =>
+          setPasteValues((current) => ({
+            ...current,
+            qualificationOrder: value,
+          }))
+        }
+        onImport={() => importOrder("qualificationOrder")}
         onMove={(from, to) => moveInList("qualificationOrder", from, to)}
       />
 
       <ReorderList
         title="Race"
+        pasteLabel="Plak racevolgorde"
+        pasteButtonLabel="Verwerk race"
         order={values.raceOrder}
         driversById={driversById}
+        pasteValue={pasteValues.raceOrder}
+        pasteError={pasteErrors.raceOrder}
+        onPasteChange={(value) =>
+          setPasteValues((current) => ({
+            ...current,
+            raceOrder: value,
+          }))
+        }
+        onImport={() => importOrder("raceOrder")}
         onMove={(from, to) => moveInList("raceOrder", from, to)}
       />
 
