@@ -330,6 +330,19 @@ a {
   }
 }
 
+
+.gp-navigation {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.disabled-link {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 .team-selection-form {
   display: grid;
   gap: 1rem;

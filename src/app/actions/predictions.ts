@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { getSelectableGrandPrixAndDrivers } from "@/lib/team-selection-data";
+import { getGrandPrixAndDriversById } from "@/lib/team-selection-data";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 export type PredictionsActionState = {
@@ -77,10 +77,10 @@ export async function savePrediction(
     };
   }
 
-  let teamSelectionData: Awaited<ReturnType<typeof getSelectableGrandPrixAndDrivers>>;
+  let teamSelectionData: Awaited<ReturnType<typeof getGrandPrixAndDriversById>>;
 
   try {
-    teamSelectionData = await getSelectableGrandPrixAndDrivers(supabase);
+    teamSelectionData = await getGrandPrixAndDriversById(supabase, grandPrixId);
   } catch {
     return {
       status: "error",
@@ -88,10 +88,10 @@ export async function savePrediction(
     };
   }
 
-  if (teamSelectionData.grandPrix.id !== grandPrixId) {
+  if (teamSelectionData.grandPrix.deadline <= new Date().toISOString()) {
     return {
       status: "error",
-      message: "Er ging iets mis bij het opslaan van je voorspelling",
+      message: "De deadline van deze Grand Prix is verstreken.",
     };
   }
 
@@ -127,6 +127,7 @@ export async function savePrediction(
   }
 
   revalidatePath(`/leagues/${leagueId}/predictions`);
+  revalidatePath(`/leagues/${leagueId}/predictions/${grandPrixId}`);
 
   return {
     status: "success",
