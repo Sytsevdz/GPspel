@@ -17,7 +17,6 @@ const initialState: TeamSelectionActionState = {
   status: "idle",
 };
 
-let saveTeamSelectionInvocationCount = 0;
 
 export async function saveTeamSelection(
   _prevState: TeamSelectionActionState = initialState,
@@ -31,11 +30,9 @@ export async function saveTeamSelection(
     .filter(Boolean);
 
   const invocationId = crypto.randomUUID();
-  saveTeamSelectionInvocationCount += 1;
 
   console.info("[team-selection] saveTeamSelection called", {
     invocationId,
-    invocationCount: saveTeamSelectionInvocationCount,
     leagueId,
     grandPrixId,
     selectedDriverIds,
@@ -129,41 +126,35 @@ export async function saveTeamSelection(
     };
   }
 
-  const { data: existingSelection, error: existingSelectionError } = await supabase
+  const { data: upsertedSelection, error: selectionError } = await supabase
     .from("team_selections")
+    .upsert(
+      {
+        user_id: user.id,
+        grand_prix_id: grandPrixId,
+      },
+      {
+        onConflict: "user_id,grand_prix_id",
+      },
+    )
     .select("id")
-    .eq("user_id", user.id)
-    .eq("grand_prix_id", grandPrixId)
-    .maybeSingle<{ id: string }>();
+    .single<{ id: string }>();
 
-  if (existingSelectionError) {
+  if (selectionError || !upsertedSelection) {
+    console.error("[team-selection] Failed to resolve team_selection", {
+      invocationId,
+      userId: user.id,
+      grandPrixId,
+      selectionError,
+    });
+
     return {
       status: "error",
       message: "Er ging iets mis bij het opslaan van je team",
     };
   }
 
-  let teamSelectionId = existingSelection?.id;
-
-  if (!teamSelectionId) {
-    const { data: createdSelection, error: createSelectionError } = await supabase
-      .from("team_selections")
-      .insert({
-        user_id: user.id,
-        grand_prix_id: grandPrixId,
-      })
-      .select("id")
-      .single<{ id: string }>();
-
-    if (createSelectionError || !createdSelection) {
-      return {
-        status: "error",
-        message: "Er ging iets mis bij het opslaan van je team",
-      };
-    }
-
-    teamSelectionId = createdSelection.id;
-  }
+  const teamSelectionId = upsertedSelection.id;
 
   console.info("[team-selection] Resolved team_selection_id", {
     invocationId,
@@ -172,19 +163,18 @@ export async function saveTeamSelection(
     grandPrixId,
   });
 
-  if (!teamSelectionId) {
-    return {
-      status: "error",
-      message: "Er ging iets mis bij het opslaan van je team",
-    };
-  }
-
   const { data: existingDriversBeforeDelete, error: existingDriversError } = await supabase
     .from("team_selection_drivers")
     .select("driver_id")
     .eq("team_selection_id", teamSelectionId);
 
   if (existingDriversError) {
+    console.error("[team-selection] Failed to load existing team_selection_drivers", {
+      invocationId,
+      teamSelectionId,
+      existingDriversError,
+    });
+
     return {
       status: "error",
       message: "Er ging iets mis bij het opslaan van je team",
@@ -205,6 +195,12 @@ export async function saveTeamSelection(
     .select("driver_id");
 
   if (deleteError) {
+    console.error("[team-selection] Failed to delete existing team_selection_drivers", {
+      invocationId,
+      teamSelectionId,
+      deleteError,
+    });
+
     return {
       status: "error",
       message: "Er ging iets mis bij het opslaan van je team",
@@ -234,6 +230,13 @@ export async function saveTeamSelection(
     .select("driver_id");
 
   if (insertDriversError) {
+    console.error("[team-selection] Failed to insert team_selection_drivers", {
+      invocationId,
+      teamSelectionId,
+      insertPayload,
+      insertDriversError,
+    });
+
     return {
       status: "error",
       message: "Er ging iets mis bij het opslaan van je team",
@@ -244,38 +247,6 @@ export async function saveTeamSelection(
     invocationId,
     teamSelectionId,
     insertedCount: insertedDrivers?.length ?? 0,
-  });
-
-  const { error: cleanupError } = await supabase
-    .from("team_selection_drivers")
-    .delete()
-    .eq("team_selection_id", teamSelectionId)
-    .not("driver_id", "in", `(${uniqueDriverIds.join(",")})`);
-
-  if (cleanupError) {
-    return {
-      status: "error",
-      message: "Er ging iets mis bij het opslaan van je team",
-    };
-  }
-
-  const { data: finalDrivers, error: finalDriversError } = await supabase
-    .from("team_selection_drivers")
-    .select("driver_id")
-    .eq("team_selection_id", teamSelectionId);
-
-  if (finalDriversError || !finalDrivers || finalDrivers.length !== REQUIRED_DRIVERS) {
-    return {
-      status: "error",
-      message: "Er ging iets mis bij het opslaan van je team",
-    };
-  }
-
-  console.info("[team-selection] Final team_selection_drivers state", {
-    invocationId,
-    teamSelectionId,
-    finalDriverIds: finalDrivers.map((row) => row.driver_id),
-    finalCount: finalDrivers.length,
   });
 
   revalidatePath(`/leagues/${leagueId}/team-selection`);
