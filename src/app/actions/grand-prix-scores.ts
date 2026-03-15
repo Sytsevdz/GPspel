@@ -104,6 +104,19 @@ export async function calculateGrandPrixScores(grandPrixId: string) {
 
   const typedTeamSelections = (teamSelections ?? []) as TeamSelectionRow[];
   console.info(`[calculateGrandPrixScores] Team selections loaded: ${typedTeamSelections.length}`);
+  console.info(
+    `[calculateGrandPrixScores] Team selection user_ids: ${JSON.stringify(
+      [...new Set(typedTeamSelections.map((selection) => selection.user_id))].sort(),
+    )}`,
+  );
+  console.info(
+    `[calculateGrandPrixScores] Team selection driver counts by user: ${JSON.stringify(
+      typedTeamSelections.map((selection) => ({
+        user_id: selection.user_id,
+        driver_count: selection.team_selection_drivers?.length ?? 0,
+      })),
+    )}`,
+  );
 
   const teamPointsByUserId = new Map<string, number>();
 
@@ -126,6 +139,11 @@ export async function calculateGrandPrixScores(grandPrixId: string) {
 
   const typedPredictions = (predictions ?? []) as PredictionRow[];
   console.info(`[calculateGrandPrixScores] Predictions loaded: ${typedPredictions.length}`);
+  console.info(
+    `[calculateGrandPrixScores] Prediction user_ids: ${JSON.stringify(
+      [...new Set(typedPredictions.map((prediction) => prediction.user_id))].sort(),
+    )}`,
+  );
 
   const predictionPointsByUserId = new Map<string, number>();
 
@@ -159,6 +177,9 @@ export async function calculateGrandPrixScores(grandPrixId: string) {
         total_points: teamPoints + predictionPoints,
       };
     });
+
+  console.info(`[calculateGrandPrixScores] Score rows prepared: ${rowsToUpsert.length}`);
+  console.info(`[calculateGrandPrixScores] grand_prix_scores upsert payload: ${JSON.stringify(rowsToUpsert)}`);
 
   if (rowsToUpsert.length === 0) {
     console.info("[calculateGrandPrixScores] Scores written: 0");
