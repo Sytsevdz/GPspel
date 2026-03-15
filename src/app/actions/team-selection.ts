@@ -17,6 +17,8 @@ const initialState: TeamSelectionActionState = {
   status: "idle",
 };
 
+let saveTeamSelectionInvocationCount = 0;
+
 export async function saveTeamSelection(
   _prevState: TeamSelectionActionState = initialState,
   formData: FormData,
@@ -27,6 +29,17 @@ export async function saveTeamSelection(
     .split(",")
     .map((id) => id.trim())
     .filter(Boolean);
+
+  const invocationId = crypto.randomUUID();
+  saveTeamSelectionInvocationCount += 1;
+
+  console.info("[team-selection] saveTeamSelection called", {
+    invocationId,
+    invocationCount: saveTeamSelectionInvocationCount,
+    leagueId,
+    grandPrixId,
+    selectedDriverIds,
+  });
 
   if (!leagueId || !grandPrixId) {
     return {
@@ -153,6 +166,7 @@ export async function saveTeamSelection(
   }
 
   console.info("[team-selection] Resolved team_selection_id", {
+    invocationId,
     teamSelectionId,
     userId: user.id,
     grandPrixId,
@@ -164,6 +178,25 @@ export async function saveTeamSelection(
       message: "Er ging iets mis bij het opslaan van je team",
     };
   }
+
+  const { data: existingDriversBeforeDelete, error: existingDriversError } = await supabase
+    .from("team_selection_drivers")
+    .select("driver_id")
+    .eq("team_selection_id", teamSelectionId);
+
+  if (existingDriversError) {
+    return {
+      status: "error",
+      message: "Er ging iets mis bij het opslaan van je team",
+    };
+  }
+
+  console.info("[team-selection] Existing team_selection_drivers before delete", {
+    invocationId,
+    teamSelectionId,
+    existingDriverIds: existingDriversBeforeDelete?.map((row) => row.driver_id) ?? [],
+    existingCount: existingDriversBeforeDelete?.length ?? 0,
+  });
 
   const { data: deletedDrivers, error: deleteError } = await supabase
     .from("team_selection_drivers")
@@ -179,18 +212,25 @@ export async function saveTeamSelection(
   }
 
   console.info("[team-selection] Deleted existing team_selection_drivers", {
+    invocationId,
     teamSelectionId,
     deletedCount: deletedDrivers?.length ?? 0,
   });
 
+  const insertPayload = uniqueDriverIds.map((driverId) => ({
+    team_selection_id: teamSelectionId,
+    driver_id: driverId,
+  }));
+
+  console.info("[team-selection] Insert payload for team_selection_drivers", {
+    invocationId,
+    teamSelectionId,
+    insertPayload,
+  });
+
   const { data: insertedDrivers, error: insertDriversError } = await supabase
     .from("team_selection_drivers")
-    .insert(
-      uniqueDriverIds.map((driverId) => ({
-        team_selection_id: teamSelectionId,
-        driver_id: driverId,
-      })),
-    )
+    .upsert(insertPayload, { onConflict: "team_selection_id,driver_id" })
     .select("driver_id");
 
   if (insertDriversError) {
@@ -201,8 +241,41 @@ export async function saveTeamSelection(
   }
 
   console.info("[team-selection] Inserted new team_selection_drivers", {
+    invocationId,
     teamSelectionId,
     insertedCount: insertedDrivers?.length ?? 0,
+  });
+
+  const { error: cleanupError } = await supabase
+    .from("team_selection_drivers")
+    .delete()
+    .eq("team_selection_id", teamSelectionId)
+    .not("driver_id", "in", `(${uniqueDriverIds.join(",")})`);
+
+  if (cleanupError) {
+    return {
+      status: "error",
+      message: "Er ging iets mis bij het opslaan van je team",
+    };
+  }
+
+  const { data: finalDrivers, error: finalDriversError } = await supabase
+    .from("team_selection_drivers")
+    .select("driver_id")
+    .eq("team_selection_id", teamSelectionId);
+
+  if (finalDriversError || !finalDrivers || finalDrivers.length !== REQUIRED_DRIVERS) {
+    return {
+      status: "error",
+      message: "Er ging iets mis bij het opslaan van je team",
+    };
+  }
+
+  console.info("[team-selection] Final team_selection_drivers state", {
+    invocationId,
+    teamSelectionId,
+    finalDriverIds: finalDrivers.map((row) => row.driver_id),
+    finalCount: finalDrivers.length,
   });
 
   revalidatePath(`/leagues/${leagueId}/team-selection`);
