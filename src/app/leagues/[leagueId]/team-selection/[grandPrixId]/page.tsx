@@ -9,6 +9,7 @@ import {
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 import { getAccessibleLeague } from "../../league-access";
+import { GrandPrixSelector } from "../../grand-prix-selector";
 import { TeamSelectionForm } from "../team-selection-form";
 
 type TeamSelectionGrandPrixPageProps = {
@@ -88,6 +89,12 @@ export default async function TeamSelectionGrandPrixPage({ params }: TeamSelecti
           </div>
 
           <nav className="gp-navigation" aria-label="Grand Prix navigatie">
+            <GrandPrixSelector
+              timeline={timeline}
+              selectedGrandPrixId={teamSelectionData.grandPrix.id}
+              routeBase={`/leagues/${league.id}/team-selection`}
+            />
+
             {previousGrandPrixId ? (
               <Link href={`/leagues/${league.id}/team-selection/${previousGrandPrixId}`} className="league-back-link">
                 ← Vorige GP

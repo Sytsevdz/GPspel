@@ -39,27 +39,9 @@ export type TeamSelectionDataResult = {
 export async function getGrandPrixTimeline(
   supabase: ReturnType<typeof createServerSupabaseClient>,
 ): Promise<GrandPrixTimelineItem[]> {
-  const { data: driverPriceGrandPrixRows, error: driverPriceGrandPrixError } = await supabase
-    .from("driver_prices")
-    .select("grand_prix_id")
-    .returns<Array<{ grand_prix_id: string }>>();
-
-  if (driverPriceGrandPrixError) {
-    throw new Error(driverPriceGrandPrixError.message);
-  }
-
-  const grandPrixIdsWithDriverPrices = Array.from(
-    new Set((driverPriceGrandPrixRows ?? []).map((row) => row.grand_prix_id)),
-  );
-
-  if (grandPrixIdsWithDriverPrices.length === 0) {
-    throw new Error("Geen Grand Prix-weekenden met coureurs beschikbaar");
-  }
-
   const { data, error } = await supabase
     .from("grand_prix")
     .select("id, name, qualification_start, deadline")
-    .in("id", grandPrixIdsWithDriverPrices)
     .order("qualification_start", { ascending: true })
     .returns<GrandPrixTimelineItem[]>();
 
