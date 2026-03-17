@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type CSSProperties, useMemo, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 
 import { saveTeamSelection, type TeamSelectionActionState } from "@/app/actions/team-selection";
+import { getConstructorTeamColors } from "@/lib/team-colors";
 
 type DriverWithPrice = {
   id: string;
@@ -177,38 +178,54 @@ export function TeamSelectionForm({
       <section className="team-selection-driver-list" aria-label="Coureurs">
         <h2>Coureurs</h2>
         <div className="driver-team-grid">
-          {driversByTeam.map((team) => (
-            <section key={team.teamName} className="driver-team-card" aria-label={`Team ${team.teamName}`}>
-              <h3>{team.teamName}</h3>
-              <ul>
-                {team.drivers.map((driver) => {
-                  const isChecked = selectedDriverIds.includes(driver.id);
-                  const limitReached = selectedDriverIds.length >= REQUIRED_DRIVERS;
+          {driversByTeam.map((team) => {
+            const teamColors = getConstructorTeamColors(team.teamName);
 
-                  return (
-                    <li key={driver.id}>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => toggleDriverSelection(driver.id)}
-                          disabled={readOnly || (!isChecked && limitReached)}
-                        />
-                        <span className="driver-grid">
-                          <span>
-                            <strong>Coureur:</strong> {driver.name}
+            return (
+              <section
+                key={team.teamName}
+                className="driver-team-card"
+                aria-label={`Team ${team.teamName}`}
+                style={
+                  {
+                    "--team-accent": teamColors.accent,
+                    "--team-accent-secondary": teamColors.accentSecondary,
+                    "--team-bg-from": teamColors.backgroundFrom,
+                    "--team-bg-to": teamColors.backgroundTo,
+                  } as CSSProperties
+                }
+              >
+                <h3>{team.teamName}</h3>
+                <ul>
+                  {team.drivers.map((driver) => {
+                    const isChecked = selectedDriverIds.includes(driver.id);
+                    const limitReached = selectedDriverIds.length >= REQUIRED_DRIVERS;
+
+                    return (
+                      <li key={driver.id} className={isChecked ? "selected-driver" : undefined}>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleDriverSelection(driver.id)}
+                            disabled={readOnly || (!isChecked && limitReached)}
+                          />
+                          <span className="driver-grid">
+                            <span>
+                              <strong>Coureur:</strong> {driver.name}
+                            </span>
+                            <span>
+                              <strong>Prijs:</strong> {formatPrice(driver.price)}
+                            </span>
                           </span>
-                          <span>
-                            <strong>Prijs:</strong> {formatPrice(driver.price)}
-                          </span>
-                        </span>
-                      </label>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ))}
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            );
+          })}
         </div>
       </section>
     </form>
