@@ -410,22 +410,38 @@ a {
 }
 
 .driver-team-card {
-  border: 1px solid #3b3b3b;
+  --team-accent: #6b7280;
+  --team-accent-secondary: #3f3f46;
+  --team-bg-from: rgba(107, 114, 128, 0.12);
+  --team-bg-to: rgba(63, 63, 70, 0.06);
+
+  border: 1px solid color-mix(in srgb, var(--team-accent) 48%, #3b3b3b);
   border-radius: 8px;
   padding: 0.65rem;
   display: grid;
   gap: 0.6rem;
+  background: linear-gradient(150deg, var(--team-bg-from), var(--team-bg-to));
 }
 
 .driver-team-card h3 {
   margin: 0;
   font-size: 1rem;
+  color: #f9f9f9;
+  border-left: 4px solid var(--team-accent);
+  padding-left: 0.55rem;
 }
 
 .driver-team-card li {
-  border: 1px solid #3b3b3b;
+  border: 1px solid color-mix(in srgb, var(--team-accent) 35%, #3b3b3b);
   border-radius: 8px;
   padding: 0.65rem;
+  background: rgba(12, 12, 12, 0.68);
+}
+
+.driver-team-card li.selected-driver {
+  border-color: var(--team-accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--team-accent-secondary) 65%, transparent);
+  background: color-mix(in srgb, var(--team-accent) 18%, rgba(12, 12, 12, 0.85));
 }
 
 .driver-grid {
