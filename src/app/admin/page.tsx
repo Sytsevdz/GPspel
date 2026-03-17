@@ -3,9 +3,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect";
 
-import { generateGrandPrixPricesFromPreviousResult } from "@/app/actions/driver-prices";
+import { generateGrandPrixPricesFromPreviousResult, resetDriverPrices } from "@/app/actions/driver-prices";
 import { calculateGrandPrixScores } from "@/app/actions/grand-prix-scores";
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { ResetPricesSubmitButton } from "@/app/admin/reset-prices-submit-button";
 
 type AdminPageProps = {
   searchParams: {
@@ -85,6 +86,28 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     }
   }
 
+
+  async function clearPrices(formData: FormData) {
+    "use server";
+
+    const grandPrixId = String(formData.get("grand_prix_id") ?? "").trim();
+
+    if (!grandPrixId) {
+      redirect("/admin?error=Er+ging+iets+mis+bij+het+verwijderen+van+de+prijzen");
+    }
+
+    try {
+      await resetDriverPrices(grandPrixId);
+      redirect("/admin?message=Prijzen+succesvol+verwijderd");
+    } catch (error) {
+      if (isRedirectError(error)) {
+        throw error;
+      }
+
+      redirect("/admin?error=Er+ging+iets+mis+bij+het+verwijderen+van+de+prijzen");
+    }
+  }
+
   async function recalculateScores(formData: FormData) {
     "use server";
 
@@ -152,6 +175,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 <form action={recalculateScores}>
                   <input type="hidden" name="grand_prix_id" value={grandPrix.id} />
                   <button type="submit">Scores berekenen</button>
+                </form>
+                <form action={clearPrices}>
+                  <input type="hidden" name="grand_prix_id" value={grandPrix.id} />
+                  <ResetPricesSubmitButton />
                 </form>
               </div>
             </li>
