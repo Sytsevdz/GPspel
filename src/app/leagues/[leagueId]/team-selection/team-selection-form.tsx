@@ -10,6 +10,7 @@ type DriverWithPrice = {
   name: string;
   constructorTeam: string;
   price: number;
+  seasonScore: number;
 };
 
 type TeamSelectionFormProps = {
@@ -64,10 +65,19 @@ export function TeamSelectionForm({
       grouped.set(driver.constructorTeam, teamDrivers);
     });
 
-    return Array.from(grouped.entries()).map(([teamName, teamDrivers]) => ({
-      teamName,
-      drivers: teamDrivers,
-    }));
+    return Array.from(grouped.entries())
+      .map(([teamName, teamDrivers]) => ({
+        teamName,
+        drivers: teamDrivers,
+        teamScore: teamDrivers.reduce((total, driver) => total + (driver.seasonScore ?? 0), 0),
+      }))
+      .sort((left, right) => {
+        if (right.teamScore !== left.teamScore) {
+          return right.teamScore - left.teamScore;
+        }
+
+        return left.teamName.localeCompare(right.teamName, "nl-NL");
+      });
   }, [drivers]);
 
   const totalPrice = selectedDrivers.reduce((sum, driver) => sum + driver.price, 0);

@@ -1,3 +1,4 @@
+import { calculateDriverSeasonScores } from "@/lib/driver-pricing";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 export type SelectableGrandPrix = {
@@ -20,6 +21,7 @@ export type SelectableDriver = {
   name: string;
   constructorTeam: string;
   price: number;
+  seasonScore: number;
 };
 
 type DriverPriceRow = {
@@ -29,6 +31,13 @@ type DriverPriceRow = {
     name: string;
     constructor_team: string;
   } | null;
+};
+
+type DriverResultRow = {
+  grand_prix_id: string;
+  driver_id: string;
+  quali_position: number | null;
+  race_position: number | null;
 };
 
 export type TeamSelectionDataResult = {
@@ -60,8 +69,68 @@ async function loadDriverPrices(
         name: row.drivers!.name,
         constructorTeam: row.drivers!.constructor_team,
         price: row.price,
+        seasonScore: 0,
       })) ?? []
   );
+}
+
+async function enrichDriversWithSeasonScores(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  grandPrix: GrandPrixTimelineItem,
+  drivers: SelectableDriver[],
+): Promise<SelectableDriver[]> {
+  if (drivers.length === 0) {
+    return drivers;
+  }
+
+  const { data: completedGrandPrixRows, error: completedGrandPrixError } = await supabase
+    .from("grand_prix")
+    .select("id")
+    .eq("status", "finished")
+    .lt("qualification_start", grandPrix.qualification_start)
+    .order("qualification_start", { ascending: true })
+    .returns<Array<{ id: string }>>();
+
+  if (completedGrandPrixError) {
+    throw new Error(completedGrandPrixError.message);
+  }
+
+  const completedGrandPrixIds = (completedGrandPrixRows ?? []).map((row) => row.id);
+
+  if (completedGrandPrixIds.length === 0) {
+    return drivers;
+  }
+
+  const { data: completedDriverResults, error: completedDriverResultsError } = await supabase
+    .from("grand_prix_driver_results")
+    .select("grand_prix_id, driver_id, quali_position, race_position")
+    .in("grand_prix_id", completedGrandPrixIds)
+    .returns<DriverResultRow[]>();
+
+  if (completedDriverResultsError) {
+    throw new Error(completedDriverResultsError.message);
+  }
+
+  const seasonScores = calculateDriverSeasonScores(
+    drivers.map((driver) => ({
+      driverId: driver.id,
+      name: driver.name,
+    })),
+    completedGrandPrixIds,
+    (completedDriverResults ?? []).map((row) => ({
+      grandPrixId: row.grand_prix_id,
+      driverId: row.driver_id,
+      racePosition: row.race_position ?? 0,
+      qualiPosition: row.quali_position ?? 0,
+    })),
+  );
+
+  const seasonScoreByDriverId = new Map(seasonScores.map((score) => [score.driverId, score.seasonScore]));
+
+  return drivers.map((driver) => ({
+    ...driver,
+    seasonScore: seasonScoreByDriverId.get(driver.id) ?? 0,
+  }));
 }
 
 export async function getGrandPrixTimeline(
@@ -130,7 +199,7 @@ export async function getGrandPrixAndDriversById(
   if (ownGrandPrixDrivers.length > 0) {
     return {
       grandPrix,
-      drivers: ownGrandPrixDrivers,
+      drivers: await enrichDriversWithSeasonScores(supabase, grandPrix, ownGrandPrixDrivers),
       usesFallbackPrices: false,
     };
   }
@@ -152,7 +221,7 @@ export async function getGrandPrixAndDriversById(
     if (fallbackDrivers.length > 0) {
       return {
         grandPrix,
-        drivers: fallbackDrivers,
+        drivers: await enrichDriversWithSeasonScores(supabase, grandPrix, fallbackDrivers),
         usesFallbackPrices: true,
       };
     }
