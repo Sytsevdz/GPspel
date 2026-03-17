@@ -15,7 +15,7 @@ export type CalculatedDriverPrice = {
   price: number;
 };
 
-type DriverStanding = {
+export type DriverStanding = {
   driverId: string;
   name: string;
   racePoints: number;
@@ -23,6 +23,8 @@ type DriverStanding = {
   seasonScore: number;
   mostRecentRacePosition: number;
 };
+
+export type DriverSeasonScore = Pick<DriverStanding, "driverId" | "racePoints" | "qualifyingBonus" | "seasonScore">;
 
 const F1_RACE_POINTS_BY_POSITION: Record<number, number> = {
   1: 25,
@@ -59,19 +61,27 @@ const getQualifyingBonusForPosition = (position: number) => {
   return 0;
 };
 
-export function calculateDriverPricesFromSeasonResults(
+export function compareDriverStandings(left: DriverStanding, right: DriverStanding): number {
+  if (right.seasonScore !== left.seasonScore) {
+    return right.seasonScore - left.seasonScore;
+  }
+
+  if (right.racePoints !== left.racePoints) {
+    return right.racePoints - left.racePoints;
+  }
+
+  if (left.mostRecentRacePosition !== right.mostRecentRacePosition) {
+    return left.mostRecentRacePosition - right.mostRecentRacePosition;
+  }
+
+  return left.name.localeCompare(right.name, "nl-NL");
+}
+
+export function calculateDriverStandingsFromSeasonResults(
   activeDrivers: ActiveDriver[],
   completedGrandPrixIdsInOrder: string[],
   allCompletedResults: GrandPrixResult[],
-): CalculatedDriverPrice[] {
-  if (activeDrivers.length === 0) {
-    throw new Error("Geen actieve coureurs gevonden");
-  }
-
-  if (activeDrivers.length > PRICE_LADDER_BY_RANK.length) {
-    throw new Error("Er zijn meer actieve coureurs dan beschikbare prijs-treden");
-  }
-
+): DriverStanding[] {
   const standingsByDriverId = new Map<string, DriverStanding>();
 
   activeDrivers.forEach((driver) => {
@@ -109,21 +119,42 @@ export function calculateDriverPricesFromSeasonResults(
     standing.seasonScore = standing.racePoints + standing.qualifyingBonus;
   });
 
-  const sortedStandings = [...standingsByDriverId.values()].sort((left, right) => {
-    if (right.seasonScore !== left.seasonScore) {
-      return right.seasonScore - left.seasonScore;
-    }
+  return [...standingsByDriverId.values()];
+}
 
-    if (right.racePoints !== left.racePoints) {
-      return right.racePoints - left.racePoints;
-    }
+export function calculateDriverSeasonScores(
+  activeDrivers: ActiveDriver[],
+  completedGrandPrixIdsInOrder: string[],
+  allCompletedResults: GrandPrixResult[],
+): DriverSeasonScore[] {
+  return calculateDriverStandingsFromSeasonResults(activeDrivers, completedGrandPrixIdsInOrder, allCompletedResults).map(
+    (standing) => ({
+      driverId: standing.driverId,
+      racePoints: standing.racePoints,
+      qualifyingBonus: standing.qualifyingBonus,
+      seasonScore: standing.seasonScore,
+    }),
+  );
+}
 
-    if (left.mostRecentRacePosition !== right.mostRecentRacePosition) {
-      return left.mostRecentRacePosition - right.mostRecentRacePosition;
-    }
+export function calculateDriverPricesFromSeasonResults(
+  activeDrivers: ActiveDriver[],
+  completedGrandPrixIdsInOrder: string[],
+  allCompletedResults: GrandPrixResult[],
+): CalculatedDriverPrice[] {
+  if (activeDrivers.length === 0) {
+    throw new Error("Geen actieve coureurs gevonden");
+  }
 
-    return left.name.localeCompare(right.name, "nl-NL");
-  });
+  if (activeDrivers.length > PRICE_LADDER_BY_RANK.length) {
+    throw new Error("Er zijn meer actieve coureurs dan beschikbare prijs-treden");
+  }
+
+  const sortedStandings = calculateDriverStandingsFromSeasonResults(
+    activeDrivers,
+    completedGrandPrixIdsInOrder,
+    allCompletedResults,
+  ).sort(compareDriverStandings);
 
   return sortedStandings.map((standing, index) => ({
     driverId: standing.driverId,
