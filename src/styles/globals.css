@@ -391,6 +391,43 @@ a {
   padding: 0.55rem 0.65rem;
 }
 
+.selected-driver-cars {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  padding: 0;
+  margin: 0;
+}
+
+.selected-driver-cars li {
+  border: 1px solid #3b3b3b;
+  border-radius: 10px;
+  padding: 0.6rem;
+  display: grid;
+  gap: 0.5rem;
+  background: rgba(18, 18, 18, 0.8);
+}
+
+.selected-driver-car {
+  width: 100%;
+}
+
+.race-car-svg {
+  width: 100%;
+  height: auto;
+}
+
+.selected-driver-cars p {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+}
+
+.selected-driver-cars p span {
+  color: #d7d7d7;
+}
+
 .team-selection-driver-list li {
   border: 1px solid #3b3b3b;
   border-radius: 8px;
@@ -459,6 +496,12 @@ a {
   background: #171717;
   color: #f7f7f7;
   font: inherit;
+}
+
+@media (min-width: 900px) {
+  .selected-driver-cars {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 .predictions-form {

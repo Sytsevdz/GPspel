@@ -5,6 +5,7 @@ import { useFormState, useFormStatus } from "react-dom";
 
 import { saveTeamSelection, type TeamSelectionActionState } from "@/app/actions/team-selection";
 import { getConstructorTeamColors } from "@/lib/team-colors";
+import { RaceCar } from "./race-car";
 
 type DriverWithPrice = {
   id: string;
@@ -30,6 +31,15 @@ const REQUIRED_DRIVERS = 4;
 const INITIAL_STATE: TeamSelectionActionState = { status: "idle" };
 
 const formatPrice = (price: number) => `${(price / 10).toFixed(1)}M`;
+
+const getDriverInitials = (name: string) => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+};
 
 function SaveButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
@@ -134,18 +144,31 @@ export function TeamSelectionForm({
       <section className="team-selection-summary">
         <h2>Geselecteerde coureurs</h2>
         {selectedDrivers.length > 0 ? (
-          <ul className="selected-driver-list">
-            {selectedDrivers.map((driver) => (
-              <li key={driver.id}>
-                <span>{driver.name}</span>
-                <span>{formatPrice(driver.price)}</span>
-              </li>
-            ))}
+          <ul className="selected-driver-cars" aria-label="Geselecteerde coureurs als racewagens">
+            {selectedDrivers.map((driver) => {
+              const teamColors = getConstructorTeamColors(driver.constructorTeam);
+
+              return (
+                <li key={driver.id}>
+                  <div className="selected-driver-car">
+                    <RaceCar
+                      color={teamColors.accent}
+                      accentColor={teamColors.accentSecondary}
+                      label={getDriverInitials(driver.name)}
+                    />
+                  </div>
+                  <p>
+                    <strong>{driver.name}</strong>
+                    <span>{driver.constructorTeam}</span>
+                    <span>{formatPrice(driver.price)}</span>
+                  </p>
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p className="league-list-empty">Nog geen coureurs geselecteerd.</p>
         )}
-
 
         {showFallbackNotice ? (
           <p className="form-message">Deze prijzen zijn onder voorbehoud en gebaseerd op de vorige Grand Prix.</p>
