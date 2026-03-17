@@ -147,3 +147,33 @@ export async function generateGrandPrixPricesFromPreviousResult(grandPrixId: str
 
   revalidatePath("/admin");
 }
+
+export async function resetDriverPrices(grandPrixId: string): Promise<void> {
+  const supabase = createServerSupabaseClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("Je bent niet ingelogd");
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle<{ role: string | null }>();
+
+  if (profile?.role !== "admin") {
+    throw new Error("Je hebt geen toegang tot deze pagina.");
+  }
+
+  const { error: deleteError } = await supabase.from("driver_prices").delete().eq("grand_prix_id", grandPrixId);
+
+  if (deleteError) {
+    throw new Error(deleteError.message);
+  }
+
+  revalidatePath("/admin");
+}
