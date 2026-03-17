@@ -11,6 +11,7 @@ type DriverWithPrice = {
   constructorTeam: string;
   price: number;
   seasonScore: number;
+  performanceRank: number;
 };
 
 type TeamSelectionFormProps = {
@@ -69,8 +70,8 @@ export function TeamSelectionForm({
       .map(([teamName, teamDrivers]) => ({
         teamName,
         drivers: [...teamDrivers].sort((left, right) => {
-          if ((right.seasonScore ?? 0) !== (left.seasonScore ?? 0)) {
-            return (right.seasonScore ?? 0) - (left.seasonScore ?? 0);
+          if (left.performanceRank !== right.performanceRank) {
+            return left.performanceRank - right.performanceRank;
           }
 
           return left.name.localeCompare(right.name, "nl-NL");

@@ -15,7 +15,7 @@ export type CalculatedDriverPrice = {
   price: number;
 };
 
-type DriverStanding = {
+export type DriverStanding = {
   driverId: string;
   name: string;
   racePoints: number;
@@ -61,11 +61,27 @@ const getQualifyingBonusForPosition = (position: number) => {
   return 0;
 };
 
-export function calculateDriverSeasonScores(
+export function compareDriverStandings(left: DriverStanding, right: DriverStanding): number {
+  if (right.seasonScore !== left.seasonScore) {
+    return right.seasonScore - left.seasonScore;
+  }
+
+  if (right.racePoints !== left.racePoints) {
+    return right.racePoints - left.racePoints;
+  }
+
+  if (left.mostRecentRacePosition !== right.mostRecentRacePosition) {
+    return left.mostRecentRacePosition - right.mostRecentRacePosition;
+  }
+
+  return left.name.localeCompare(right.name, "nl-NL");
+}
+
+export function calculateDriverStandingsFromSeasonResults(
   activeDrivers: ActiveDriver[],
   completedGrandPrixIdsInOrder: string[],
   allCompletedResults: GrandPrixResult[],
-): DriverSeasonScore[] {
+): DriverStanding[] {
   const standingsByDriverId = new Map<string, DriverStanding>();
 
   activeDrivers.forEach((driver) => {
@@ -103,12 +119,22 @@ export function calculateDriverSeasonScores(
     standing.seasonScore = standing.racePoints + standing.qualifyingBonus;
   });
 
-  return [...standingsByDriverId.values()].map((standing) => ({
-    driverId: standing.driverId,
-    racePoints: standing.racePoints,
-    qualifyingBonus: standing.qualifyingBonus,
-    seasonScore: standing.seasonScore,
-  }));
+  return [...standingsByDriverId.values()];
+}
+
+export function calculateDriverSeasonScores(
+  activeDrivers: ActiveDriver[],
+  completedGrandPrixIdsInOrder: string[],
+  allCompletedResults: GrandPrixResult[],
+): DriverSeasonScore[] {
+  return calculateDriverStandingsFromSeasonResults(activeDrivers, completedGrandPrixIdsInOrder, allCompletedResults).map(
+    (standing) => ({
+      driverId: standing.driverId,
+      racePoints: standing.racePoints,
+      qualifyingBonus: standing.qualifyingBonus,
+      seasonScore: standing.seasonScore,
+    }),
+  );
 }
 
 export function calculateDriverPricesFromSeasonResults(
@@ -124,56 +150,11 @@ export function calculateDriverPricesFromSeasonResults(
     throw new Error("Er zijn meer actieve coureurs dan beschikbare prijs-treden");
   }
 
-  const seasonScores = calculateDriverSeasonScores(activeDrivers, completedGrandPrixIdsInOrder, allCompletedResults);
-  const seasonScoresByDriverId = new Map(seasonScores.map((score) => [score.driverId, score]));
-  const standingsByDriverId = new Map<string, DriverStanding>();
-
-  activeDrivers.forEach((driver) => {
-    const seasonScore = seasonScoresByDriverId.get(driver.driverId);
-
-    standingsByDriverId.set(driver.driverId, {
-      driverId: driver.driverId,
-      name: driver.name,
-      racePoints: seasonScore?.racePoints ?? 0,
-      qualifyingBonus: seasonScore?.qualifyingBonus ?? 0,
-      seasonScore: seasonScore?.seasonScore ?? 0,
-      mostRecentRacePosition: Number.POSITIVE_INFINITY,
-    });
-  });
-
-  const mostRecentGrandPrixId = completedGrandPrixIdsInOrder[completedGrandPrixIdsInOrder.length - 1] ?? null;
-
-  allCompletedResults.forEach((result) => {
-    if (!mostRecentGrandPrixId || result.grandPrixId !== mostRecentGrandPrixId) {
-      return;
-    }
-
-    const standing = standingsByDriverId.get(result.driverId);
-
-    if (!standing) {
-      return;
-    }
-
-    if (Number.isFinite(result.racePosition) && result.racePosition > 0) {
-      standing.mostRecentRacePosition = result.racePosition;
-    }
-  });
-
-  const sortedStandings = [...standingsByDriverId.values()].sort((left, right) => {
-    if (right.seasonScore !== left.seasonScore) {
-      return right.seasonScore - left.seasonScore;
-    }
-
-    if (right.racePoints !== left.racePoints) {
-      return right.racePoints - left.racePoints;
-    }
-
-    if (left.mostRecentRacePosition !== right.mostRecentRacePosition) {
-      return left.mostRecentRacePosition - right.mostRecentRacePosition;
-    }
-
-    return left.name.localeCompare(right.name, "nl-NL");
-  });
+  const sortedStandings = calculateDriverStandingsFromSeasonResults(
+    activeDrivers,
+    completedGrandPrixIdsInOrder,
+    allCompletedResults,
+  ).sort(compareDriverStandings);
 
   return sortedStandings.map((standing, index) => ({
     driverId: standing.driverId,

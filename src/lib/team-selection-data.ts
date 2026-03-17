@@ -1,4 +1,7 @@
-import { calculateDriverSeasonScores } from "@/lib/driver-pricing";
+import {
+  calculateDriverStandingsFromSeasonResults,
+  compareDriverStandings,
+} from "@/lib/driver-pricing";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 export type SelectableGrandPrix = {
@@ -22,6 +25,7 @@ export type SelectableDriver = {
   constructorTeam: string;
   price: number;
   seasonScore: number;
+  performanceRank: number;
 };
 
 type DriverPriceRow = {
@@ -70,6 +74,7 @@ async function loadDriverPrices(
         constructorTeam: row.drivers!.constructor_team,
         price: row.price,
         seasonScore: 0,
+        performanceRank: Number.POSITIVE_INFINITY,
       })) ?? []
   );
 }
@@ -111,7 +116,7 @@ async function enrichDriversWithSeasonScores(
     throw new Error(completedDriverResultsError.message);
   }
 
-  const seasonScores = calculateDriverSeasonScores(
+  const sortedStandings = calculateDriverStandingsFromSeasonResults(
     drivers.map((driver) => ({
       driverId: driver.id,
       name: driver.name,
@@ -123,13 +128,15 @@ async function enrichDriversWithSeasonScores(
       racePosition: row.race_position ?? 0,
       qualiPosition: row.quali_position ?? 0,
     })),
-  );
+  ).sort(compareDriverStandings);
 
-  const seasonScoreByDriverId = new Map(seasonScores.map((score) => [score.driverId, score.seasonScore]));
+  const seasonScoreByDriverId = new Map(sortedStandings.map((standing) => [standing.driverId, standing.seasonScore]));
+  const rankByDriverId = new Map(sortedStandings.map((standing, index) => [standing.driverId, index]));
 
   return drivers.map((driver) => ({
     ...driver,
     seasonScore: seasonScoreByDriverId.get(driver.id) ?? 0,
+    performanceRank: rankByDriverId.get(driver.id) ?? Number.POSITIVE_INFINITY,
   }));
 }
 
