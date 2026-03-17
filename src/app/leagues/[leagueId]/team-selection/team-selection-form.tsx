@@ -68,7 +68,13 @@ export function TeamSelectionForm({
     return Array.from(grouped.entries())
       .map(([teamName, teamDrivers]) => ({
         teamName,
-        drivers: teamDrivers,
+        drivers: [...teamDrivers].sort((left, right) => {
+          if ((right.seasonScore ?? 0) !== (left.seasonScore ?? 0)) {
+            return (right.seasonScore ?? 0) - (left.seasonScore ?? 0);
+          }
+
+          return left.name.localeCompare(right.name, "nl-NL");
+        }),
         teamScore: teamDrivers.reduce((total, driver) => total + (driver.seasonScore ?? 0), 0),
       }))
       .sort((left, right) => {
