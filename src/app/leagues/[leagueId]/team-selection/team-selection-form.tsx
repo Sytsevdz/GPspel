@@ -55,6 +55,21 @@ export function TeamSelectionForm({
     [drivers, selectedDriverIds],
   );
 
+  const driversByTeam = useMemo(() => {
+    const grouped = new Map<string, DriverWithPrice[]>();
+
+    drivers.forEach((driver) => {
+      const teamDrivers = grouped.get(driver.constructorTeam) ?? [];
+      teamDrivers.push(driver);
+      grouped.set(driver.constructorTeam, teamDrivers);
+    });
+
+    return Array.from(grouped.entries()).map(([teamName, teamDrivers]) => ({
+      teamName,
+      drivers: teamDrivers,
+    }));
+  }, [drivers]);
+
   const totalPrice = selectedDrivers.reduce((sum, driver) => sum + driver.price, 0);
   const remainingBudget = MAX_BUDGET - totalPrice;
   const constructorCount = new Set(selectedDrivers.map((driver) => driver.constructorTeam)).size;
@@ -144,36 +159,40 @@ export function TeamSelectionForm({
 
       <section className="team-selection-driver-list" aria-label="Coureurs">
         <h2>Coureurs</h2>
-        <ul>
-          {drivers.map((driver) => {
-            const isChecked = selectedDriverIds.includes(driver.id);
-            const limitReached = selectedDriverIds.length >= REQUIRED_DRIVERS;
+        <div className="driver-team-grid">
+          {driversByTeam.map((team) => (
+            <section key={team.teamName} className="driver-team-card" aria-label={`Team ${team.teamName}`}>
+              <h3>{team.teamName}</h3>
+              <ul>
+                {team.drivers.map((driver) => {
+                  const isChecked = selectedDriverIds.includes(driver.id);
+                  const limitReached = selectedDriverIds.length >= REQUIRED_DRIVERS;
 
-            return (
-              <li key={driver.id}>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    onChange={() => toggleDriverSelection(driver.id)}
-                    disabled={readOnly || (!isChecked && limitReached)}
-                  />
-                  <span className="driver-grid">
-                    <span>
-                      <strong>Coureur:</strong> {driver.name}
-                    </span>
-                    <span>
-                      <strong>Team:</strong> {driver.constructorTeam}
-                    </span>
-                    <span>
-                      <strong>Prijs:</strong> {formatPrice(driver.price)}
-                    </span>
-                  </span>
-                </label>
-              </li>
-            );
-          })}
-        </ul>
+                  return (
+                    <li key={driver.id}>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleDriverSelection(driver.id)}
+                          disabled={readOnly || (!isChecked && limitReached)}
+                        />
+                        <span className="driver-grid">
+                          <span>
+                            <strong>Coureur:</strong> {driver.name}
+                          </span>
+                          <span>
+                            <strong>Prijs:</strong> {formatPrice(driver.price)}
+                          </span>
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
       </section>
     </form>
   );
