@@ -25,6 +25,8 @@ export type SelectableDriver = {
   constructorTeam: string;
   price: number;
   seasonScore: number;
+  racePoints: number;
+  mostRecentRacePosition: number;
   performanceRank: number;
 };
 
@@ -74,6 +76,8 @@ async function loadDriverPrices(
         constructorTeam: row.drivers!.constructor_team,
         price: row.price,
         seasonScore: 0,
+        racePoints: 0,
+        mostRecentRacePosition: Number.POSITIVE_INFINITY,
         performanceRank: Number.POSITIVE_INFINITY,
       })) ?? []
   );
@@ -131,11 +135,17 @@ async function enrichDriversWithSeasonScores(
   ).sort(compareDriverStandings);
 
   const seasonScoreByDriverId = new Map(sortedStandings.map((standing) => [standing.driverId, standing.seasonScore]));
+  const racePointsByDriverId = new Map(sortedStandings.map((standing) => [standing.driverId, standing.racePoints]));
+  const mostRecentRacePositionByDriverId = new Map(
+    sortedStandings.map((standing) => [standing.driverId, standing.mostRecentRacePosition]),
+  );
   const rankByDriverId = new Map(sortedStandings.map((standing, index) => [standing.driverId, index]));
 
   return drivers.map((driver) => ({
     ...driver,
     seasonScore: seasonScoreByDriverId.get(driver.id) ?? 0,
+    racePoints: racePointsByDriverId.get(driver.id) ?? 0,
+    mostRecentRacePosition: mostRecentRacePositionByDriverId.get(driver.id) ?? Number.POSITIVE_INFINITY,
     performanceRank: rankByDriverId.get(driver.id) ?? Number.POSITIVE_INFINITY,
   }));
 }

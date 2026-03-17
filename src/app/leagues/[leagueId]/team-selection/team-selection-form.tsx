@@ -4,6 +4,7 @@ import { type CSSProperties, useMemo, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 
 import { saveTeamSelection, type TeamSelectionActionState } from "@/app/actions/team-selection";
+import { compareDriverStandings } from "@/lib/driver-pricing";
 import { getConstructorTeamColors } from "@/lib/team-colors";
 import { RaceCar } from "./race-car";
 
@@ -13,6 +14,8 @@ type DriverWithPrice = {
   constructorTeam: string;
   price: number;
   seasonScore: number;
+  racePoints: number;
+  mostRecentRacePosition: number;
   performanceRank: number;
 };
 
@@ -66,6 +69,31 @@ export function TeamSelectionForm({
   const selectedDrivers = useMemo(
     () => drivers.filter((driver) => selectedDriverIds.includes(driver.id)),
     [drivers, selectedDriverIds],
+  );
+
+  const selectedDriversForDisplay = useMemo(
+    () =>
+      [...selectedDrivers].sort((left, right) =>
+        compareDriverStandings(
+          {
+            driverId: left.id,
+            name: left.name,
+            racePoints: left.racePoints,
+            qualifyingBonus: left.seasonScore - left.racePoints,
+            seasonScore: left.seasonScore,
+            mostRecentRacePosition: left.mostRecentRacePosition,
+          },
+          {
+            driverId: right.id,
+            name: right.name,
+            racePoints: right.racePoints,
+            qualifyingBonus: right.seasonScore - right.racePoints,
+            seasonScore: right.seasonScore,
+            mostRecentRacePosition: right.mostRecentRacePosition,
+          },
+        ),
+      ),
+    [selectedDrivers],
   );
 
   const driversByTeam = useMemo(() => {
@@ -145,7 +173,7 @@ export function TeamSelectionForm({
         <h2>Geselecteerde coureurs</h2>
         {selectedDrivers.length > 0 ? (
           <ul className="selected-driver-cars" aria-label="Geselecteerde coureurs als racewagens">
-            {selectedDrivers.map((driver) => {
+            {selectedDriversForDisplay.map((driver) => {
               const teamColors = getConstructorTeamColors(driver.constructorTeam);
 
               return (
