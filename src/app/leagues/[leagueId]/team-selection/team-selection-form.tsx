@@ -6,6 +6,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import { saveTeamSelection, type TeamSelectionActionState } from "@/app/actions/team-selection";
 import { compareDriverStandings } from "@/lib/driver-pricing";
 import { getConstructorTeamColors } from "@/lib/team-colors";
+import { getTeamSelectionTeam } from "@/lib/team-selection-teams";
 import { RaceCar } from "./race-car";
 
 type DriverWithPrice = {
@@ -106,17 +107,26 @@ export function TeamSelectionForm({
     });
 
     return Array.from(grouped.entries())
-      .map(([teamName, teamDrivers]) => ({
-        teamName,
-        drivers: [...teamDrivers].sort((left, right) => {
-          if (left.performanceRank !== right.performanceRank) {
-            return left.performanceRank - right.performanceRank;
-          }
+      .map(([teamName, teamDrivers]) => {
+        const teamConfig = getTeamSelectionTeam(teamName);
 
-          return left.name.localeCompare(right.name, "nl-NL");
-        }),
-        teamScore: teamDrivers.reduce((total, driver) => total + (driver.seasonScore ?? 0), 0),
-      }))
+        return {
+          teamName,
+          ...(teamConfig ?? {
+            id: teamName.toLowerCase().replace(/\s+/g, ""),
+            name: teamName,
+            image: `/images/teams/${teamName} - car-side.png`,
+          }),
+          drivers: [...teamDrivers].sort((left, right) => {
+            if (left.performanceRank !== right.performanceRank) {
+              return left.performanceRank - right.performanceRank;
+            }
+
+            return left.name.localeCompare(right.name, "nl-NL");
+          }),
+          teamScore: teamDrivers.reduce((total, driver) => total + (driver.seasonScore ?? 0), 0),
+        };
+      })
       .sort((left, right) => {
         if (right.teamScore !== left.teamScore) {
           return right.teamScore - left.teamScore;
@@ -246,6 +256,7 @@ export function TeamSelectionForm({
                   } as CSSProperties
                 }
               >
+                <img src={team.image} alt={team.name} />
                 <h3>{team.teamName}</h3>
                 <ul>
                   {team.drivers.map((driver) => {
