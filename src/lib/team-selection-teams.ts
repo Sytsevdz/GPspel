@@ -4,6 +4,12 @@ export type TeamSelectionTeam = {
   image: string;
 };
 
+const createFallbackTeamSelectionTeam = (teamName: string): TeamSelectionTeam => ({
+  id: teamName.toLowerCase().replace(/\s+/g, ""),
+  name: teamName,
+  image: `/images/teams/${teamName} - car-side.png`,
+});
+
 export const TEAM_SELECTION_TEAMS: TeamSelectionTeam[] = [
   {
     id: "alpine",
@@ -93,3 +99,6 @@ export const getTeamSelectionTeam = (teamName: string): TeamSelectionTeam | null
 
   return TEAM_SELECTION_TEAMS.find((team) => team.id === alias.teamId) ?? null;
 };
+
+export const resolveTeamSelectionTeam = (teamName: string): TeamSelectionTeam =>
+  getTeamSelectionTeam(teamName) ?? createFallbackTeamSelectionTeam(teamName);

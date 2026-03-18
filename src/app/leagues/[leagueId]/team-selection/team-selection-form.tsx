@@ -1,13 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import { type CSSProperties, useMemo, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 
 import { saveTeamSelection, type TeamSelectionActionState } from "@/app/actions/team-selection";
 import { compareDriverStandings } from "@/lib/driver-pricing";
 import { getConstructorTeamColors } from "@/lib/team-colors";
-import { getTeamSelectionTeam } from "@/lib/team-selection-teams";
-import { RaceCar } from "./race-car";
+import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 
 type DriverWithPrice = {
   id: string;
@@ -35,15 +35,6 @@ const REQUIRED_DRIVERS = 4;
 const INITIAL_STATE: TeamSelectionActionState = { status: "idle" };
 
 const formatPrice = (price: number) => `${(price / 10).toFixed(1)}M`;
-
-const getDriverInitials = (name: string) => {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-
-  return parts
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
-};
 
 function SaveButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
@@ -108,15 +99,11 @@ export function TeamSelectionForm({
 
     return Array.from(grouped.entries())
       .map(([teamName, teamDrivers]) => {
-        const teamConfig = getTeamSelectionTeam(teamName);
+        const teamConfig = resolveTeamSelectionTeam(teamName);
 
         return {
           teamName,
-          ...(teamConfig ?? {
-            id: teamName.toLowerCase().replace(/\s+/g, ""),
-            name: teamName,
-            image: `/images/teams/${teamName} - car-side.png`,
-          }),
+          ...teamConfig,
           drivers: [...teamDrivers].sort((left, right) => {
             if (left.performanceRank !== right.performanceRank) {
               return left.performanceRank - right.performanceRank;
@@ -182,17 +169,19 @@ export function TeamSelectionForm({
       <section className="team-selection-summary">
         <h2>Geselecteerde coureurs</h2>
         {selectedDrivers.length > 0 ? (
-          <ul className="selected-driver-cars" aria-label="Geselecteerde coureurs als racewagens">
+          <ul className="selected-driver-cars" aria-label="Geselecteerde coureurs met teamwagens">
             {selectedDriversForDisplay.map((driver) => {
-              const teamColors = getConstructorTeamColors(driver.constructorTeam);
+              const team = resolveTeamSelectionTeam(driver.constructorTeam);
 
               return (
                 <li key={driver.id}>
                   <div className="selected-driver-car">
-                    <RaceCar
-                      color={teamColors.accent}
-                      accentColor={teamColors.accentSecondary}
-                      label={getDriverInitials(driver.name)}
+                    <Image
+                      src={team.image}
+                      alt={`${team.name} wagen`}
+                      width={240}
+                      height={96}
+                      className="selected-driver-car-image"
                     />
                   </div>
                   <p>
@@ -256,8 +245,12 @@ export function TeamSelectionForm({
                   } as CSSProperties
                 }
               >
-                <img src={team.image} alt={team.name} />
-                <h3>{team.teamName}</h3>
+                <div className="driver-team-card-header">
+                  <div className="driver-team-card-image">
+                    <Image src={team.image} alt={`${team.name} wagen`} width={220} height={88} className="driver-team-card-image-asset" />
+                  </div>
+                  <h3>{team.teamName}</h3>
+                </div>
                 <ul>
                   {team.drivers.map((driver) => {
                     const isChecked = selectedDriverIds.includes(driver.id);

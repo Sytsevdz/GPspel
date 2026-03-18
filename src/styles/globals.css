@@ -394,10 +394,11 @@ a {
 .selected-driver-cars {
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 0.65rem;
   padding: 0;
   margin: 0;
+  align-items: start;
 }
 
 .selected-driver-cars li {
@@ -411,6 +412,18 @@ a {
 
 .selected-driver-car {
   width: 100%;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.15rem 0.25rem;
+}
+
+.selected-driver-car-image {
+  width: 100%;
+  max-width: 200px;
+  height: 72px;
+  object-fit: contain;
 }
 
 .race-car-svg {
@@ -458,6 +471,24 @@ a {
   display: grid;
   gap: 0.6rem;
   background: linear-gradient(150deg, var(--team-bg-from), var(--team-bg-to));
+}
+
+.driver-team-card-header {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.driver-team-card-image {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+}
+
+.driver-team-card-image-asset {
+  width: 100%;
+  max-width: 150px;
+  height: 54px;
+  object-fit: contain;
 }
 
 .driver-team-card h3 {
