@@ -435,6 +435,8 @@ a {
   display: grid;
   gap: 0.2rem;
   font-size: 0.85rem;
+  justify-items: center;
+  text-align: center;
 }
 
 .selected-driver-cars p span {
@@ -476,12 +478,16 @@ a {
 .driver-team-card-header {
   display: grid;
   gap: 0.45rem;
+  justify-items: center;
+  text-align: center;
 }
 
 .driver-team-card-image {
   min-height: 54px;
   display: flex;
   align-items: center;
+  justify-content: center;
+  width: 100%;
 }
 
 .driver-team-card-image-asset {
@@ -495,8 +501,10 @@ a {
   margin: 0;
   font-size: 1rem;
   color: #f9f9f9;
-  border-left: 4px solid var(--team-accent);
-  padding-left: 0.55rem;
+  border-top: 4px solid var(--team-accent);
+  padding-top: 0.45rem;
+  display: inline-flex;
+  justify-content: center;
 }
 
 .driver-team-card li {
@@ -529,12 +537,6 @@ a {
   font: inherit;
 }
 
-@media (min-width: 900px) {
-  .selected-driver-cars {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
 .predictions-form {
   display: grid;
   gap: 1rem;
@@ -546,25 +548,201 @@ a {
   padding: 0.9rem;
   display: grid;
   gap: 0.75rem;
+  overflow: hidden;
 }
 
-.predictions-field {
+.predictions-section-header {
   display: grid;
   gap: 0.35rem;
+}
+
+.predictions-section-header h2 {
+  margin: 0;
+}
+
+.predictions-section-header p {
+  margin: 0;
+  color: #cfcfcf;
   font-size: 0.95rem;
 }
 
-.predictions-field select {
-  width: 100%;
+.podium-grid {
+  display: grid;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.podium-slot {
   border: 1px solid #3a3a3a;
-  background: #121212;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015)),
+    linear-gradient(180deg, rgba(24, 24, 24, 0.96), rgba(12, 12, 12, 0.98));
   color: #f7f7f7;
-  border-radius: 10px;
-  padding: 0.7rem;
+  display: grid;
+  gap: 0.65rem;
+  align-content: space-between;
+  padding: 0.85rem;
+  width: 100%;
+  text-align: center;
+}
+
+button.podium-slot {
+  cursor: pointer;
   font: inherit;
 }
 
-.predictions-form button {
+.podium-slot.empty {
+  border-style: dashed;
+  color: #d6d6d6;
+}
+
+.podium-slot.active {
+  border-color: #e8b62c;
+  box-shadow: 0 0 0 1px rgba(232, 182, 44, 0.5);
+}
+
+.podium-slot-position {
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.podium-slot-visual {
+  display: grid;
+  gap: 0.65rem;
+  justify-items: center;
+}
+
+.podium-car-image-wrapper,
+.podium-driver-option-image {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.podium-car-image {
+  width: 100%;
+  max-width: 220px;
+  height: auto;
+  object-fit: contain;
+}
+
+.podium-slot-copy,
+.podium-slot-placeholder,
+.podium-driver-option-copy {
+  display: grid;
+  gap: 0.2rem;
+  justify-items: center;
+  text-align: center;
+}
+
+.podium-slot-copy span,
+.podium-slot-placeholder span,
+.podium-driver-option-copy span {
+  color: #d1d1d1;
+  font-size: 0.9rem;
+}
+
+.podium-slot-placeholder {
+  min-height: 8.5rem;
+  align-content: center;
+}
+
+.podium-step-label {
+  font-size: 0.88rem;
+  color: #cfcfcf;
+}
+
+.podium-step-p1 {
+  min-height: 18rem;
+}
+
+.podium-step-p2,
+.podium-step-p3 {
+  min-height: 15.5rem;
+}
+
+.podium-selection-panel {
+  border: 1px solid #393939;
+  border-radius: 14px;
+  background: rgba(18, 18, 18, 0.98);
+  padding: 0.9rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.podium-selection-panel-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.podium-selection-panel-header h3,
+.podium-selection-panel-header p {
+  margin: 0;
+}
+
+.podium-selection-panel-header p {
+  color: #cfcfcf;
+  font-size: 0.95rem;
+}
+
+.podium-selection-close {
+  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid #4a4a4a;
+  width: 100%;
+  background: #171717;
+  color: #f7f7f7;
+  font: inherit;
+}
+
+.podium-driver-options {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.podium-driver-option {
+  width: 100%;
+  border: 1px solid #3a3a3a;
+  background: #111111;
+  color: #f7f7f7;
+  border-radius: 14px;
+  padding: 0.8rem;
+  display: grid;
+  gap: 0.55rem;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.podium-driver-option.selected {
+  border-color: #e8b62c;
+  box-shadow: 0 0 0 1px rgba(232, 182, 44, 0.45);
+}
+
+.podium-driver-option:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.podium-driver-option-car {
+  width: 100%;
+  max-width: 180px;
+  height: auto;
+  object-fit: contain;
+}
+
+.predictions-submit-button {
   display: inline-flex;
   justify-content: center;
   align-items: center;
@@ -576,6 +754,23 @@ a {
   font: inherit;
 }
 
+@media (min-width: 900px) {
+  .selected-driver-cars {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .podium-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .podium-step-p1 {
+    transform: translateY(-1.25rem);
+  }
+
+  .podium-driver-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 
 .result-import {
   display: grid;

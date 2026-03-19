@@ -69,19 +69,13 @@ export default async function PredictionsGrandPrixPage({ params }: PredictionsGr
       .eq("grand_prix_id", predictionData.grandPrix.id)
       .maybeSingle<ExistingPrediction>();
 
-    const fallbackIds = [
-      predictionData.drivers[0]?.id ?? "",
-      predictionData.drivers[1]?.id ?? predictionData.drivers[0]?.id ?? "",
-      predictionData.drivers[2]?.id ?? predictionData.drivers[0]?.id ?? "",
-    ];
-
     const initialValues = {
-      qualiP1: existingPrediction?.quali_p1 ?? fallbackIds[0],
-      qualiP2: existingPrediction?.quali_p2 ?? fallbackIds[1],
-      qualiP3: existingPrediction?.quali_p3 ?? fallbackIds[2],
-      raceP1: existingPrediction?.race_p1 ?? fallbackIds[0],
-      raceP2: existingPrediction?.race_p2 ?? fallbackIds[1],
-      raceP3: existingPrediction?.race_p3 ?? fallbackIds[2],
+      qualiP1: existingPrediction?.quali_p1 ?? "",
+      qualiP2: existingPrediction?.quali_p2 ?? "",
+      qualiP3: existingPrediction?.quali_p3 ?? "",
+      raceP1: existingPrediction?.race_p1 ?? "",
+      raceP2: existingPrediction?.race_p2 ?? "",
+      raceP3: existingPrediction?.race_p3 ?? "",
     };
 
     const isReadOnly = predictionData.grandPrix.deadline <= new Date().toISOString();
