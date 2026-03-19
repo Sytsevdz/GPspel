@@ -11,6 +11,8 @@ type DriverOption = {
   id: string;
   name: string;
   constructorTeam: string;
+  seasonScore?: number;
+  performanceRank?: number;
 };
 
 type PredictionValues = {
@@ -88,6 +90,39 @@ export function PredictionsForm({ leagueId, grandPrixId, drivers, initialValues,
   const [activeField, setActiveField] = useState<PredictionField | null>(null);
 
   const driversById = useMemo(() => new Map(drivers.map((driver) => [driver.id, driver])), [drivers]);
+  const sortedDrivers = useMemo(() => {
+    const groupedDrivers = new Map<string, DriverOption[]>();
+
+    drivers.forEach((driver) => {
+      const teamDrivers = groupedDrivers.get(driver.constructorTeam) ?? [];
+      teamDrivers.push(driver);
+      groupedDrivers.set(driver.constructorTeam, teamDrivers);
+    });
+
+    return Array.from(groupedDrivers.entries())
+      .map(([teamName, teamDrivers]) => ({
+        teamName,
+        drivers: [...teamDrivers].sort((left, right) => {
+          const leftRank = left.performanceRank ?? Number.POSITIVE_INFINITY;
+          const rightRank = right.performanceRank ?? Number.POSITIVE_INFINITY;
+
+          if (leftRank !== rightRank) {
+            return leftRank - rightRank;
+          }
+
+          return left.name.localeCompare(right.name, "nl-NL");
+        }),
+        teamScore: teamDrivers.reduce((total, driver) => total + (driver.seasonScore ?? 0), 0),
+      }))
+      .sort((left, right) => {
+        if (right.teamScore !== left.teamScore) {
+          return right.teamScore - left.teamScore;
+        }
+
+        return left.teamName.localeCompare(right.teamName, "nl-NL");
+      })
+      .flatMap((team) => team.drivers);
+  }, [drivers]);
 
   const validationErrors = useMemo(() => {
     const errors: string[] = [];
@@ -213,7 +248,7 @@ export function PredictionsForm({ leagueId, grandPrixId, drivers, initialValues,
                 </div>
 
                 <div className="podium-driver-options">
-                  {drivers.map((driver) => {
+                  {sortedDrivers.map((driver) => {
                     const team = resolveTeamSelectionTeam(driver.constructorTeam);
                     const currentSelection = values[activeSlot.field];
                     const selectedElsewhere =

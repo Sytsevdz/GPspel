@@ -554,6 +554,7 @@ a {
 .predictions-section-header {
   display: grid;
   gap: 0.35rem;
+  margin-bottom: 0.25rem;
 }
 
 .predictions-section-header h2 {
@@ -761,6 +762,7 @@ button.podium-slot {
 
   .podium-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding-top: 1.35rem;
   }
 
   .podium-step-p1 {
