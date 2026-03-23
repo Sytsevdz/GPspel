@@ -39,7 +39,9 @@ type PodiumSlotConfig = {
   inputName: string;
   label: string;
   position: "P1" | "P2" | "P3";
+  rankLabel: string;
   heightClassName: string;
+  slotClassName: string;
 };
 
 type PodiumSectionConfig = {
@@ -55,18 +57,66 @@ const PODIUM_SECTIONS: PodiumSectionConfig[] = [
     id: "quali",
     title: "Kwalificatie",
     slots: [
-      { field: "qualiP2", inputName: "quali_p2", label: "Kwalificatie P2", position: "P2", heightClassName: "podium-step-p2" },
-      { field: "qualiP1", inputName: "quali_p1", label: "Kwalificatie P1", position: "P1", heightClassName: "podium-step-p1" },
-      { field: "qualiP3", inputName: "quali_p3", label: "Kwalificatie P3", position: "P3", heightClassName: "podium-step-p3" },
+      {
+        field: "qualiP2",
+        inputName: "quali_p2",
+        label: "Kwalificatie P2",
+        position: "P2",
+        rankLabel: "Tweede plek",
+        heightClassName: "podium-step-p2",
+        slotClassName: "podium-slot--p2",
+      },
+      {
+        field: "qualiP1",
+        inputName: "quali_p1",
+        label: "Kwalificatie P1",
+        position: "P1",
+        rankLabel: "Pole position",
+        heightClassName: "podium-step-p1",
+        slotClassName: "podium-slot--p1",
+      },
+      {
+        field: "qualiP3",
+        inputName: "quali_p3",
+        label: "Kwalificatie P3",
+        position: "P3",
+        rankLabel: "Derde plek",
+        heightClassName: "podium-step-p3",
+        slotClassName: "podium-slot--p3",
+      },
     ],
   },
   {
     id: "race",
     title: "Race",
     slots: [
-      { field: "raceP2", inputName: "race_p2", label: "Race P2", position: "P2", heightClassName: "podium-step-p2" },
-      { field: "raceP1", inputName: "race_p1", label: "Race P1", position: "P1", heightClassName: "podium-step-p1" },
-      { field: "raceP3", inputName: "race_p3", label: "Race P3", position: "P3", heightClassName: "podium-step-p3" },
+      {
+        field: "raceP2",
+        inputName: "race_p2",
+        label: "Race P2",
+        position: "P2",
+        rankLabel: "Tweede plek",
+        heightClassName: "podium-step-p2",
+        slotClassName: "podium-slot--p2",
+      },
+      {
+        field: "raceP1",
+        inputName: "race_p1",
+        label: "Race P1",
+        position: "P1",
+        rankLabel: "Winnaar",
+        heightClassName: "podium-step-p1",
+        slotClassName: "podium-slot--p1",
+      },
+      {
+        field: "raceP3",
+        inputName: "race_p3",
+        label: "Race P3",
+        position: "P3",
+        rankLabel: "Derde plek",
+        heightClassName: "podium-step-p3",
+        slotClassName: "podium-slot--p3",
+      },
     ],
   },
 ];
@@ -178,6 +228,7 @@ export function PredictionsForm({ leagueId, grandPrixId, drivers, initialValues,
                 const slotClasses = [
                   "podium-slot",
                   slot.heightClassName,
+                  slot.slotClassName,
                   selectedDriver ? "filled" : "empty",
                   isActive ? "active" : "",
                 ]
@@ -186,30 +237,35 @@ export function PredictionsForm({ leagueId, grandPrixId, drivers, initialValues,
 
                 const slotContent = (
                   <>
-                    <span className="podium-slot-position">{slot.position}</span>
-                    <div className="podium-slot-visual">
-                      {selectedDriver && selectedTeam ? (
-                        <>
-                          <div className="podium-car-image-wrapper">
-                            <Image
-                              src={selectedTeam.image}
-                              alt={`${selectedTeam.name} wagen`}
-                              width={260}
-                              height={104}
-                              className="podium-car-image"
-                            />
+                    <div className="podium-slot-content">
+                      <div className="podium-slot-heading">
+                        <span className="podium-slot-position">{slot.position}</span>
+                        <span className="podium-slot-rank-label">{slot.rankLabel}</span>
+                      </div>
+                      <div className="podium-slot-visual">
+                        {selectedDriver && selectedTeam ? (
+                          <>
+                            <div className="podium-car-image-wrapper">
+                              <Image
+                                src={selectedTeam.image}
+                                alt={`${selectedTeam.name} wagen`}
+                                width={260}
+                                height={104}
+                                className="podium-car-image"
+                              />
+                            </div>
+                            <div className="podium-slot-copy">
+                              <strong>{selectedDriver.name}</strong>
+                              <span>{selectedDriver.constructorTeam}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="podium-slot-placeholder">
+                            <strong>{slot.label}</strong>
+                            <span>Nog geen coureur gekozen</span>
                           </div>
-                          <div className="podium-slot-copy">
-                            <strong>{selectedDriver.name}</strong>
-                            <span>{selectedDriver.constructorTeam}</span>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="podium-slot-placeholder">
-                          <strong>{slot.position}</strong>
-                          <span>Nog geen coureur gekozen</span>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                     <div className="podium-step-label">{slot.label}</div>
                   </>
