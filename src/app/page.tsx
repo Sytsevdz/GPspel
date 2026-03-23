@@ -38,13 +38,23 @@ export default async function HomePage() {
   }
 
   return (
-    <main className="home">
-      <section className="home-card">
-        <h1>Het betere GP spel</h1>
-        <p>Log in of registreer om mee te doen.</p>
-        <div className="home-actions">
-          <Link href="/login">Log in</Link>
-          <Link href="/register">Registreren</Link>
+    <main className="home hero-home">
+      <section className="hero-section" aria-labelledby="hero-title">
+        <div className="hero-overlay" />
+        <div className="hero-content">
+          <span className="hero-kicker">Fantasy Grand Prix</span>
+          <h1 id="hero-title">Ben jij de ultieme GP-kenner?</h1>
+          <p>
+            Stel je team samen, voorspel de uitslagen en versla je vrienden gedurende het hele seizoen.
+          </p>
+          <div className="hero-actions">
+            <Link className="hero-cta" href="/register">
+              Speel mee
+            </Link>
+            <Link className="hero-secondary" href="/login">
+              Ik heb al een account
+            </Link>
+          </div>
         </div>
       </section>
     </main>
