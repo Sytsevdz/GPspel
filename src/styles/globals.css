@@ -842,6 +842,53 @@ button.podium-slot:hover {
   font: inherit;
 }
 
+@media (max-width: 699px) {
+  .podium-grid {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .podium-grid > :nth-child(1),
+  .podium-grid > :nth-child(2),
+  .podium-grid > :nth-child(3) {
+    grid-column: 1;
+  }
+
+  .podium-grid > :nth-child(1) {
+    grid-row: 2;
+  }
+
+  .podium-grid > :nth-child(2) {
+    grid-row: 1;
+  }
+
+  .podium-grid > :nth-child(3) {
+    grid-row: 3;
+  }
+
+  .podium-slot {
+    justify-items: center;
+  }
+
+  .podium-slot-heading {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .podium-slot-copy,
+  .podium-slot-placeholder {
+    width: 100%;
+    max-width: 18rem;
+  }
+
+  .podium-step-p1,
+  .podium-step-p2,
+  .podium-step-p3 {
+    min-height: auto;
+  }
+}
+
 @media (min-width: 900px) {
   .selected-driver-cars {
     grid-template-columns: repeat(4, minmax(0, 1fr));
