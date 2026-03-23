@@ -42,7 +42,7 @@ export default async function HomePage() {
       <section className="hero-section" aria-labelledby="hero-title">
         <div className="hero-overlay" />
         <div className="hero-content">
-          <span className="hero-kicker">Fantasy Grand Prix</span>
+          <span className="hero-kicker">Het betere GP spel</span>
           <h1 id="hero-title">Ben jij de ultieme GP-kenner?</h1>
           <p>
             Stel je team samen, voorspel de uitslagen en versla je vrienden gedurende het hele seizoen.
