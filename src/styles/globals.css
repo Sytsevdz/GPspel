@@ -12,12 +12,17 @@ html,
 body {
   min-height: 100%;
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: #090b12;
   color: #f7f7f7;
+}
+
+html {
+  background: #090b12;
 }
 
 body {
   position: relative;
+  isolation: isolate;
+  background: transparent;
 }
 
 body::before,
