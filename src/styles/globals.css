@@ -12,8 +12,38 @@ html,
 body {
   min-height: 100%;
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: radial-gradient(circle at top, #1b1b1b, #0f0f0f 60%);
+  background: #090b12;
   color: #f7f7f7;
+}
+
+body {
+  position: relative;
+}
+
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+body::before {
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.18), transparent 26%),
+    radial-gradient(circle at top right, rgba(255, 59, 48, 0.42), transparent 34%),
+    radial-gradient(circle at bottom left, rgba(72, 120, 255, 0.34), transparent 38%),
+    url("/hero-racing-placeholder.svg") center / cover no-repeat,
+    #090b12;
+  opacity: 0.68;
+  z-index: -2;
+}
+
+body::after {
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 42%),
+    linear-gradient(180deg, rgba(5, 7, 13, 0.48) 0%, rgba(5, 7, 13, 0.72) 52%, rgba(5, 7, 13, 0.9) 100%);
+  z-index: -1;
 }
 
 a {
@@ -31,6 +61,7 @@ a {
   top: 0;
   backdrop-filter: blur(5px);
   background: rgba(15, 15, 15, 0.85);
+  z-index: 5;
 }
 
 .brand {
@@ -75,8 +106,9 @@ a {
   padding: clamp(1.5rem, 4vw, 3rem);
   overflow: hidden;
   background:
-    radial-gradient(circle at top right, rgba(255, 59, 48, 0.3), transparent 32%),
-    url("/hero-racing-placeholder.svg") center/cover no-repeat,
+    linear-gradient(120deg, rgba(5, 7, 13, 0.82) 16%, rgba(5, 7, 13, 0.38) 48%, rgba(5, 7, 13, 0.82) 100%),
+    linear-gradient(180deg, rgba(5, 7, 13, 0.26) 0%, rgba(5, 7, 13, 0.72) 100%),
+    url("/images/bg_image.png") center / cover no-repeat,
     #090b12;
 }
 
@@ -84,17 +116,14 @@ a {
   content: "";
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(circle at center, rgba(255, 255, 255, 0.05), transparent 45%),
-    linear-gradient(180deg, rgba(5, 7, 13, 0.3) 0%, rgba(5, 7, 13, 0.72) 55%, rgba(5, 7, 13, 0.92) 100%);
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.06), transparent 45%);
   z-index: -1;
 }
 
 .hero-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(110deg, rgba(5, 7, 13, 0.92) 14%, rgba(5, 7, 13, 0.58) 48%, rgba(5, 7, 13, 0.86) 100%);
-  backdrop-filter: blur(2px);
+  background: linear-gradient(180deg, rgba(5, 7, 13, 0.12) 0%, rgba(5, 7, 13, 0.24) 100%);
   z-index: -1;
 }
 
