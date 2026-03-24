@@ -585,7 +585,7 @@ a {
 
 .selected-driver-car {
   width: 100%;
-  min-height: 72px;
+  min-height: 96px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1336,12 +1336,19 @@ button.podium-slot:hover {
 
 .gp-team-slot-car {
   width: 100%;
-  min-height: 72px;
+  min-height: 96px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
+
+.gp-team-slot-image {
+  width: 100%;
+  max-width: 240px;
+  height: 96px;
+  object-fit: contain;
+}
 .gp-team-slot p {
   display: grid;
   gap: 0.2rem;

@@ -240,11 +240,10 @@ export function TeamSelectionCompactForm({
                 {slotDriver && slotTeam ? (
                   <>
                     <div className="gp-team-slot-car">
-                      <Image src={slotTeam.image} alt={`${slotTeam.name} wagen`} width={240} height={96} className="selected-driver-car-image" />
+                      <Image src={slotTeam.image} alt={`${slotTeam.name} wagen`} width={240} height={96} className="gp-team-slot-image" />
                     </div>
                     <p>
                       <strong>{slotDriver.name}</strong>
-                      <span>{slotDriver.constructorTeam}</span>
                       <span>{formatPrice(slotDriver.price)}</span>
                     </p>
                   </>
