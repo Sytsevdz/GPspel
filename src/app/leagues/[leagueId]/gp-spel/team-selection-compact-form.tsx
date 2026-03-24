@@ -124,6 +124,8 @@ export function TeamSelectionCompactForm({
       });
   }, [drivers]);
 
+  const sortedDrivers = useMemo(() => driversByTeam.flatMap((team) => team.drivers), [driversByTeam]);
+
   const totalPrice = selectedDrivers.reduce((sum, driver) => sum + driver.price, 0);
   const remainingBudget = MAX_BUDGET - totalPrice;
   const constructorCount = new Set(selectedDrivers.map((driver) => driver.constructorTeam)).size;
@@ -240,15 +242,19 @@ export function TeamSelectionCompactForm({
                 {slotDriver && slotTeam ? (
                   <>
                     <div className="gp-team-slot-car">
-                      <Image src={slotTeam.image} alt={`${slotTeam.name} wagen`} width={240} height={96} className="gp-team-slot-image" />
+                      <Image src={slotTeam.image} alt={`${slotTeam.name} wagen`} width={280} height={112} className="gp-team-slot-image" />
                     </div>
-                    <p>
+                    <p className="gp-team-slot-copy">
                       <strong>{slotDriver.name}</strong>
+                      <span className="gp-team-slot-team-name">{slotDriver.constructorTeam}</span>
                       <span>{formatPrice(slotDriver.price)}</span>
                     </p>
                   </>
                 ) : (
-                  <span className="gp-team-slot-empty">Kies coureur</span>
+                  <div className="gp-team-slot-empty">
+                    <strong>Vrije plek</strong>
+                    <span>Kies coureur</span>
+                  </div>
                 )}
               </button>
             );
@@ -284,75 +290,63 @@ export function TeamSelectionCompactForm({
       </section>
 
       {activeSlotIndex !== null ? (
-        <div className="gp-team-dialog-backdrop" role="dialog" aria-modal="true" aria-label="Coureur kiezen">
-          <div className="gp-team-dialog">
-            <div className="gp-team-dialog-header">
-              <h3>Kies coureur</h3>
-              <button type="button" onClick={() => setActiveSlotIndex(null)} className="league-back-link">
+        <div
+          className="podium-selection-overlay"
+          role="presentation"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setActiveSlotIndex(null);
+            }
+          }}
+        >
+          <div className="podium-selection-panel gp-team-selection-panel" role="dialog" aria-modal="true" aria-label="Coureur kiezen">
+            <div className="podium-selection-panel-header">
+              <div>
+                <h3>Kies coureur</h3>
+                <p>Team kiezen · 4 coureurs · Maximaal 100 miljoen</p>
+              </div>
+              <button type="button" onClick={() => setActiveSlotIndex(null)} className="podium-selection-close">
                 Sluiten
               </button>
             </div>
 
             {activeSlotDriverId ? (
-              <button type="button" className="league-back-link gp-team-clear-button" onClick={clearSlot}>
+              <button type="button" className="podium-selection-close gp-team-clear-button" onClick={clearSlot}>
                 Slot leegmaken
               </button>
             ) : null}
 
-            <div className="driver-team-grid gp-team-dialog-grid">
-              {driversByTeam.map((team) => {
-                const teamColors = getConstructorTeamColors(team.teamName);
+            <div className="podium-driver-options gp-team-driver-options">
+              {sortedDrivers.map((driver) => {
+                const team = resolveTeamSelectionTeam(driver.constructorTeam);
+                const teamColors = getConstructorTeamColors(driver.constructorTeam);
+                const isSelected = selectedDriverIds.includes(driver.id);
+                const canSelect = isDriverSelectableForActiveSlot(driver.id);
+                const isUnavailable = !canSelect && !isSelected;
 
                 return (
-                  <section
-                    key={team.teamName}
-                    className="driver-team-card"
-                    aria-label={`Team ${team.teamName}`}
+                  <button
+                    key={driver.id}
+                    type="button"
+                    className={`podium-driver-option gp-team-driver-option ${isSelected ? "selected" : ""}`}
+                    disabled={!canSelect}
+                    onClick={() => chooseDriverForSlot(driver.id)}
                     style={
                       {
                         "--team-accent": teamColors.accent,
-                        "--team-accent-secondary": teamColors.accentSecondary,
-                        "--team-bg-from": teamColors.backgroundFrom,
-                        "--team-bg-to": teamColors.backgroundTo,
                       } as CSSProperties
                     }
                   >
-                    <div className="driver-team-card-header">
-                      <div className="driver-team-card-image">
-                        <Image src={team.image} alt={`${team.name} wagen`} width={220} height={88} className="driver-team-card-image-asset" />
-                      </div>
-                      <h4>{team.teamName}</h4>
+                    <div className="podium-driver-option-image">
+                      <Image src={team.image} alt={`${team.name} wagen`} width={220} height={88} className="podium-driver-option-car" />
                     </div>
-                    <ul>
-                      {team.drivers.map((driver) => {
-                        const isSelected = selectedDriverIds.includes(driver.id);
-                        const canSelect = isDriverSelectableForActiveSlot(driver.id);
-
-                        return (
-                          <li key={driver.id} className={isSelected ? "selected-driver" : undefined}>
-                            <button
-                              type="button"
-                              className={`gp-team-option ${canSelect ? "" : "disabled"}`.trim()}
-                              disabled={!canSelect}
-                              onClick={() => chooseDriverForSlot(driver.id)}
-                            >
-                              <span className="driver-grid">
-                                <span>
-                                  <strong>Coureur:</strong> {driver.name}
-                                </span>
-                                <span>
-                                  <strong>Team:</strong> {driver.constructorTeam}
-                                </span>
-                                <span>
-                                  <strong>Prijs:</strong> {formatPrice(driver.price)}
-                                </span>
-                              </span>
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </section>
+                    <div className="podium-driver-option-copy">
+                      <strong>{driver.name}</strong>
+                      <span>{driver.constructorTeam}</span>
+                      <span className="gp-team-driver-option-price">{formatPrice(driver.price)}</span>
+                      {isUnavailable ? <span className="gp-team-driver-option-state">Niet beschikbaar binnen je huidige team</span> : null}
+                    </div>
+                  </button>
                 );
               })}
             </div>
