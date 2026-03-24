@@ -143,7 +143,7 @@ export function PlayerGrandPrixDetail({
     setErrorMessage("");
 
     startTransition(async () => {
-      const result = await getPlayerGrandPrixView(leagueId, grandPrixId, member.userId);
+      const result = await getPlayerGrandPrixView(leagueId, grandPrixId, member.userId, member.displayName);
 
       if (result.status === "error") {
         setErrorMessage(result.message);

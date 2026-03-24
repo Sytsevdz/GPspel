@@ -1,6 +1,6 @@
 "use server";
 
-import { createAdminSupabaseClient, createServerSupabaseClient } from "@/lib/supabase";
+import { createServerSupabaseClient } from "@/lib/supabase";
 
 type PodiumEntry = {
   id: string;
@@ -27,10 +27,12 @@ export async function getPlayerGrandPrixView(
   leagueId: string,
   grandPrixId: string,
   playerId: string,
+  playerName: string,
 ): Promise<PlayerGrandPrixViewResult> {
   const safeLeagueId = leagueId.trim();
   const safeGrandPrixId = grandPrixId.trim();
   const safePlayerId = playerId.trim();
+  const safePlayerName = playerName.trim() || "Speler";
 
   if (!safeLeagueId || !safeGrandPrixId || !safePlayerId) {
     return {
@@ -87,9 +89,7 @@ export async function getPlayerGrandPrixView(
     };
   }
 
-  const adminClient = createAdminSupabaseClient();
-
-  const { data: selectedPlayerMembership } = await adminClient
+  const { data: selectedPlayerMembership } = await supabase
     .from("league_members")
     .select("id")
     .eq("league_id", safeLeagueId)
@@ -103,9 +103,8 @@ export async function getPlayerGrandPrixView(
     };
   }
 
-  const [{ data: profile }, { data: teamSelection }, { data: prediction }] = await Promise.all([
-    adminClient.from("profiles").select("display_name").eq("id", safePlayerId).maybeSingle<{ display_name: string }>(),
-    adminClient
+  const [{ data: teamSelection }, { data: prediction }] = await Promise.all([
+    supabase
       .from("team_selections")
       .select("id, team_selection_drivers(driver_id, drivers(id, name, constructor_team))")
       .eq("user_id", safePlayerId)
@@ -121,7 +120,7 @@ export async function getPlayerGrandPrixView(
           } | null;
         }>;
       }>(),
-    adminClient
+    supabase
       .from("predictions")
       .select("quali_p1, quali_p2, quali_p3, race_p1, race_p2, race_p3")
       .eq("user_id", safePlayerId)
@@ -162,7 +161,7 @@ export async function getPlayerGrandPrixView(
 
     const uniqueDriverIds = Array.from(new Set(predictionDriverIds));
 
-    const { data: predictionDrivers } = await adminClient
+    const { data: predictionDrivers } = await supabase
       .from("drivers")
       .select("id, name, constructor_team")
       .in("id", uniqueDriverIds)
@@ -194,7 +193,7 @@ export async function getPlayerGrandPrixView(
 
   return {
     status: "success",
-    playerName: profile?.display_name ?? "Speler",
+    playerName: safePlayerName,
     teamSelection: teamSelectionDrivers,
     qualificationPodium,
     racePodium,
