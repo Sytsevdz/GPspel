@@ -10,6 +10,7 @@ import {
 
 import { getAccessibleLeague } from "../../league-access";
 import { GrandPrixSelector } from "../../grand-prix-selector";
+import { PlayerGrandPrixDetail } from "../../player-grand-prix-detail";
 import { PredictionsForm } from "../predictions-form";
 
 type PredictionsGrandPrixPageProps = {
@@ -62,6 +63,12 @@ export default async function PredictionsGrandPrixPage({ params }: PredictionsGr
 
     const { previousGrandPrixId, nextGrandPrixId } = getGrandPrixNavigation(timeline, params.grandPrixId);
 
+    const { data: members } = await supabase
+      .from("league_members")
+      .select("user_id, profiles(display_name)")
+      .eq("league_id", league.id)
+      .returns<Array<{ user_id: string; profiles: { display_name: string } | null }>>();
+
     const { data: existingPrediction } = await supabase
       .from("predictions")
       .select("quali_p1, quali_p2, quali_p3, race_p1, race_p2, race_p3")
@@ -79,6 +86,11 @@ export default async function PredictionsGrandPrixPage({ params }: PredictionsGr
     };
 
     const isReadOnly = predictionData.grandPrix.deadline <= new Date().toISOString();
+    const leagueMembers =
+      members?.map((member) => ({
+        userId: member.user_id,
+        displayName: member.profiles?.display_name ?? "Speler",
+      })) ?? [];
 
     return (
       <main className="leagues-page">
@@ -130,6 +142,16 @@ export default async function PredictionsGrandPrixPage({ params }: PredictionsGr
             initialValues={initialValues}
             readOnly={isReadOnly}
           />
+
+          {leagueMembers.length > 0 ? (
+            <PlayerGrandPrixDetail
+              leagueId={league.id}
+              grandPrixId={predictionData.grandPrix.id}
+              grandPrixName={predictionData.grandPrix.name}
+              deadlinePassed={isReadOnly}
+              members={leagueMembers}
+            />
+          ) : null}
         </section>
       </main>
     );

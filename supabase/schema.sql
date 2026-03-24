@@ -235,6 +235,27 @@ on public.team_selections
 for select
 using (auth.uid() = user_id);
 
+drop policy if exists "team_selections_select_league_after_deadline" on public.team_selections;
+create policy "team_selections_select_league_after_deadline"
+on public.team_selections
+for select
+using (
+  exists (
+    select 1
+    from public.league_members lm_requester
+    join public.league_members lm_target
+      on lm_target.league_id = lm_requester.league_id
+    where lm_requester.user_id = auth.uid()
+      and lm_target.user_id = team_selections.user_id
+  )
+  and exists (
+    select 1
+    from public.grand_prix gp
+    where gp.id = team_selections.grand_prix_id
+      and gp.deadline <= now()
+  )
+);
+
 drop policy if exists "team_selections_insert_own" on public.team_selections;
 create policy "team_selections_insert_own"
 on public.team_selections
@@ -258,6 +279,32 @@ using (
     from public.team_selections ts
     where ts.id = team_selection_drivers.team_selection_id
       and ts.user_id = auth.uid()
+  )
+);
+
+drop policy if exists "team_selection_drivers_select_league_after_deadline" on public.team_selection_drivers;
+create policy "team_selection_drivers_select_league_after_deadline"
+on public.team_selection_drivers
+for select
+using (
+  exists (
+    select 1
+    from public.team_selections ts
+    where ts.id = team_selection_drivers.team_selection_id
+      and exists (
+        select 1
+        from public.league_members lm_requester
+        join public.league_members lm_target
+          on lm_target.league_id = lm_requester.league_id
+        where lm_requester.user_id = auth.uid()
+          and lm_target.user_id = ts.user_id
+      )
+      and exists (
+        select 1
+        from public.grand_prix gp
+        where gp.id = ts.grand_prix_id
+          and gp.deadline <= now()
+      )
   )
 );
 
@@ -318,6 +365,27 @@ create policy "predictions_select_own"
 on public.predictions
 for select
 using (auth.uid() = user_id);
+
+drop policy if exists "predictions_select_league_after_deadline" on public.predictions;
+create policy "predictions_select_league_after_deadline"
+on public.predictions
+for select
+using (
+  exists (
+    select 1
+    from public.league_members lm_requester
+    join public.league_members lm_target
+      on lm_target.league_id = lm_requester.league_id
+    where lm_requester.user_id = auth.uid()
+      and lm_target.user_id = predictions.user_id
+  )
+  and exists (
+    select 1
+    from public.grand_prix gp
+    where gp.id = predictions.grand_prix_id
+      and gp.deadline <= now()
+  )
+);
 
 drop policy if exists "predictions_insert_own" on public.predictions;
 create policy "predictions_insert_own"

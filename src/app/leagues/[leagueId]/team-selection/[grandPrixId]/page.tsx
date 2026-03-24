@@ -10,6 +10,7 @@ import { createServerSupabaseClient } from "@/lib/supabase";
 
 import { getAccessibleLeague } from "../../league-access";
 import { GrandPrixSelector } from "../../grand-prix-selector";
+import { PlayerGrandPrixDetail } from "../../player-grand-prix-detail";
 import { TeamSelectionForm } from "../team-selection-form";
 
 type TeamSelectionGrandPrixPageProps = {
@@ -61,6 +62,12 @@ export default async function TeamSelectionGrandPrixPage({ params }: TeamSelecti
 
     const { previousGrandPrixId, nextGrandPrixId } = getGrandPrixNavigation(timeline, params.grandPrixId);
 
+    const { data: members } = await supabase
+      .from("league_members")
+      .select("user_id, profiles(display_name)")
+      .eq("league_id", league.id)
+      .returns<Array<{ user_id: string; profiles: { display_name: string } | null }>>();
+
     const { data: existingTeamSelection } = await supabase
       .from("team_selections")
       .select("id, team_selection_drivers(driver_id)")
@@ -72,6 +79,11 @@ export default async function TeamSelectionGrandPrixPage({ params }: TeamSelecti
       existingTeamSelection?.team_selection_drivers.map((teamSelectionDriver) => teamSelectionDriver.driver_id) ?? [];
 
     const isReadOnly = teamSelectionData.grandPrix.deadline <= new Date().toISOString();
+    const leagueMembers =
+      members?.map((member) => ({
+        userId: member.user_id,
+        displayName: member.profiles?.display_name ?? "Speler",
+      })) ?? [];
 
     return (
       <main className="leagues-page">
@@ -125,6 +137,16 @@ export default async function TeamSelectionGrandPrixPage({ params }: TeamSelecti
             readOnly={isReadOnly}
             showFallbackNotice={teamSelectionData.usesFallbackPrices}
           />
+
+          {leagueMembers.length > 0 ? (
+            <PlayerGrandPrixDetail
+              leagueId={league.id}
+              grandPrixId={teamSelectionData.grandPrix.id}
+              grandPrixName={teamSelectionData.grandPrix.name}
+              deadlinePassed={isReadOnly}
+              members={leagueMembers}
+            />
+          ) : null}
         </section>
       </main>
     );
