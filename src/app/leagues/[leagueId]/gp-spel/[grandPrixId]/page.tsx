@@ -11,7 +11,7 @@ import {
 import { getAccessibleLeague } from "../../league-access";
 import { GrandPrixSelector } from "../../grand-prix-selector";
 import { PredictionsForm } from "../../predictions/predictions-form";
-import { TeamSelectionForm } from "../../team-selection/team-selection-form";
+import { TeamSelectionCompactForm } from "../team-selection-compact-form";
 
 type GPSpelGrandPrixPageProps = {
   params: {
@@ -144,7 +144,7 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
 
           <section className="gp-spel-section" aria-labelledby="team-kiezen-title">
             <h2 id="team-kiezen-title">Team kiezen</h2>
-            <TeamSelectionForm
+            <TeamSelectionCompactForm
               leagueId={league.id}
               grandPrixId={gpData.grandPrix.id}
               drivers={gpData.drivers}
