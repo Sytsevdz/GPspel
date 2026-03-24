@@ -927,6 +927,7 @@ button.podium-slot:hover {
   background: rgba(18, 18, 18, 0.99);
   padding: 0.9rem;
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 0.9rem;
   width: min(44rem, 100%);
   max-height: min(82vh, 44rem);
@@ -964,7 +965,9 @@ button.podium-slot:hover {
 .podium-driver-options {
   display: grid;
   gap: 0.7rem;
+  min-height: 0;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding-right: 0.1rem;
 }
 
