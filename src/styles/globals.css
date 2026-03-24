@@ -454,6 +454,28 @@ a {
   font-size: 0.92rem;
 }
 
+.league-member-helper {
+  color: #cfcfcf;
+  font-size: 0.95rem;
+}
+
+.league-member-trigger {
+  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid #4a4a4a;
+  width: 100%;
+  background: #171717;
+  color: #f7f7f7;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.league-member-trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .gp-highlight {
   border: 1px solid #313131;
   border-radius: 10px;
@@ -592,6 +614,19 @@ a {
 
 .selected-driver-cars p span {
   color: #d7d7d7;
+}
+
+.compact-team-selection-summary {
+  padding: 0.75rem;
+  border-radius: 12px;
+}
+
+.compact-selected-driver-cars {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.compact-selected-driver-cars li {
+  padding: 0.45rem;
 }
 
 .team-selection-driver-list li {
@@ -960,6 +995,23 @@ button.podium-slot:hover {
   background: #171717;
   color: #f7f7f7;
   font: inherit;
+}
+
+.player-detail-overlay {
+  align-items: center;
+}
+
+.player-detail-panel {
+  width: min(100%, 960px);
+  max-height: min(90vh, 880px);
+  border-radius: 18px;
+  overflow-y: auto;
+}
+
+.player-detail-content {
+  display: grid;
+  gap: 1rem;
+  margin-top: 0.5rem;
 }
 
 .podium-driver-options {
