@@ -909,13 +909,29 @@ button.podium-slot:hover {
   min-height: 16.5rem;
 }
 
+.podium-selection-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(2, 2, 2, 0.68);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  padding: 0.75rem;
+}
+
 .podium-selection-panel {
   border: 1px solid #393939;
-  border-radius: 14px;
-  background: rgba(18, 18, 18, 0.98);
+  border-radius: 18px 18px 0 0;
+  background: rgba(18, 18, 18, 0.99);
   padding: 0.9rem;
   display: grid;
   gap: 0.9rem;
+  width: min(44rem, 100%);
+  max-height: min(82vh, 44rem);
+  overflow: hidden;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5);
 }
 
 .podium-selection-panel-header {
@@ -948,6 +964,8 @@ button.podium-slot:hover {
 .podium-driver-options {
   display: grid;
   gap: 0.7rem;
+  overflow-y: auto;
+  padding-right: 0.1rem;
 }
 
 .podium-driver-option {
@@ -1037,6 +1055,23 @@ button.podium-slot:hover {
   .podium-step-p2,
   .podium-step-p3 {
     min-height: auto;
+  }
+}
+
+
+@media (min-width: 700px) {
+  .podium-selection-overlay {
+    align-items: center;
+    padding: 1rem;
+  }
+
+  .podium-selection-panel {
+    border-radius: 18px;
+    max-height: min(80vh, 46rem);
+  }
+
+  .podium-selection-close {
+    width: auto;
   }
 }
 
