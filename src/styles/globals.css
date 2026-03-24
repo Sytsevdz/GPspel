@@ -585,7 +585,7 @@ a {
 
 .selected-driver-car {
   width: 100%;
-  min-height: 72px;
+  min-height: 96px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1284,5 +1284,141 @@ button.podium-slot:hover {
   .hero-cta,
   .hero-secondary {
     width: 100%;
+  }
+}
+
+.gp-spel-card {
+  gap: 1.5rem;
+}
+
+.gp-spel-section {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.gp-spel-section + .gp-spel-section {
+  margin-top: 0.5rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid #2f2f2f;
+}
+
+.compact-team-selection-form {
+  position: relative;
+}
+
+.gp-team-slot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.gp-team-slot {
+  border: 1px solid #3b3b3b;
+  border-radius: 10px;
+  padding: 0.6rem;
+  display: grid;
+  gap: 0.45rem;
+  text-align: left;
+  background: rgba(18, 18, 18, 0.8);
+  min-height: 140px;
+}
+
+.gp-team-slot:disabled {
+  opacity: 0.6;
+}
+
+.gp-team-slot-empty {
+  align-self: center;
+  justify-self: center;
+  color: #d7d7d7;
+  font-weight: 600;
+}
+
+.gp-team-slot-car {
+  width: 100%;
+  min-height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+.gp-team-slot-image {
+  width: 100%;
+  max-width: 240px;
+  height: 96px;
+  object-fit: contain;
+}
+.gp-team-slot p {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+  justify-items: center;
+  text-align: center;
+}
+
+.gp-team-slot p span {
+  color: #d7d7d7;
+}
+
+.gp-team-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: grid;
+  place-items: end center;
+  z-index: 40;
+  padding: 1rem;
+}
+
+.gp-team-dialog {
+  width: min(980px, 100%);
+  max-height: min(90vh, 760px);
+  overflow: auto;
+  border: 1px solid #303030;
+  border-radius: 14px;
+  padding: 1rem;
+  background: #111;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.gp-team-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.gp-team-dialog-grid {
+  padding-right: 0.1rem;
+}
+
+.gp-team-option {
+  width: 100%;
+  border: 1px solid #3b3b3b;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.24);
+  color: inherit;
+  padding: 0.6rem;
+  text-align: left;
+}
+
+.gp-team-option.disabled {
+  opacity: 0.55;
+}
+
+.gp-team-clear-button {
+  justify-self: start;
+}
+
+@media (min-width: 700px) {
+  .gp-team-dialog-backdrop {
+    place-items: center;
+  }
+
+  .gp-team-slot-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
