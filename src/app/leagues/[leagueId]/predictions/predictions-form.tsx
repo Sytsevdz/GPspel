@@ -195,6 +195,28 @@ export function PredictionsForm({ leagueId, grandPrixId, drivers, initialValues,
   const hasAllSelections = Object.values(values).every(Boolean);
   const canSave = hasAllSelections && validationErrors.length === 0 && !readOnly;
 
+  const activeSelection = useMemo(() => {
+    if (!activeField) {
+      return null;
+    }
+
+    const section = PODIUM_SECTIONS.find((candidateSection) => candidateSection.slots.some((slot) => slot.field === activeField));
+    if (!section) {
+      return null;
+    }
+
+    const slot = section.slots.find((candidateSlot) => candidateSlot.field === activeField);
+    if (!slot) {
+      return null;
+    }
+
+    return {
+      section,
+      slot,
+      sectionSelections: getSectionSelections(values, section.id),
+    };
+  }, [activeField, values]);
+
   const onChangeValue = (field: PredictionField, value: string) => {
     if (readOnly) {
       return;
@@ -208,137 +230,142 @@ export function PredictionsForm({ leagueId, grandPrixId, drivers, initialValues,
       <input type="hidden" name="league_id" value={leagueId} />
       <input type="hidden" name="grand_prix_id" value={grandPrixId} />
 
-      {PODIUM_SECTIONS.map((section) => {
-        const sectionSelections = getSectionSelections(values, section.id);
-        const activeSlot = section.slots.find((slot) => slot.field === activeField);
+      {PODIUM_SECTIONS.map((section) => (
+        <section key={section.id} className="predictions-section">
+          <div className="predictions-section-header">
+            <h2>{section.title}</h2>
+            {!readOnly ? <p>Klik op een podiumplek om een coureur te kiezen of aan te passen.</p> : null}
+          </div>
 
-        return (
-          <section key={section.id} className="predictions-section">
-            <div className="predictions-section-header">
-              <h2>{section.title}</h2>
-              {!readOnly ? <p>Klik op een podiumplek om een coureur te kiezen of aan te passen.</p> : null}
+          <div className="podium-grid" aria-label={`${section.title} podium`}>
+            {section.slots.map((slot) => {
+              const selectedDriverId = values[slot.field];
+              const selectedDriver = selectedDriverId ? driversById.get(selectedDriverId) : null;
+              const selectedTeam = selectedDriver ? resolveTeamSelectionTeam(selectedDriver.constructorTeam) : null;
+              const isActive = activeField === slot.field;
+              const slotClasses = [
+                "podium-slot",
+                slot.heightClassName,
+                slot.slotClassName,
+                selectedDriver ? "filled" : "empty",
+                isActive ? "active" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
+
+              const slotContent = (
+                <>
+                  <div className="podium-slot-content">
+                    <div className="podium-slot-heading">
+                      <span className="podium-slot-position">{slot.position}</span>
+                      <span className="podium-slot-rank-label">{slot.rankLabel}</span>
+                    </div>
+                    <div className="podium-slot-visual">
+                      {selectedDriver && selectedTeam ? (
+                        <>
+                          <div className="podium-car-image-wrapper">
+                            <Image
+                              src={selectedTeam.image}
+                              alt={`${selectedTeam.name} wagen`}
+                              width={260}
+                              height={104}
+                              className="podium-car-image"
+                            />
+                          </div>
+                          <div className="podium-slot-copy">
+                            <strong>{selectedDriver.name}</strong>
+                            <span>{selectedDriver.constructorTeam}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="podium-slot-placeholder">
+                          <strong>{slot.label}</strong>
+                          <span>Nog geen coureur gekozen</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="podium-step-label">{slot.label}</div>
+                </>
+              );
+
+              return readOnly ? (
+                <div key={slot.field} className={slotClasses}>
+                  {slotContent}
+                  <input type="hidden" name={slot.inputName} value={selectedDriverId} />
+                </div>
+              ) : (
+                <button
+                  key={slot.field}
+                  type="button"
+                  className={slotClasses}
+                  onClick={() => setActiveField(slot.field)}
+                  aria-pressed={isActive}
+                >
+                  {slotContent}
+                  <input type="hidden" name={slot.inputName} value={selectedDriverId} />
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+
+      {!readOnly && activeSelection ? (
+        <div
+          className="podium-selection-overlay"
+          role="presentation"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setActiveField(null);
+            }
+          }}
+        >
+          <div className="podium-selection-panel" role="dialog" aria-modal="true" aria-label={`Kies coureur voor ${activeSelection.slot.position}`}>
+            <div className="podium-selection-panel-header">
+              <div>
+                <h3>{`Kies coureur voor ${activeSelection.slot.position}`}</h3>
+                <p>{activeSelection.section.title}</p>
+              </div>
+              <button type="button" className="podium-selection-close" onClick={() => setActiveField(null)}>
+                Sluiten
+              </button>
             </div>
 
-            <div className="podium-grid" aria-label={`${section.title} podium`}>
-              {section.slots.map((slot) => {
-                const selectedDriverId = values[slot.field];
-                const selectedDriver = selectedDriverId ? driversById.get(selectedDriverId) : null;
-                const selectedTeam = selectedDriver ? resolveTeamSelectionTeam(selectedDriver.constructorTeam) : null;
-                const isActive = activeField === slot.field;
-                const slotClasses = [
-                  "podium-slot",
-                  slot.heightClassName,
-                  slot.slotClassName,
-                  selectedDriver ? "filled" : "empty",
-                  isActive ? "active" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ");
+            <div className="podium-driver-options">
+              {sortedDrivers.map((driver) => {
+                const team = resolveTeamSelectionTeam(driver.constructorTeam);
+                const currentSelection = values[activeSelection.slot.field];
+                const selectedElsewhere =
+                  activeSelection.sectionSelections.includes(driver.id) && currentSelection !== driver.id;
+                const isSelected = currentSelection === driver.id;
 
-                const slotContent = (
-                  <>
-                    <div className="podium-slot-content">
-                      <div className="podium-slot-heading">
-                        <span className="podium-slot-position">{slot.position}</span>
-                        <span className="podium-slot-rank-label">{slot.rankLabel}</span>
-                      </div>
-                      <div className="podium-slot-visual">
-                        {selectedDriver && selectedTeam ? (
-                          <>
-                            <div className="podium-car-image-wrapper">
-                              <Image
-                                src={selectedTeam.image}
-                                alt={`${selectedTeam.name} wagen`}
-                                width={260}
-                                height={104}
-                                className="podium-car-image"
-                              />
-                            </div>
-                            <div className="podium-slot-copy">
-                              <strong>{selectedDriver.name}</strong>
-                              <span>{selectedDriver.constructorTeam}</span>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="podium-slot-placeholder">
-                            <strong>{slot.label}</strong>
-                            <span>Nog geen coureur gekozen</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="podium-step-label">{slot.label}</div>
-                  </>
-                );
-
-                return readOnly ? (
-                  <div key={slot.field} className={slotClasses}>
-                    {slotContent}
-                    <input type="hidden" name={slot.inputName} value={selectedDriverId} />
-                  </div>
-                ) : (
+                return (
                   <button
-                    key={slot.field}
+                    key={`${activeSelection.slot.field}-${driver.id}`}
                     type="button"
-                    className={slotClasses}
-                    onClick={() => setActiveField(slot.field)}
-                    aria-pressed={isActive}
+                    className={`podium-driver-option ${isSelected ? "selected" : ""}`}
+                    onClick={() => {
+                      onChangeValue(activeSelection.slot.field, driver.id);
+                      setActiveField(null);
+                    }}
+                    disabled={selectedElsewhere}
                   >
-                    {slotContent}
-                    <input type="hidden" name={slot.inputName} value={selectedDriverId} />
+                    <div className="podium-driver-option-image">
+                      <Image src={team.image} alt={`${team.name} wagen`} width={220} height={88} className="podium-driver-option-car" />
+                    </div>
+                    <div className="podium-driver-option-copy">
+                      <strong>{driver.name}</strong>
+                      <span>{driver.constructorTeam}</span>
+                      {selectedElsewhere ? <span>Al gekozen in dit podium</span> : null}
+                    </div>
                   </button>
                 );
               })}
             </div>
-
-            {!readOnly && activeSlot ? (
-              <div className="podium-selection-panel" role="group" aria-label={`${activeSlot.label} kiezen`}>
-                <div className="podium-selection-panel-header">
-                  <div>
-                    <h3>{activeSlot.label}</h3>
-                    <p>Kies een coureur voor deze podiumplek.</p>
-                  </div>
-                  <button type="button" className="podium-selection-close" onClick={() => setActiveField(null)}>
-                    Sluiten
-                  </button>
-                </div>
-
-                <div className="podium-driver-options">
-                  {sortedDrivers.map((driver) => {
-                    const team = resolveTeamSelectionTeam(driver.constructorTeam);
-                    const currentSelection = values[activeSlot.field];
-                    const selectedElsewhere =
-                      sectionSelections.includes(driver.id) && currentSelection !== driver.id;
-                    const isSelected = currentSelection === driver.id;
-
-                    return (
-                      <button
-                        key={`${activeSlot.field}-${driver.id}`}
-                        type="button"
-                        className={`podium-driver-option ${isSelected ? "selected" : ""}`}
-                        onClick={() => {
-                          onChangeValue(activeSlot.field, driver.id);
-                          setActiveField(null);
-                        }}
-                        disabled={selectedElsewhere}
-                      >
-                        <div className="podium-driver-option-image">
-                          <Image src={team.image} alt={`${team.name} wagen`} width={220} height={88} className="podium-driver-option-car" />
-                        </div>
-                        <div className="podium-driver-option-copy">
-                          <strong>{driver.name}</strong>
-                          <span>{driver.constructorTeam}</span>
-                          {selectedElsewhere ? <span>Al gekozen in dit podium</span> : null}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
-          </section>
-        );
-      })}
+          </div>
+        </div>
+      ) : null}
 
       {validationErrors.length > 0 && (
         <div className="form-message error" role="alert">
