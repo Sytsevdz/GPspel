@@ -126,8 +126,8 @@ export async function savePrediction(
     };
   }
 
-  revalidatePath(`/leagues/${leagueId}/predictions`);
-  revalidatePath(`/leagues/${leagueId}/predictions/${grandPrixId}`);
+  revalidatePath(`/leagues/${leagueId}/gp-spel`);
+  revalidatePath(`/leagues/${leagueId}/gp-spel/${grandPrixId}`);
 
   return {
     status: "success",
