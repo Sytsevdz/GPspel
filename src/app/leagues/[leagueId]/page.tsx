@@ -82,6 +82,7 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
         .from("grand_prix")
         .select("id, name, deadline")
         .in("id", scoredGrandPrixIds)
+        .lte("deadline", nowIso)
         .order("deadline", { ascending: false })
         .limit(1)
         .maybeSingle<{ id: string; name: string; deadline: string }>()
