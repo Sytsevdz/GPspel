@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase";
 
 import { getCurrentSelectableGrandPrix } from "@/lib/team-selection-data";
 import { getAccessibleLeague } from "./league-access";
+import { PlayerGrandPrixDetail } from "./player-grand-prix-detail";
 
 type LeaguePageProps = {
   params: {
@@ -18,6 +19,7 @@ type LeagueStandingsMemberRow = {
 };
 
 type LeagueScoreRow = {
+  grand_prix_id: string;
   user_id: string;
   total_points: number | null;
 };
@@ -40,6 +42,7 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
   }
 
   const supabase = createServerSupabaseClient();
+  const nowIso = new Date().toISOString();
 
   const { data: members, error: membersError } = await supabase
     .from("league_members")
@@ -52,7 +55,7 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
   const { data: scoreRows, error: scoresError } = memberIds.length
     ? await supabase
         .from("grand_prix_scores")
-        .select("user_id, total_points")
+        .select("grand_prix_id, user_id, total_points")
         .in("user_id", memberIds)
         .returns<LeagueScoreRow[]>()
     : { data: [], error: null };
@@ -64,18 +67,42 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
     totalPointsByUserId.set(scoreRow.user_id, currentPoints + (scoreRow.total_points ?? 0));
   });
 
-  const standingsPreview = (members ?? [])
+  const standings = (members ?? [])
     .map((member) => ({
       userId: member.user_id,
       spelerNaam: member.profiles?.display_name ?? "Speler",
       totaalPunten: totalPointsByUserId.get(member.user_id) ?? 0,
     }))
-    .sort((left, right) => right.totaalPunten - left.totaalPunten || left.spelerNaam.localeCompare(right.spelerNaam))
-    .slice(0, 5);
+    .sort((left, right) => right.totaalPunten - left.totaalPunten || left.spelerNaam.localeCompare(right.spelerNaam));
 
+  const { data: latestCompletedGrandPrix } = await supabase
+    .from("grand_prix")
+    .select("id, name, deadline")
+    .lte("deadline", nowIso)
+    .order("deadline", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ id: string; name: string; deadline: string }>();
+
+  const latestGrandPrixPointsByUserId = new Map<string, number>();
+
+  if (latestCompletedGrandPrix && scoreRows) {
+    scoreRows
+      .filter((scoreRow) => scoreRow.grand_prix_id === latestCompletedGrandPrix.id)
+      .forEach((scoreRow) => {
+        latestGrandPrixPointsByUserId.set(scoreRow.user_id, scoreRow.total_points ?? 0);
+      });
+  }
+
+  const latestGrandPrixStandings = latestCompletedGrandPrix
+    ? (members ?? [])
+        .map((member) => ({
+          userId: member.user_id,
+          spelerNaam: member.profiles?.display_name ?? "Speler",
+          punten: latestGrandPrixPointsByUserId.get(member.user_id) ?? 0,
+        }))
+        .sort((left, right) => right.punten - left.punten || left.spelerNaam.localeCompare(right.spelerNaam))
+    : [];
   const currentOrUpcomingGrandPrix = await getCurrentSelectableGrandPrix(supabase).catch(() => null);
-
-  const nowIso = new Date().toISOString();
   const isGrandPrixSelectable =
     currentOrUpcomingGrandPrix ? currentOrUpcomingGrandPrix.deadline > nowIso : false;
 
@@ -99,38 +126,115 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
           <Link href={`/leagues/${league.id}/standings`}>Bekijk klassement</Link>
         </nav>
 
-        <section className="league-section">
-          <div className="league-detail-header">
-            <h2>Klassement</h2>
-            <Link href={`/leagues/${league.id}/standings`}>Bekijk klassement</Link>
-          </div>
-          {membersError || scoresError ? (
-            <p className="form-message error">Het klassement kon nu niet worden geladen.</p>
-          ) : standingsPreview.length > 0 ? (
-            <div className="standings-table-wrapper">
-              <table className="standings-table" aria-label="Klassement voorbeeld">
-                <thead>
-                  <tr>
-                    <th scope="col">Positie</th>
-                    <th scope="col">Speler</th>
-                    <th scope="col">Totaal punten</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {standingsPreview.map((entry, index) => (
-                    <tr key={entry.userId}>
-                      <td>{index + 1}</td>
-                      <td>{entry.spelerNaam}</td>
-                      <td>{entry.totaalPunten}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="league-list-empty">Er zijn nog geen punten berekend.</p>
-          )}
-        </section>
+        {membersError || scoresError ? (
+          <section className="league-section">
+            <h2>League resultaten</h2>
+            <p className="form-message error">De league-resultaten konden nu niet worden geladen.</p>
+          </section>
+        ) : (
+          <PlayerGrandPrixDetail
+            leagueId={league.id}
+            grandPrixId={latestCompletedGrandPrix?.id ?? ""}
+            grandPrixName={latestCompletedGrandPrix?.name ?? "Laatste Grand Prix"}
+            deadlinePassed={Boolean(latestCompletedGrandPrix)}
+            members={(members ?? []).map((member) => ({
+              userId: member.user_id,
+              displayName: member.profiles?.display_name ?? "Speler",
+            }))}
+            sectionTitle="League resultaten"
+            helperText="Klik op een speler in de tabellen om teamselectie en voorspellingen te bekijken."
+            membersRenderer={({ members: leagueMembers, openMemberDetails, deadlinePassed }) => (
+              <>
+                <section className="league-section">
+                  <h3>Laatste Grand Prix</h3>
+                  {latestCompletedGrandPrix ? (
+                    <>
+                      <p className="league-member-helper">{latestCompletedGrandPrix.name}</p>
+                      <div className="standings-table-wrapper">
+                        <table className="standings-table" aria-label="Laatste Grand Prix">
+                          <thead>
+                            <tr>
+                              <th scope="col">Positie</th>
+                              <th scope="col">Speler</th>
+                              <th scope="col">Punten</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {latestGrandPrixStandings.map((entry, index) => (
+                              <tr key={`latest-${entry.userId}`}>
+                                <td>{index + 1}</td>
+                                <td>
+                                  <button
+                                    type="button"
+                                    className="league-table-player-link"
+                                    onClick={() => {
+                                      const member = leagueMembers.find((leagueMember) => leagueMember.userId === entry.userId);
+                                      if (member) {
+                                        openMemberDetails(member);
+                                      }
+                                    }}
+                                    disabled={!deadlinePassed}
+                                  >
+                                    {entry.spelerNaam}
+                                  </button>
+                                </td>
+                                <td className="standings-score-cell">{entry.punten}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="league-list-empty">Er is nog geen afgeronde Grand Prix met resultaten.</p>
+                  )}
+                </section>
+
+                <section className="league-section">
+                  <h3>League stand</h3>
+                  {standings.length > 0 ? (
+                    <div className="standings-table-wrapper">
+                      <table className="standings-table" aria-label="League stand">
+                        <thead>
+                          <tr>
+                            <th scope="col">Positie</th>
+                            <th scope="col">Speler</th>
+                            <th scope="col">Totaal punten</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {standings.map((entry, index) => (
+                            <tr key={`total-${entry.userId}`}>
+                              <td>{index + 1}</td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="league-table-player-link"
+                                  onClick={() => {
+                                    const member = leagueMembers.find((leagueMember) => leagueMember.userId === entry.userId);
+                                    if (member) {
+                                      openMemberDetails(member);
+                                    }
+                                  }}
+                                  disabled={!deadlinePassed}
+                                >
+                                  {entry.spelerNaam}
+                                </button>
+                              </td>
+                              <td className="standings-score-cell">{entry.totaalPunten}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="league-list-empty">Er zijn nog geen punten berekend.</p>
+                  )}
+                </section>
+              </>
+            )}
+          />
+        )}
 
         <section className="league-section">
           <h2>Huidige of komende Grand Prix</h2>

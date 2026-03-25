@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition, type ReactNode } from "react";
 
 import { getPlayerGrandPrixView, type PlayerGrandPrixViewResult } from "@/app/actions/player-grand-prix-view";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
@@ -23,6 +23,13 @@ type PlayerGrandPrixDetailProps = {
   grandPrixName: string;
   deadlinePassed: boolean;
   members: Member[];
+  sectionTitle?: string;
+  helperText?: string;
+  membersRenderer?: (args: {
+    members: Member[];
+    deadlinePassed: boolean;
+    openMemberDetails: (member: Member) => void;
+  }) => ReactNode;
 };
 
 type LoadedSnapshot = Extract<PlayerGrandPrixViewResult, { status: "success" }>;
@@ -125,6 +132,9 @@ export function PlayerGrandPrixDetail({
   grandPrixName,
   deadlinePassed,
   members,
+  sectionTitle = "Spelers in deze GP",
+  helperText,
+  membersRenderer,
 }: PlayerGrandPrixDetailProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
@@ -157,28 +167,37 @@ export function PlayerGrandPrixDetail({
   return (
     <section className="league-section">
       <div className="league-detail-header">
-        <h2>Spelers in deze GP</h2>
+        <h2>{sectionTitle}</h2>
       </div>
       <p className="league-member-helper">
-        {deadlinePassed
-          ? "Klik op een speler om het opgeslagen team en de voorspellingen voor deze Grand Prix te bekijken."
-          : "Na de kwalificatiedeadline kun je hier de keuzes van andere spelers bekijken."}
+        {helperText ??
+          (deadlinePassed
+            ? "Klik op een speler om het opgeslagen team en de voorspellingen voor deze Grand Prix te bekijken."
+            : "Na de kwalificatiedeadline kun je hier de keuzes van andere spelers bekijken.")}
       </p>
 
-      <ul className="league-member-list" aria-label="Spelers">
-        {members.map((member) => (
-          <li key={member.userId}>
-            <button
-              type="button"
-              className="league-member-trigger"
-              onClick={() => openMemberDetails(member)}
-              disabled={!deadlinePassed}
-            >
-              {member.displayName}
-            </button>
-          </li>
-        ))}
-      </ul>
+      {membersRenderer ? (
+        membersRenderer({
+          members,
+          deadlinePassed,
+          openMemberDetails,
+        })
+      ) : (
+        <ul className="league-member-list" aria-label="Spelers">
+          {members.map((member) => (
+            <li key={member.userId}>
+              <button
+                type="button"
+                className="league-member-trigger"
+                onClick={() => openMemberDetails(member)}
+                disabled={!deadlinePassed}
+              >
+                {member.displayName}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {isModalOpen ? (
         <div

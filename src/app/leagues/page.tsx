@@ -4,14 +4,14 @@ import { redirect } from "next/navigation";
 import { joinLeague } from "@/app/actions/leagues";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
-type CompetitiesPageProps = {
+type LeaguesPageProps = {
   searchParams: {
     error?: string;
     message?: string;
   };
 };
 
-export default async function CompetitiesPage({ searchParams }: CompetitiesPageProps) {
+export default async function LeaguesPage({ searchParams }: LeaguesPageProps) {
   const supabase = createServerSupabaseClient();
   const {
     data: { user },

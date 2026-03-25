@@ -1419,6 +1419,30 @@ button.podium-slot:hover {
   text-align: right;
 }
 
+.standings-score-cell {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.league-table-player-link {
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: #4f8fff;
+  text-underline-offset: 0.2rem;
+}
+
+.league-table-player-link:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  text-decoration-color: #6a6a6a;
+}
+
 @media (max-width: 699px) {
   .hero-section {
     align-items: end;
