@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useMemo, useState, useTransition, type ReactNode } from "react";
 
 import { getPlayerGrandPrixView, type PlayerGrandPrixViewResult } from "@/app/actions/player-grand-prix-view";
+import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 
 type Member = {
@@ -90,6 +91,7 @@ function PodiumReadOnly({
         {slots.map((slot) => {
           const selectedDriver = podiumByPosition.get(slot.label);
           const selectedTeam = selectedDriver ? resolveTeamSelectionTeam(selectedDriver.constructorTeam) : null;
+          const selectedCardImageSize = getTeamSideImageSize("selectedCard");
 
           return (
             <div key={`${title}-${slot.label}`} className={`podium-slot ${slot.heightClassName} ${slot.slotClassName} ${selectedDriver ? "filled" : "empty"}`}>
@@ -102,7 +104,13 @@ function PodiumReadOnly({
                   {selectedDriver && selectedTeam ? (
                     <>
                       <div className="podium-car-image-wrapper">
-                        <Image src={selectedTeam.image} alt={`${selectedTeam.name} wagen`} width={260} height={104} className="podium-car-image" />
+                        <Image
+                          src={selectedTeam.image}
+                          alt={`${selectedTeam.name} wagen`}
+                          width={selectedCardImageSize.width}
+                          height={selectedCardImageSize.height}
+                          className={selectedCardImageSize.className}
+                        />
                       </div>
                       <div className="podium-slot-copy">
                         <strong>{selectedDriver.name}</strong>
@@ -231,11 +239,18 @@ export function PlayerGrandPrixDetail({
                     <ul className="selected-driver-cars compact-selected-driver-cars" aria-label="Geselecteerde coureurs met teamwagens">
                       {snapshot.teamSelection.map((driver) => {
                         const team = resolveTeamSelectionTeam(driver.constructorTeam);
+                        const imageSize = getTeamSideImageSize("selectedCard");
 
                         return (
                           <li key={driver.id}>
                             <div className="selected-driver-car">
-                              <Image src={team.image} alt={`${team.name} wagen`} width={240} height={96} className="selected-driver-car-image" />
+                              <Image
+                                src={team.image}
+                                alt={`${team.name} wagen`}
+                                width={imageSize.width}
+                                height={imageSize.height}
+                                className={imageSize.className}
+                              />
                             </div>
                             <p>
                               <strong>{driver.name}</strong>

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 
 import { savePrediction, type PredictionsActionState } from "@/app/actions/predictions";
+import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 
 type DriverOption = {
@@ -242,6 +243,7 @@ export function PredictionsForm({ leagueId, grandPrixId, drivers, initialValues,
               const selectedDriverId = values[slot.field];
               const selectedDriver = selectedDriverId ? driversById.get(selectedDriverId) : null;
               const selectedTeam = selectedDriver ? resolveTeamSelectionTeam(selectedDriver.constructorTeam) : null;
+              const selectedCardImageSize = getTeamSideImageSize("selectedCard");
               const isActive = activeField === slot.field;
               const slotClasses = [
                 "podium-slot",
@@ -267,9 +269,9 @@ export function PredictionsForm({ leagueId, grandPrixId, drivers, initialValues,
                             <Image
                               src={selectedTeam.image}
                               alt={`${selectedTeam.name} wagen`}
-                              width={260}
-                              height={104}
-                              className="podium-car-image"
+                              width={selectedCardImageSize.width}
+                              height={selectedCardImageSize.height}
+                              className={selectedCardImageSize.className}
                             />
                           </div>
                           <div className="podium-slot-copy">
@@ -335,6 +337,7 @@ export function PredictionsForm({ leagueId, grandPrixId, drivers, initialValues,
             <div className="podium-driver-options">
               {sortedDrivers.map((driver) => {
                 const team = resolveTeamSelectionTeam(driver.constructorTeam);
+                const imageSize = getTeamSideImageSize("modalOption");
                 const currentSelection = values[activeSelection.slot.field];
                 const selectedElsewhere =
                   activeSelection.sectionSelections.includes(driver.id) && currentSelection !== driver.id;
@@ -352,7 +355,13 @@ export function PredictionsForm({ leagueId, grandPrixId, drivers, initialValues,
                     disabled={selectedElsewhere}
                   >
                     <div className="podium-driver-option-image">
-                      <Image src={team.image} alt={`${team.name} wagen`} width={220} height={88} className="podium-driver-option-car" />
+                      <Image
+                        src={team.image}
+                        alt={`${team.name} wagen`}
+                        width={imageSize.width}
+                        height={imageSize.height}
+                        className={imageSize.className}
+                      />
                     </div>
                     <div className="podium-driver-option-copy">
                       <strong>{driver.name}</strong>
