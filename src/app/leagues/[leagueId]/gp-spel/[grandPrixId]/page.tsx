@@ -109,8 +109,8 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
                 Grand Prix: <strong>{gpData.grandPrix.name}</strong>
               </p>
             </div>
-            <Link href={`/leagues/${league.id}`} className="league-back-link">
-              ← Terug naar competitie
+            <Link href="/" className="league-back-link">
+              ← Terug naar dashboard
             </Link>
           </div>
 
@@ -177,8 +177,8 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
               <h1>GP Spel</h1>
               <p>Kon de Grand Prix niet laden.</p>
             </div>
-            <Link href={`/leagues/${league.id}`} className="league-back-link">
-              ← Terug naar competitie
+            <Link href="/" className="league-back-link">
+              ← Terug naar dashboard
             </Link>
           </div>
         </section>

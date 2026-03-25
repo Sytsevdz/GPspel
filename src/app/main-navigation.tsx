@@ -18,9 +18,15 @@ export function MainNavigation({ isAdmin, defaultLeagueId }: MainNavigationProps
   const activeLeagueId = getActiveLeagueId(pathname, defaultLeagueId);
   const gpSpelHref = activeLeagueId ? `/leagues/${activeLeagueId}/gp-spel` : "/leagues";
 
+  const isHomeActive = pathname === "/" || pathname === "/dashboard";
+  const isLeaguesActive = pathname.startsWith("/leagues") && !pathname.includes("/gp-spel");
+
   return (
     <>
-      <Link href="/leagues" className={pathname === "/leagues" ? "nav-link active" : "nav-link"}>
+      <Link href="/" className={isHomeActive ? "nav-link active" : "nav-link"}>
+        Home
+      </Link>
+      <Link href="/leagues" className={isLeaguesActive ? "nav-link active" : "nav-link"}>
         Leagues
       </Link>
       <Link
