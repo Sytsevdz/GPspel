@@ -307,8 +307,8 @@ export async function saveTeamSelection(
     insertedCount: insertedDrivers?.length ?? 0,
   });
 
-  revalidatePath(`/leagues/${leagueId}/team-selection`);
-  revalidatePath(`/leagues/${leagueId}/team-selection/${grandPrixId}`);
+  revalidatePath(`/leagues/${leagueId}/gp-spel`);
+  revalidatePath(`/leagues/${leagueId}/gp-spel/${grandPrixId}`);
 
   return {
     status: "success",
