@@ -38,11 +38,11 @@ export default async function RootLayout({
   const defaultLeagueId = memberships?.[0]?.league_id ?? null;
 
   return (
-    <html lang="en">
+    <html lang="nl">
       <body>
         <header className="topbar">
           <Link href="/" className="brand">
-            GP Spel
+            Home
           </Link>
 
           <nav>
@@ -51,14 +51,14 @@ export default async function RootLayout({
                 <MainNavigation isAdmin={isAdmin} defaultLeagueId={defaultLeagueId} />
                 <form action={logout}>
                   <button type="submit" className="link-button">
-                    Log out
+                    Uitloggen
                   </button>
                 </form>
               </div>
             ) : (
               <div className="nav-auth">
-                <Link href="/login">Log in</Link>
-                <Link href="/register">Register</Link>
+                <Link href="/login">Inloggen</Link>
+                <Link href="/register">Meld je aan</Link>
               </div>
             )}
           </nav>

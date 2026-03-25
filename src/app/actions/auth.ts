@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { createServerSupabaseActionClient } from "@/lib/supabase";
 import { getSiteUrl } from "@/lib/supabase/env";
 
-const fallbackErrorMessage = "Something went wrong. Please try again.";
+const fallbackErrorMessage = "Er is iets misgegaan. Probeer het opnieuw.";
 
 const toRedirectUrl = (path: string, key: "error" | "message", value: string) => {
   const params = new URLSearchParams({ [key]: value });
@@ -18,15 +18,15 @@ const getAuthErrorMessage = (message?: string) => {
   }
 
   if (message.toLowerCase().includes("invalid login credentials")) {
-    return "Invalid email or password.";
+    return "Ongeldig e-mailadres of wachtwoord.";
   }
 
   if (message.toLowerCase().includes("email not confirmed")) {
-    return "Please verify your email before signing in.";
+    return "Verifieer eerst je e-mailadres voordat je inlogt.";
   }
 
   if (message.toLowerCase().includes("already registered")) {
-    return "An account with this email already exists.";
+    return "Er bestaat al een account met dit e-mailadres.";
   }
 
   return fallbackErrorMessage;
@@ -47,7 +47,7 @@ export async function login(formData: FormData) {
   const password = String(formData.get("password") ?? "").trim();
 
   if (!email || !password) {
-    redirect(toRedirectUrl("/login", "error", "Email and password are required."));
+    redirect(toRedirectUrl("/login", "error", "E-mailadres en wachtwoord zijn verplicht."));
   }
 
   const supabase = createServerSupabaseActionClient();
@@ -66,11 +66,11 @@ export async function register(formData: FormData) {
   const displayName = sanitizeDisplayName(formData.get("display_name"));
 
   if (!email || !password) {
-    redirect(toRedirectUrl("/register", "error", "Email and password are required."));
+    redirect(toRedirectUrl("/register", "error", "E-mailadres en wachtwoord zijn verplicht."));
   }
 
   if (password.length < 6) {
-    redirect(toRedirectUrl("/register", "error", "Password must be at least 6 characters."));
+    redirect(toRedirectUrl("/register", "error", "Wachtwoord moet minimaal 6 tekens bevatten."));
   }
 
   const supabase = createServerSupabaseActionClient();
@@ -95,7 +95,7 @@ export async function register(formData: FormData) {
     toRedirectUrl(
       "/login",
       "message",
-      "Account created successfully. Check your email to confirm your account before logging in.",
+      "Account succesvol aangemaakt. Controleer je e-mail om je account te bevestigen voordat je inlogt.",
     ),
   );
 }
@@ -131,5 +131,5 @@ export async function updateDisplayName(formData: FormData) {
 export async function logout() {
   const supabase = createServerSupabaseActionClient();
   await supabase.auth.signOut();
-  redirect(toRedirectUrl("/login", "message", "Logged out successfully."));
+  redirect(toRedirectUrl("/login", "message", "Je bent succesvol uitgelogd."));
 }

@@ -7,7 +7,7 @@ export function RegisterSubmitButton() {
 
   return (
     <button type="submit" disabled={pending} aria-disabled={pending}>
-      {pending ? "Registering..." : "Register"}
+      {pending ? "Bezig met aanmelden..." : "Meld je aan"}
     </button>
   );
 }
