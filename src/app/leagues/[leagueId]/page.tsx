@@ -3,7 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase";
 
 import { getCurrentSelectableGrandPrix } from "@/lib/team-selection-data";
 import { getAccessibleLeague } from "./league-access";
-import { PlayerGrandPrixDetail } from "./player-grand-prix-detail";
+import { LeagueResultsPanel } from "./league-results-panel";
 
 type LeaguePageProps = {
   params: {
@@ -132,107 +132,22 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
             <p className="form-message error">De league-resultaten konden nu niet worden geladen.</p>
           </section>
         ) : (
-          <PlayerGrandPrixDetail
+          <LeagueResultsPanel
             leagueId={league.id}
-            grandPrixId={latestCompletedGrandPrix?.id ?? ""}
-            grandPrixName={latestCompletedGrandPrix?.name ?? "Laatste Grand Prix"}
-            deadlinePassed={Boolean(latestCompletedGrandPrix)}
+            latestCompletedGrandPrix={
+              latestCompletedGrandPrix
+                ? {
+                    id: latestCompletedGrandPrix.id,
+                    name: latestCompletedGrandPrix.name,
+                  }
+                : null
+            }
             members={(members ?? []).map((member) => ({
               userId: member.user_id,
               displayName: member.profiles?.display_name ?? "Speler",
             }))}
-            sectionTitle="League resultaten"
-            helperText="Klik op een speler in de tabellen om teamselectie en voorspellingen te bekijken."
-            membersRenderer={({ members: leagueMembers, openMemberDetails, deadlinePassed }) => (
-              <>
-                <section className="league-section">
-                  <h3>Laatste Grand Prix</h3>
-                  {latestCompletedGrandPrix ? (
-                    <>
-                      <p className="league-member-helper">{latestCompletedGrandPrix.name}</p>
-                      <div className="standings-table-wrapper">
-                        <table className="standings-table" aria-label="Laatste Grand Prix">
-                          <thead>
-                            <tr>
-                              <th scope="col">Positie</th>
-                              <th scope="col">Speler</th>
-                              <th scope="col">Punten</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {latestGrandPrixStandings.map((entry, index) => (
-                              <tr key={`latest-${entry.userId}`}>
-                                <td>{index + 1}</td>
-                                <td>
-                                  <button
-                                    type="button"
-                                    className="league-table-player-link"
-                                    onClick={() => {
-                                      const member = leagueMembers.find((leagueMember) => leagueMember.userId === entry.userId);
-                                      if (member) {
-                                        openMemberDetails(member);
-                                      }
-                                    }}
-                                    disabled={!deadlinePassed}
-                                  >
-                                    {entry.spelerNaam}
-                                  </button>
-                                </td>
-                                <td className="standings-score-cell">{entry.punten}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </>
-                  ) : (
-                    <p className="league-list-empty">Er is nog geen afgeronde Grand Prix met resultaten.</p>
-                  )}
-                </section>
-
-                <section className="league-section">
-                  <h3>League stand</h3>
-                  {standings.length > 0 ? (
-                    <div className="standings-table-wrapper">
-                      <table className="standings-table" aria-label="League stand">
-                        <thead>
-                          <tr>
-                            <th scope="col">Positie</th>
-                            <th scope="col">Speler</th>
-                            <th scope="col">Totaal punten</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {standings.map((entry, index) => (
-                            <tr key={`total-${entry.userId}`}>
-                              <td>{index + 1}</td>
-                              <td>
-                                <button
-                                  type="button"
-                                  className="league-table-player-link"
-                                  onClick={() => {
-                                    const member = leagueMembers.find((leagueMember) => leagueMember.userId === entry.userId);
-                                    if (member) {
-                                      openMemberDetails(member);
-                                    }
-                                  }}
-                                  disabled={!deadlinePassed}
-                                >
-                                  {entry.spelerNaam}
-                                </button>
-                              </td>
-                              <td className="standings-score-cell">{entry.totaalPunten}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <p className="league-list-empty">Er zijn nog geen punten berekend.</p>
-                  )}
-                </section>
-              </>
-            )}
+            latestGrandPrixStandings={latestGrandPrixStandings}
+            standings={standings}
           />
         )}
 
