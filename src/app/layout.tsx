@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { MainNavigation } from "@/app/main-navigation";
 import { logout } from "@/app/actions/auth";
 import { createServerSupabaseClient } from "@/lib/supabase";
 import "@/styles/globals.css";
@@ -24,7 +25,17 @@ export default async function RootLayout({
     ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle<{ role: string | null }>()
     : { data: null };
 
+  const { data: memberships } = user
+    ? await supabase
+        .from("league_members")
+        .select("league_id")
+        .eq("user_id", user.id)
+        .order("joined_at", { ascending: true })
+        .limit(1)
+    : { data: null };
+
   const isAdmin = profile?.role === "admin";
+  const defaultLeagueId = memberships?.[0]?.league_id ?? null;
 
   return (
     <html lang="en">
@@ -37,9 +48,7 @@ export default async function RootLayout({
           <nav>
             {user ? (
               <div className="nav-auth">
-                <Link href="/leagues">Competities</Link>
-                <Link href="/profile">Profiel</Link>
-                {isAdmin ? <Link href="/admin">Admin</Link> : null}
+                <MainNavigation isAdmin={isAdmin} defaultLeagueId={defaultLeagueId} />
                 <form action={logout}>
                   <button type="submit" className="link-button">
                     Log out

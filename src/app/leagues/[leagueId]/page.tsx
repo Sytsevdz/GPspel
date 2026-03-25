@@ -95,8 +95,7 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
         </div>
 
         <nav className="league-actions" aria-label="Competitie-acties">
-          <Link href={`/leagues/${league.id}/team-selection`}>Team kiezen</Link>
-          <Link href={`/leagues/${league.id}/predictions`}>Voorspellingen</Link>
+          <Link href={`/leagues/${league.id}/gp-spel`}>GP Spel</Link>
           <Link href={`/leagues/${league.id}/standings`}>Bekijk klassement</Link>
         </nav>
 

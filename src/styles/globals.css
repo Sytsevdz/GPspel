@@ -77,6 +77,23 @@ a {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.nav-link {
+  color: #f7f7f7;
+  opacity: 0.82;
+  transition: opacity 0.15s ease;
+}
+
+.nav-link:hover {
+  opacity: 1;
+}
+
+.nav-link.active {
+  opacity: 1;
+  text-decoration: underline;
+  text-underline-offset: 0.3rem;
 }
 
 .link-button {
