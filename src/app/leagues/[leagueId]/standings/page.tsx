@@ -18,9 +18,9 @@ export default async function StandingsPage({ params }: StandingsPageProps) {
       <main className="leagues-page">
         <section className="leagues-card league-access-card">
           <h1>Geen toegang</h1>
-          <p>Deze pagina is alleen beschikbaar voor leden van deze competitie.</p>
+          <p>Deze pagina is alleen beschikbaar voor leden van deze league.</p>
           <Link href="/leagues" className="league-back-link">
-            ← Terug naar je competities
+            ← Terug naar je leagues
           </Link>
         </section>
       </main>
@@ -92,7 +92,7 @@ export default async function StandingsPage({ params }: StandingsPageProps) {
           </div>
         )}
         <Link href={`/leagues/${league.id}`} className="league-back-link">
-          ← Terug naar competitie
+          ← Terug naar league
         </Link>
       </section>
     </main>
