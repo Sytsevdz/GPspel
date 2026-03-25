@@ -225,7 +225,7 @@ export function TeamSelectionCompactForm({
       <input type="hidden" name="selected_driver_ids" value={selectedDriverIds.join(",")} />
 
       <section className="team-selection-summary compact-team-selection-summary">
-        <h3>Kies 4 coureurs</h3>
+        <h3>{selectedDrivers.length === REQUIRED_DRIVERS ? "Geselecteerde coureurs" : "Kies 4 coureurs"}</h3>
 
         <div className="gp-team-slot-grid" role="list" aria-label="Geselecteerde coureurs">
           {slots.map((slotDriver, index) => {
