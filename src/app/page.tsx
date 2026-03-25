@@ -148,19 +148,20 @@ export default async function HomePage() {
           {!latestGrandPrix ? (
             <p className="league-list-empty">Er is nog geen afgeronde Grand Prix beschikbaar.</p>
           ) : (
-            <div className="dashboard-data-list">
+            <div className="dashboard-latest-result-card">
+              <p className="dashboard-result-kicker">Jouw resultaat</p>
               <p className="dashboard-data-title">{latestGrandPrix.name}</p>
               {userLatestScore ? (
-                <dl>
-                  <div>
+                <dl className="dashboard-result-stats">
+                  <div className="dashboard-result-stat">
                     <dt>Team punten</dt>
                     <dd>{userLatestScore.team_points ?? 0}</dd>
                   </div>
-                  <div>
-                    <dt>Prediction punten</dt>
+                  <div className="dashboard-result-stat">
+                    <dt>Voorspelling punten</dt>
                     <dd>{userLatestScore.prediction_points ?? 0}</dd>
                   </div>
-                  <div>
+                  <div className="dashboard-result-stat dashboard-result-total-stat">
                     <dt>Totaal punten</dt>
                     <dd>{userLatestScore.total_points ?? 0}</dd>
                   </div>

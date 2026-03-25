@@ -431,6 +431,62 @@ a {
   font-weight: 700;
 }
 
+.dashboard-latest-result-card {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    radial-gradient(circle at top right, rgba(255, 90, 79, 0.12), transparent 48%),
+    rgba(255, 255, 255, 0.04);
+}
+
+.dashboard-result-kicker {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f0b4af;
+}
+
+.dashboard-result-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.dashboard-result-stat {
+  display: grid;
+  gap: 0.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 0.7rem;
+  background: rgba(9, 11, 18, 0.58);
+}
+
+.dashboard-result-stat dt {
+  font-size: 0.77rem;
+  line-height: 1.3;
+  color: #c5c5c5;
+}
+
+.dashboard-result-stat dd {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.dashboard-result-total-stat {
+  border-color: rgba(255, 90, 79, 0.45);
+  background: linear-gradient(170deg, rgba(255, 90, 79, 0.2), rgba(255, 45, 85, 0.08));
+}
+
+.dashboard-result-total-stat dd {
+  font-size: 1.45rem;
+}
+
 .dashboard-compact-table {
   max-height: 280px;
   overflow: auto;
@@ -552,6 +608,17 @@ a {
   .league-list-item {
     grid-template-columns: 1fr auto;
     align-items: center;
+  }
+}
+
+@media (max-width: 620px) {
+  .dashboard-result-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-result-stat dd,
+  .dashboard-result-total-stat dd {
+    font-size: 1.2rem;
   }
 }
 
