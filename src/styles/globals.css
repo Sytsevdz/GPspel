@@ -338,6 +338,119 @@ a {
   gap: 1rem;
 }
 
+.dashboard-home-page {
+  place-items: start center;
+  padding: 1.5rem;
+  gap: 1rem;
+}
+
+.dashboard-home-header {
+  width: min(100%, 1100px);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.dashboard-home-header h1 {
+  font-size: clamp(1.9rem, 4vw, 2.4rem);
+}
+
+.dashboard-home-header p {
+  color: #d7d7d7;
+}
+
+.dashboard-primary-cta,
+.dashboard-secondary-cta {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font-weight: 700;
+}
+
+.dashboard-primary-cta {
+  min-height: 2.9rem;
+  padding: 0.8rem 1.2rem;
+  background: linear-gradient(135deg, #ff5a4f 0%, #ff2d55 100%);
+}
+
+.dashboard-secondary-cta {
+  min-height: 2.5rem;
+  padding: 0.7rem 1rem;
+  background: rgba(255, 255, 255, 0.08);
+  margin-top: 0.4rem;
+}
+
+.dashboard-grid {
+  width: min(100%, 1100px);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.dashboard-home-card {
+  width: 100%;
+  min-height: 100%;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.dashboard-home-card h2 {
+  font-size: 1.2rem;
+}
+
+.dashboard-data-list {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.dashboard-data-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.dashboard-data-list dl {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.dashboard-data-list dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dashboard-data-list dt {
+  color: #bdbdbd;
+}
+
+.dashboard-data-list dd {
+  font-weight: 700;
+}
+
+.dashboard-compact-table {
+  max-height: 280px;
+  overflow: auto;
+}
+
+.dashboard-league-list {
+  list-style: none;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.dashboard-league-list a {
+  display: inline-flex;
+  width: 100%;
+  border: 1px solid #3a3a3a;
+  border-radius: 10px;
+  padding: 0.7rem 0.85rem;
+  background: rgba(255, 255, 255, 0.04);
+}
+
 .join-form {
   display: grid;
   gap: 0.5rem;

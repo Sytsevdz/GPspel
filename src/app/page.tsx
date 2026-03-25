@@ -1,7 +1,47 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { getCurrentSelectableGrandPrix } from "@/lib/team-selection-data";
+
+type LeagueMembershipRow = {
+  league_id: string;
+  joined_at: string;
+  leagues: {
+    id: string;
+    name: string;
+  } | null;
+};
+
+type LatestGrandPrixRow = {
+  id: string;
+  name: string;
+  qualification_start: string;
+};
+
+type UserGrandPrixScoreRow = {
+  team_points: number | null;
+  prediction_points: number | null;
+  total_points: number | null;
+};
+
+type ProfileRow = {
+  id: string;
+  display_name: string | null;
+};
+
+type ScoreRow = {
+  user_id: string;
+  total_points: number | null;
+};
+
+function formatDate(dateIso: string): string {
+  return new Date(dateIso).toLocaleString("nl-NL", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export default async function HomePage() {
   const supabase = createServerSupabaseClient();
@@ -9,53 +49,192 @@ export default async function HomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (user) {
-    const { data: memberships } = await supabase
-      .from("league_members")
-      .select("league_id")
-      .eq("user_id", user.id)
-      .order("joined_at", { ascending: true })
-      .limit(1);
-
-    const firstLeagueId = memberships?.[0]?.league_id;
-
-    if (firstLeagueId) {
-      redirect(`/leagues/${firstLeagueId}`);
-    }
-
+  if (!user) {
     return (
-      <main className="dashboard-page">
-        <section className="dashboard-card">
-          <h1>Welkom</h1>
-          <p>
-            Je zit nog niet in een competitie. Ga naar Competities om er een te bekijken of met een code deel te
-            nemen.
-          </p>
-          <Link href="/leagues">Naar competities</Link>
+      <main className="home hero-home">
+        <section className="hero-section" aria-labelledby="hero-title">
+          <div className="hero-overlay" />
+          <div className="hero-content">
+            <span className="hero-kicker">Het betere GP spel</span>
+            <h1 id="hero-title">Ben jij de ultieme GP-kenner?</h1>
+            <p>Stel je team samen, voorspel de uitslagen en versla je vrienden gedurende het hele seizoen.</p>
+            <div className="hero-actions">
+              <Link className="hero-cta" href="/register">
+                Speel mee
+              </Link>
+              <Link className="hero-secondary" href="/login">
+                Ik heb al een account
+              </Link>
+            </div>
+          </div>
         </section>
       </main>
     );
   }
 
+  const [{ data: memberships }, { data: latestGrandPrix }, { data: profiles }, { data: allScoreRows }] =
+    await Promise.all([
+      supabase
+        .from("league_members")
+        .select("league_id, joined_at, leagues(id, name)")
+        .eq("user_id", user.id)
+        .order("joined_at", { ascending: true })
+        .returns<LeagueMembershipRow[]>(),
+      supabase
+        .from("grand_prix")
+        .select("id, name, qualification_start")
+        .eq("status", "finished")
+        .order("qualification_start", { ascending: false })
+        .limit(1)
+        .maybeSingle<LatestGrandPrixRow>(),
+      supabase.from("profiles").select("id, display_name").returns<ProfileRow[]>(),
+      supabase.from("grand_prix_scores").select("user_id, total_points").returns<ScoreRow[]>(),
+    ]);
+
+  const firstLeagueId = memberships?.[0]?.league_id ?? null;
+  const myLeagues =
+    memberships
+      ?.filter((membership) => membership.leagues)
+      .map((membership) => ({
+        id: membership.leagues!.id,
+        name: membership.leagues!.name,
+      })) ?? [];
+
+  const nextGrandPrix = await getCurrentSelectableGrandPrix(supabase).catch(() => null);
+  const nowIso = new Date().toISOString();
+  const hasSelectableGrandPrix = nextGrandPrix ? nextGrandPrix.deadline > nowIso : false;
+
+  const userLatestScore = latestGrandPrix
+    ? (
+        await supabase
+          .from("grand_prix_scores")
+          .select("team_points, prediction_points, total_points")
+          .eq("grand_prix_id", latestGrandPrix.id)
+          .eq("user_id", user.id)
+          .maybeSingle<UserGrandPrixScoreRow>()
+      ).data
+    : null;
+
+  const totalPointsByUserId = new Map<string, number>();
+
+  (allScoreRows ?? []).forEach((scoreRow) => {
+    const currentTotal = totalPointsByUserId.get(scoreRow.user_id) ?? 0;
+    totalPointsByUserId.set(scoreRow.user_id, currentTotal + (scoreRow.total_points ?? 0));
+  });
+
+  const globalStandings = (profiles ?? [])
+    .map((profile) => ({
+      userId: profile.id,
+      spelerNaam: profile.display_name ?? "Speler",
+      totaalPunten: totalPointsByUserId.get(profile.id) ?? 0,
+    }))
+    .sort((left, right) => right.totaalPunten - left.totaalPunten || left.spelerNaam.localeCompare(right.spelerNaam));
+
   return (
-    <main className="home hero-home">
-      <section className="hero-section" aria-labelledby="hero-title">
-        <div className="hero-overlay" />
-        <div className="hero-content">
-          <span className="hero-kicker">Het betere GP spel</span>
-          <h1 id="hero-title">Ben jij de ultieme GP-kenner?</h1>
-          <p>
-            Stel je team samen, voorspel de uitslagen en versla je vrienden gedurende het hele seizoen.
-          </p>
-          <div className="hero-actions">
-            <Link className="hero-cta" href="/register">
-              Speel mee
-            </Link>
-            <Link className="hero-secondary" href="/login">
-              Ik heb al een account
-            </Link>
-          </div>
+    <main className="dashboard-page dashboard-home-page">
+      <section className="dashboard-home-header">
+        <div>
+          <h1>Dashboard</h1>
+          <p>Jouw snelle overzicht van het GP Spel.</p>
         </div>
+        <Link className="dashboard-primary-cta" href={firstLeagueId ? `/leagues/${firstLeagueId}/gp-spel` : "/leagues"}>
+          Ga naar GP Spel
+        </Link>
+      </section>
+
+      <section className="dashboard-grid" aria-label="Dashboard-overzicht">
+        <article className="dashboard-card dashboard-home-card">
+          <h2>Laatste Grand Prix</h2>
+          {!latestGrandPrix ? (
+            <p className="league-list-empty">Er is nog geen afgeronde Grand Prix beschikbaar.</p>
+          ) : (
+            <div className="dashboard-data-list">
+              <p className="dashboard-data-title">{latestGrandPrix.name}</p>
+              {userLatestScore ? (
+                <dl>
+                  <div>
+                    <dt>Team punten</dt>
+                    <dd>{userLatestScore.team_points ?? 0}</dd>
+                  </div>
+                  <div>
+                    <dt>Prediction punten</dt>
+                    <dd>{userLatestScore.prediction_points ?? 0}</dd>
+                  </div>
+                  <div>
+                    <dt>Totaal punten</dt>
+                    <dd>{userLatestScore.total_points ?? 0}</dd>
+                  </div>
+                </dl>
+              ) : (
+                <p className="league-list-empty">Je hebt voor deze Grand Prix nog geen score.</p>
+              )}
+            </div>
+          )}
+        </article>
+
+        <article className="dashboard-card dashboard-home-card">
+          <h2>Algemeen klassement</h2>
+          {globalStandings.length === 0 ? (
+            <p className="league-list-empty">Er zijn nog geen spelers om te tonen.</p>
+          ) : (
+            <div className="standings-table-wrapper dashboard-compact-table">
+              <table className="standings-table" aria-label="Algemeen klassement">
+                <thead>
+                  <tr>
+                    <th scope="col">Positie</th>
+                    <th scope="col">Speler</th>
+                    <th scope="col">Totaal punten</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {globalStandings.map((entry, index) => (
+                    <tr key={entry.userId}>
+                      <td>{index + 1}</td>
+                      <td>{entry.spelerNaam}</td>
+                      <td>{entry.totaalPunten}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </article>
+
+        <article className="dashboard-card dashboard-home-card">
+          <h2>Jouw competities</h2>
+          {myLeagues.length === 0 ? (
+            <p className="league-list-empty">Je zit nog niet in een competitie.</p>
+          ) : (
+            <ul className="dashboard-league-list" aria-label="Jouw competities">
+              {myLeagues.map((league) => (
+                <li key={league.id}>
+                  <Link href={`/leagues/${league.id}`}>{league.name}</Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </article>
+
+        <article className="dashboard-card dashboard-home-card">
+          <h2>Volgende Grand Prix</h2>
+          {nextGrandPrix ? (
+            <div className="dashboard-data-list">
+              <p className="dashboard-data-title">{nextGrandPrix.name}</p>
+              <p>
+                {hasSelectableGrandPrix ? "Deadline" : "Kwalificatie start"}:{" "}
+                {formatDate(hasSelectableGrandPrix ? nextGrandPrix.deadline : nextGrandPrix.qualification_start)}
+              </p>
+              <Link
+                className="dashboard-secondary-cta"
+                href={firstLeagueId ? `/leagues/${firstLeagueId}/gp-spel` : "/leagues"}
+              >
+                Ga naar GP Spel
+              </Link>
+            </div>
+          ) : (
+            <p className="league-list-empty">Er is nog geen aankomende Grand Prix beschikbaar.</p>
+          )}
+        </article>
       </section>
     </main>
   );
