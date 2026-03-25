@@ -178,20 +178,20 @@ export default async function HomePage() {
             <p className="league-list-empty">Er zijn nog geen spelers om te tonen.</p>
           ) : (
             <div className="standings-table-wrapper dashboard-compact-table">
-              <table className="standings-table" aria-label="Algemeen klassement">
+              <table className="standings-table dashboard-standings-table" aria-label="Algemeen klassement">
                 <thead>
                   <tr>
                     <th scope="col">Positie</th>
                     <th scope="col">Speler</th>
-                    <th scope="col">Totaal punten</th>
+                    <th scope="col" className="standings-points-column">Punten</th>
                   </tr>
                 </thead>
                 <tbody>
                   {globalStandings.map((entry, index) => (
                     <tr key={entry.userId}>
                       <td>{index + 1}</td>
-                      <td>{entry.spelerNaam}</td>
-                      <td>{entry.totaalPunten}</td>
+                      <td className="standings-name-cell" title={entry.spelerNaam}>{entry.spelerNaam}</td>
+                      <td className="standings-points-cell">{entry.totaalPunten}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -201,11 +201,11 @@ export default async function HomePage() {
         </article>
 
         <article className="dashboard-card dashboard-home-card">
-          <h2>Jouw competities</h2>
+          <h2>Jouw Leagues</h2>
           {myLeagues.length === 0 ? (
-            <p className="league-list-empty">Je zit nog niet in een competitie.</p>
+            <p className="league-list-empty">Je zit nog niet in een league.</p>
           ) : (
-            <ul className="dashboard-league-list" aria-label="Jouw competities">
+            <ul className="dashboard-league-list" aria-label="Jouw Leagues">
               {myLeagues.map((league) => (
                 <li key={league.id}>
                   <Link href={`/leagues/${league.id}`}>{league.name}</Link>

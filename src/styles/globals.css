@@ -387,7 +387,7 @@ a {
 .dashboard-grid {
   width: min(100%, 1100px);
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: 1fr;
   gap: 1rem;
 }
 
@@ -449,6 +449,29 @@ a {
   border-radius: 10px;
   padding: 0.7rem 0.85rem;
   background: rgba(255, 255, 255, 0.04);
+}
+
+.dashboard-standings-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.dashboard-standings-table th:first-child,
+.dashboard-standings-table td:first-child {
+  width: 4rem;
+}
+
+.dashboard-standings-table .standings-points-column,
+.dashboard-standings-table .standings-points-cell {
+  text-align: right;
+  width: 5.5rem;
+  white-space: nowrap;
+}
+
+.dashboard-standings-table .standings-name-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .join-form {
@@ -518,6 +541,10 @@ a {
 }
 
 @media (min-width: 700px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .join-form-row {
     grid-template-columns: 1fr auto;
   }
