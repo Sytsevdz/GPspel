@@ -121,11 +121,6 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
           </Link>
         </div>
 
-        <nav className="league-actions" aria-label="League-acties">
-          <Link href={`/leagues/${league.id}/gp-spel`}>GP Spel</Link>
-          <Link href={`/leagues/${league.id}/standings`}>Bekijk klassement</Link>
-        </nav>
-
         {membersError || scoresError ? (
           <section className="league-section">
             <h2>League resultaten</h2>
@@ -175,6 +170,10 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
             </div>
           )}
         </section>
+
+        <Link href={`/leagues/${league.id}/gp-spel`} className="league-primary-cta">
+          Naar het GP spel
+        </Link>
       </section>
     </main>
   );

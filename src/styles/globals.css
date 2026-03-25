@@ -584,6 +584,19 @@ a {
   background: #171717;
 }
 
+.league-primary-cta {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 0.95rem 1.1rem;
+  border-radius: 12px;
+  border: 1px solid #4f8fff;
+  background: linear-gradient(180deg, #286fff 0%, #1f57d6 100%);
+  color: #ffffff;
+  font-weight: 700;
+}
+
 .league-section {
   display: grid;
   gap: 0.75rem;
