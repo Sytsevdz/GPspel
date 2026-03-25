@@ -7,6 +7,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import { saveTeamSelection, type TeamSelectionActionState } from "@/app/actions/team-selection";
 import { compareDriverStandings } from "@/lib/driver-pricing";
 import { getConstructorTeamColors } from "@/lib/team-colors";
+import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 
 type DriverWithPrice = {
@@ -172,6 +173,7 @@ export function TeamSelectionForm({
           <ul className="selected-driver-cars" aria-label="Geselecteerde coureurs met teamwagens">
             {selectedDriversForDisplay.map((driver) => {
               const team = resolveTeamSelectionTeam(driver.constructorTeam);
+              const imageSize = getTeamSideImageSize("selectedCard");
 
               return (
                 <li key={driver.id}>
@@ -179,9 +181,9 @@ export function TeamSelectionForm({
                     <Image
                       src={team.image}
                       alt={`${team.name} wagen`}
-                      width={240}
-                      height={96}
-                      className="selected-driver-car-image"
+                      width={imageSize.width}
+                      height={imageSize.height}
+                      className={imageSize.className}
                     />
                   </div>
                   <p>
@@ -230,6 +232,7 @@ export function TeamSelectionForm({
         <div className="driver-team-grid">
           {driversByTeam.map((team) => {
             const teamColors = getConstructorTeamColors(team.teamName);
+            const imageSize = getTeamSideImageSize("smallList");
 
             return (
               <section
@@ -247,7 +250,13 @@ export function TeamSelectionForm({
               >
                 <div className="driver-team-card-header">
                   <div className="driver-team-card-image">
-                    <Image src={team.image} alt={`${team.name} wagen`} width={220} height={88} className="driver-team-card-image-asset" />
+                    <Image
+                      src={team.image}
+                      alt={`${team.name} wagen`}
+                      width={imageSize.width}
+                      height={imageSize.height}
+                      className={imageSize.className}
+                    />
                   </div>
                   <h3>{team.teamName}</h3>
                 </div>

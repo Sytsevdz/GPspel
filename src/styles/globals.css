@@ -762,11 +762,15 @@ a {
   padding: 0.15rem 0.25rem;
 }
 
-.selected-driver-car-image {
+.team-side-image {
   width: 100%;
-  max-width: 200px;
-  height: 72px;
+  height: auto;
   object-fit: contain;
+}
+
+.team-side-image--selected-card {
+  max-width: 200px;
+  max-height: 84px;
 }
 
 .race-car-svg {
@@ -846,11 +850,9 @@ a {
   width: 100%;
 }
 
-.driver-team-card-image-asset {
-  width: 100%;
+.team-side-image--small-list {
   max-width: 150px;
-  height: 54px;
-  object-fit: contain;
+  max-height: 54px;
 }
 
 .driver-team-card h3 {
@@ -1064,11 +1066,9 @@ button.podium-slot:hover {
   width: 100%;
 }
 
-.podium-car-image {
-  width: 100%;
+.podium-car-image-wrapper .team-side-image--selected-card {
   max-width: 210px;
-  height: auto;
-  object-fit: contain;
+  max-height: 92px;
 }
 
 .podium-slot-copy,
@@ -1217,11 +1217,9 @@ button.podium-slot:hover {
   cursor: not-allowed;
 }
 
-.podium-driver-option-car {
-  width: 100%;
+.team-side-image--modal-option {
   max-width: 180px;
-  height: auto;
-  object-fit: contain;
+  max-height: 72px;
 }
 
 .predictions-submit-button {
@@ -1552,12 +1550,9 @@ button.podium-slot:hover {
   justify-content: center;
 }
 
-.gp-team-slot-image {
-  width: 100%;
+.team-side-image--slot {
   max-width: 232px;
-  height: auto;
   max-height: 132px;
-  object-fit: contain;
 }
 
 .gp-team-slot-copy {
@@ -1625,7 +1620,7 @@ button.podium-slot:hover {
     min-height: 116px;
   }
 
-  .gp-team-slot-image {
+  .team-side-image--slot {
     max-height: 116px;
   }
 }

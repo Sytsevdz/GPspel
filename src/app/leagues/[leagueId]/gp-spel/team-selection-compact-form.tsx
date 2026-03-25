@@ -7,6 +7,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import { saveTeamSelection, type TeamSelectionActionState } from "@/app/actions/team-selection";
 import { compareDriverStandings } from "@/lib/driver-pricing";
 import { getConstructorTeamColors } from "@/lib/team-colors";
+import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 
 type DriverWithPrice = {
@@ -230,6 +231,7 @@ export function TeamSelectionCompactForm({
         <div className="gp-team-slot-grid" role="list" aria-label="Geselecteerde coureurs">
           {slots.map((slotDriver, index) => {
             const slotTeam = slotDriver ? resolveTeamSelectionTeam(slotDriver.constructorTeam) : null;
+            const slotImageSize = getTeamSideImageSize("slot");
 
             return (
               <button
@@ -242,7 +244,13 @@ export function TeamSelectionCompactForm({
                 {slotDriver && slotTeam ? (
                   <>
                     <div className="gp-team-slot-car">
-                      <Image src={slotTeam.image} alt={`${slotTeam.name} wagen`} width={280} height={112} className="gp-team-slot-image" />
+                      <Image
+                        src={slotTeam.image}
+                        alt={`${slotTeam.name} wagen`}
+                        width={slotImageSize.width}
+                        height={slotImageSize.height}
+                        className={slotImageSize.className}
+                      />
                     </div>
                     <p className="gp-team-slot-copy">
                       <strong>{slotDriver.name}</strong>
@@ -320,6 +328,7 @@ export function TeamSelectionCompactForm({
               {sortedDrivers.map((driver) => {
                 const team = resolveTeamSelectionTeam(driver.constructorTeam);
                 const teamColors = getConstructorTeamColors(driver.constructorTeam);
+                const imageSize = getTeamSideImageSize("modalOption");
                 const isSelected = selectedDriverIds.includes(driver.id);
                 const canSelect = isDriverSelectableForActiveSlot(driver.id);
                 const isUnavailable = !canSelect && !isSelected;
@@ -338,7 +347,13 @@ export function TeamSelectionCompactForm({
                     }
                   >
                     <div className="podium-driver-option-image">
-                      <Image src={team.image} alt={`${team.name} wagen`} width={220} height={88} className="podium-driver-option-car" />
+                      <Image
+                        src={team.image}
+                        alt={`${team.name} wagen`}
+                        width={imageSize.width}
+                        height={imageSize.height}
+                        className={imageSize.className}
+                      />
                     </div>
                     <div className="podium-driver-option-copy">
                       <strong>{driver.name}</strong>

@@ -1,3 +1,5 @@
+import { TEAM_SIDE_VIEW_IMAGE_MAP } from "@/lib/team-side-view-images";
+
 export type TeamSelectionTeam = {
   id: string;
   name: string;
@@ -14,57 +16,57 @@ export const TEAM_SELECTION_TEAMS: TeamSelectionTeam[] = [
   {
     id: "alpine",
     name: "Alpine",
-    image: "/images/teams/Alpine - car-side.png",
+    image: TEAM_SIDE_VIEW_IMAGE_MAP.alpine,
   },
   {
     id: "astonmartin",
     name: "Aston Martin",
-    image: "/images/teams/Aston Martin - car-side.png",
+    image: TEAM_SIDE_VIEW_IMAGE_MAP.astonmartin,
   },
   {
     id: "audi",
     name: "Audi",
-    image: "/images/teams/Audi - car-side.png",
+    image: TEAM_SIDE_VIEW_IMAGE_MAP.audi,
   },
   {
     id: "cadillac",
     name: "Cadillac",
-    image: "/images/teams/Cadillac - car-side.png",
+    image: TEAM_SIDE_VIEW_IMAGE_MAP.cadillac,
   },
   {
     id: "ferrari",
     name: "Ferrari",
-    image: "/images/teams/Ferrari - car-side.png",
+    image: TEAM_SIDE_VIEW_IMAGE_MAP.ferrari,
   },
   {
     id: "haas",
     name: "Haas",
-    image: "/images/teams/Haas - car-side.png",
+    image: TEAM_SIDE_VIEW_IMAGE_MAP.haas,
   },
   {
     id: "mclaren",
     name: "Mclaren",
-    image: "/images/teams/Mclaren - car-side.png",
+    image: TEAM_SIDE_VIEW_IMAGE_MAP.mclaren,
   },
   {
     id: "mercedes",
     name: "Mercedes",
-    image: "/images/teams/Mercedes - car-side.png",
+    image: TEAM_SIDE_VIEW_IMAGE_MAP.mercedes,
   },
   {
     id: "racingbulls",
     name: "Racing Bulls",
-    image: "/images/teams/Racing Bulls - car-side.png",
+    image: TEAM_SIDE_VIEW_IMAGE_MAP.racingbulls,
   },
   {
     id: "redbull",
     name: "Red Bull",
-    image: "/images/teams/Red Bull - car-side.png",
+    image: TEAM_SIDE_VIEW_IMAGE_MAP.redbull,
   },
   {
     id: "williams",
     name: "Williams",
-    image: "/images/teams/Williams - car-side.png",
+    image: TEAM_SIDE_VIEW_IMAGE_MAP.williams,
   },
 ];
 
