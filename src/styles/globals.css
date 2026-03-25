@@ -584,6 +584,19 @@ a {
   background: #171717;
 }
 
+.league-primary-cta {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 0.95rem 1.1rem;
+  border-radius: 12px;
+  border: 1px solid #4f8fff;
+  background: linear-gradient(180deg, #286fff 0%, #1f57d6 100%);
+  color: #ffffff;
+  font-weight: 700;
+}
+
 .league-section {
   display: grid;
   gap: 0.75rem;
@@ -1417,6 +1430,30 @@ button.podium-slot:hover {
 .standings-table td:last-child,
 .standings-table th:last-child {
   text-align: right;
+}
+
+.standings-score-cell {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.league-table-player-link {
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: #4f8fff;
+  text-underline-offset: 0.2rem;
+}
+
+.league-table-player-link:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  text-decoration-color: #6a6a6a;
 }
 
 @media (max-width: 699px) {
