@@ -181,19 +181,33 @@ export default async function HomePage() {
               <table className="standings-table dashboard-standings-table" aria-label="Algemeen klassement">
                 <thead>
                   <tr>
-                    <th scope="col">Positie</th>
+                    <th scope="col" className="standings-position-column">Positie</th>
                     <th scope="col">Speler</th>
-                    <th scope="col" className="standings-points-column">Punten</th>
+                    <th scope="col" className="standings-score-column standings-points-column">Punten</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {globalStandings.map((entry, index) => (
-                    <tr key={entry.userId}>
-                      <td>{index + 1}</td>
-                      <td className="standings-name-cell" title={entry.spelerNaam}>{entry.spelerNaam}</td>
-                      <td className="standings-points-cell">{entry.totaalPunten}</td>
-                    </tr>
-                  ))}
+                  {globalStandings.map((entry, index) => {
+                    const position = index + 1;
+                    const topRankClass =
+                      position === 1
+                        ? " standings-row-p1"
+                        : position === 2
+                          ? " standings-row-p2"
+                          : position === 3
+                            ? " standings-row-p3"
+                            : "";
+
+                    return (
+                      <tr key={entry.userId} className={topRankClass.trim()}>
+                        <td className="standings-position-cell">
+                          <span className="standings-position-pill">{position}</span>
+                        </td>
+                        <td className="standings-name-cell" title={entry.spelerNaam}>{entry.spelerNaam}</td>
+                        <td className="standings-score-cell standings-points-cell">{entry.totaalPunten}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

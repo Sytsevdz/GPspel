@@ -456,15 +456,15 @@ a {
   width: 100%;
 }
 
-.dashboard-standings-table th:first-child,
-.dashboard-standings-table td:first-child {
-  width: 4rem;
+.dashboard-standings-table .standings-position-column,
+.dashboard-standings-table .standings-position-cell {
+  width: 5.2rem;
 }
 
 .dashboard-standings-table .standings-points-column,
 .dashboard-standings-table .standings-points-cell {
   text-align: right;
-  width: 5.5rem;
+  width: 7rem;
   white-space: nowrap;
 }
 
