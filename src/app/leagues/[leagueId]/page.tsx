@@ -75,25 +75,29 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
     }))
     .sort((left, right) => right.totaalPunten - left.totaalPunten || left.spelerNaam.localeCompare(right.spelerNaam));
 
-  const { data: latestCompletedGrandPrix } = await supabase
-    .from("grand_prix")
-    .select("id, name, deadline")
-    .lte("deadline", nowIso)
-    .order("deadline", { ascending: false })
-    .limit(1)
-    .maybeSingle<{ id: string; name: string; deadline: string }>();
+  const scoredGrandPrixIds = [...new Set((scoreRows ?? []).map((scoreRow) => scoreRow.grand_prix_id))];
+
+  const { data: latestScoredGrandPrix } = scoredGrandPrixIds.length
+    ? await supabase
+        .from("grand_prix")
+        .select("id, name, deadline")
+        .in("id", scoredGrandPrixIds)
+        .order("deadline", { ascending: false })
+        .limit(1)
+        .maybeSingle<{ id: string; name: string; deadline: string }>()
+    : { data: null };
 
   const latestGrandPrixPointsByUserId = new Map<string, number>();
 
-  if (latestCompletedGrandPrix && scoreRows) {
+  if (latestScoredGrandPrix && scoreRows) {
     scoreRows
-      .filter((scoreRow) => scoreRow.grand_prix_id === latestCompletedGrandPrix.id)
+      .filter((scoreRow) => scoreRow.grand_prix_id === latestScoredGrandPrix.id)
       .forEach((scoreRow) => {
         latestGrandPrixPointsByUserId.set(scoreRow.user_id, scoreRow.total_points ?? 0);
       });
   }
 
-  const latestGrandPrixStandings = latestCompletedGrandPrix
+  const latestGrandPrixStandings = latestScoredGrandPrix
     ? (members ?? [])
         .map((member) => ({
           userId: member.user_id,
@@ -130,10 +134,10 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
           <LeagueResultsPanel
             leagueId={league.id}
             latestCompletedGrandPrix={
-              latestCompletedGrandPrix
+              latestScoredGrandPrix
                 ? {
-                    id: latestCompletedGrandPrix.id,
-                    name: latestCompletedGrandPrix.name,
+                    id: latestScoredGrandPrix.id,
+                    name: latestScoredGrandPrix.name,
                   }
                 : null
             }
