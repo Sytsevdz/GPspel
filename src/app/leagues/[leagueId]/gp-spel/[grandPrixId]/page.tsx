@@ -44,9 +44,9 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
       <main className="leagues-page">
         <section className="leagues-card league-access-card">
           <h1>Geen toegang</h1>
-          <p>Deze pagina is alleen beschikbaar voor leden van deze competitie.</p>
+          <p>Deze pagina is alleen beschikbaar voor leden van deze league.</p>
           <Link href="/leagues" className="league-back-link">
-            ← Terug naar je competities
+            ← Terug naar je leagues
           </Link>
         </section>
       </main>

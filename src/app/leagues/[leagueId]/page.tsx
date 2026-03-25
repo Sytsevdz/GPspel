@@ -29,10 +29,10 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
     return (
       <main className="leagues-page">
         <section className="leagues-card league-access-card">
-          <h1>Competitie niet beschikbaar</h1>
-          <p>Je hebt geen toegang tot deze competitie, of deze bestaat niet.</p>
+          <h1>League niet beschikbaar</h1>
+          <p>Je hebt geen toegang tot deze league, of deze bestaat niet.</p>
           <Link href="/leagues" className="league-back-link">
-            ← Terug naar je competities
+            ← Terug naar je leagues
           </Link>
         </section>
       </main>
@@ -90,11 +90,11 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
             </p>
           </div>
           <Link href="/leagues" className="league-back-link">
-            ← Alle competities
+            ← Alle leagues
           </Link>
         </div>
 
-        <nav className="league-actions" aria-label="Competitie-acties">
+        <nav className="league-actions" aria-label="League-acties">
           <Link href={`/leagues/${league.id}/gp-spel`}>GP Spel</Link>
           <Link href={`/leagues/${league.id}/standings`}>Bekijk klassement</Link>
         </nav>

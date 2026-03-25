@@ -41,7 +41,9 @@ export default async function RootLayout({
     <html lang="en">
       <body>
         <header className="topbar">
-          <span className="brand">GP Spel</span>
+          <Link href="/" className="brand">
+            GP Spel
+          </Link>
 
           <nav>
             {user ? (

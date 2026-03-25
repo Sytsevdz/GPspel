@@ -29,8 +29,8 @@ export default async function CompetitiesPage({ searchParams }: CompetitiesPageP
   return (
     <main className="leagues-page">
       <section className="leagues-card">
-        <h1>Jouw competities</h1>
-        <p>Bekijk je competities en neem deel met een deelnemingscode.</p>
+        <h1>Jouw leagues</h1>
+        <p>Bekijk je leagues en neem deel met een deelnemingscode.</p>
 
         {searchParams.error ? <p className="form-message error">{searchParams.error}</p> : null}
         {searchParams.message ? <p className="form-message success">{searchParams.message}</p> : null}
@@ -47,13 +47,13 @@ export default async function CompetitiesPage({ searchParams }: CompetitiesPageP
               autoComplete="off"
               maxLength={64}
             />
-            <button type="submit">Deelnemen aan competitie</button>
+            <button type="submit">Deelnemen aan league</button>
           </div>
         </form>
 
-        {error ? <p className="form-message error">Kon competities nu niet laden.</p> : null}
+        {error ? <p className="form-message error">Kon leagues nu niet laden.</p> : null}
 
-        <ul className="league-list" aria-label="Competities">
+        <ul className="league-list" aria-label="Leagues">
           {leagues && leagues.length > 0 ? (
             leagues.map((league) => (
               <li key={league.id} className="league-list-item">
@@ -63,11 +63,11 @@ export default async function CompetitiesPage({ searchParams }: CompetitiesPageP
                     Deelnemingscode: <span>{league.join_code}</span>
                   </p>
                 </div>
-                <Link href={`/leagues/${league.id}`}>Open competitie</Link>
+                <Link href={`/leagues/${league.id}`}>Open league</Link>
               </li>
             ))
           ) : (
-            <li className="league-list-empty">Je bent nog niet deelnemer van een competitie.</li>
+            <li className="league-list-empty">Je bent nog niet deelnemer van een league.</li>
           )}
         </ul>
       </section>
