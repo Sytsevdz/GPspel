@@ -6,6 +6,7 @@ type League = {
   id: string;
   name: string;
   join_code: string;
+  created_by: string | null;
 };
 
 export async function getAccessibleLeague(leagueId: string): Promise<League | null> {
@@ -20,7 +21,7 @@ export async function getAccessibleLeague(leagueId: string): Promise<League | nu
 
   const { data: league, error } = await supabase
     .from("leagues")
-    .select("id, name, join_code")
+    .select("id, name, join_code, created_by")
     .eq("id", leagueId)
     .maybeSingle<League>();
 

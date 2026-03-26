@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase";
 
 import { getCurrentSelectableGrandPrix } from "@/lib/team-selection-data";
 import { getAccessibleLeague } from "./league-access";
+import { DeleteLeagueAction } from "./delete-league-action";
 import { LeagueResultsPanel } from "./league-results-panel";
 
 type LeaguePageProps = {
@@ -42,6 +43,15 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
   }
 
   const supabase = createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: profile } = user
+    ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle<{ role: string | null }>()
+    : { data: null };
+
+  const canDeleteLeague = Boolean(user && (league.created_by === user.id || profile?.role === "admin"));
   const nowIso = new Date().toISOString();
 
   const { data: members, error: membersError } = await supabase
@@ -179,6 +189,8 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
         <Link href={`/leagues/${league.id}/gp-spel`} className="league-primary-cta">
           Naar het GP spel
         </Link>
+
+        {canDeleteLeague ? <DeleteLeagueAction leagueId={league.id} /> : null}
       </section>
     </main>
   );
