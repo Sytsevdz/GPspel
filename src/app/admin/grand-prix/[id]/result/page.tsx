@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
 
+import { PublishScoreActions } from "./publish-score-actions";
 import { ResultForm } from "./result-form";
 
 type GrandPrixResultPageProps = {
@@ -136,6 +137,8 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
           }))}
           initialValues={initialValues}
         />
+
+        <PublishScoreActions grandPrixId={grandPrix.id} />
       </section>
     </main>
   );

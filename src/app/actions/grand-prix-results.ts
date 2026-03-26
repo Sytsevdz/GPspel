@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { calculateGrandPrixScores } from "@/app/actions/grand-prix-scores";
+import { calculateGrandPrixQualificationScores, calculateGrandPrixScores } from "@/app/actions/grand-prix-scores";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 export type GrandPrixResultActionState = {
@@ -13,6 +13,100 @@ export type GrandPrixResultActionState = {
 const initialState: GrandPrixResultActionState = {
   status: "idle",
 };
+
+async function requireAdminAndGrandPrix(grandPrixId: string) {
+  const supabase = createServerSupabaseClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return { supabase: null, error: "Er ging iets mis bij het opslaan" };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle<{ role: string | null }>();
+
+  if (profile?.role !== "admin") {
+    return { supabase: null, error: "Je hebt geen toegang tot deze pagina." };
+  }
+
+  const { data: grandPrix } = await supabase.from("grand_prix").select("id").eq("id", grandPrixId).maybeSingle<{ id: string }>();
+
+  if (!grandPrix) {
+    return { supabase: null, error: "Er ging iets mis bij het opslaan" };
+  }
+
+  return { supabase, error: null };
+}
+
+export async function publishGrandPrixQualificationScores(
+  _prevState: GrandPrixResultActionState = initialState,
+  formData: FormData,
+): Promise<GrandPrixResultActionState> {
+  const grandPrixId = String(formData.get("grand_prix_id") ?? "").trim();
+
+  if (!grandPrixId) {
+    return {
+      status: "error",
+      message: "Er ging iets mis bij het publiceren",
+    };
+  }
+
+  const { error } = await requireAdminAndGrandPrix(grandPrixId);
+
+  if (error) {
+    return {
+      status: "error",
+      message: error,
+    };
+  }
+
+  await calculateGrandPrixQualificationScores(grandPrixId);
+
+  revalidatePath(`/admin/grand-prix/${grandPrixId}/result`);
+
+  return {
+    status: "success",
+    message: "Kwalificatiepunten gepubliceerd",
+  };
+}
+
+export async function publishGrandPrixFinalScores(
+  _prevState: GrandPrixResultActionState = initialState,
+  formData: FormData,
+): Promise<GrandPrixResultActionState> {
+  const grandPrixId = String(formData.get("grand_prix_id") ?? "").trim();
+
+  if (!grandPrixId) {
+    return {
+      status: "error",
+      message: "Er ging iets mis bij het publiceren",
+    };
+  }
+
+  const { error } = await requireAdminAndGrandPrix(grandPrixId);
+
+  if (error) {
+    return {
+      status: "error",
+      message: error,
+    };
+  }
+
+  await calculateGrandPrixScores(grandPrixId);
+
+  revalidatePath(`/admin/grand-prix/${grandPrixId}/result`);
+
+  return {
+    status: "success",
+    message: "Eindscore gepubliceerd",
+  };
+}
 
 export async function saveGrandPrixResult(
   _prevState: GrandPrixResultActionState = initialState,
@@ -35,46 +129,16 @@ export async function saveGrandPrixResult(
     };
   }
 
-  const supabase = createServerSupabaseClient();
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+  const adminCheck = await requireAdminAndGrandPrix(grandPrixId);
 
-  if (userError || !user) {
+  if (adminCheck.error || !adminCheck.supabase) {
     return {
       status: "error",
-      message: "Er ging iets mis bij het opslaan",
+      message: adminCheck.error ?? "Er ging iets mis bij het opslaan",
     };
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle<{ role: string | null }>();
-
-  if (profile?.role !== "admin") {
-    return {
-      status: "error",
-      message: "Je hebt geen toegang tot deze pagina.",
-    };
-  }
-
-  const { data: grandPrix } = await supabase
-    .from("grand_prix")
-    .select("id")
-    .eq("id", grandPrixId)
-    .maybeSingle<{ id: string }>();
-
-  if (!grandPrix) {
-    return {
-      status: "error",
-      message: "Er ging iets mis bij het opslaan",
-    };
-  }
-
-  const { data: drivers } = await supabase.from("drivers").select("id").eq("active", true);
+  const { data: drivers } = await adminCheck.supabase.from("drivers").select("id").eq("active", true);
 
   const activeDriverIds = (drivers ?? []).map((driver) => driver.id);
   const activeDriverSet = new Set(activeDriverIds);
@@ -110,12 +174,7 @@ export async function saveGrandPrixResult(
     race_position: racePositionByDriverId.get(driverId)!,
   }));
 
-  console.info(`[saveGrandPrixResult] Volledige uitslag opslaan voor grand_prix_id=${grandPrixId}`);
-
-  const { error: deleteError, count: deletedCount } = await supabase
-    .from("grand_prix_driver_results")
-    .delete({ count: "exact" })
-    .eq("grand_prix_id", grandPrixId);
+  const { error: deleteError } = await adminCheck.supabase.from("grand_prix_driver_results").delete().eq("grand_prix_id", grandPrixId);
 
   if (deleteError) {
     return {
@@ -124,11 +183,7 @@ export async function saveGrandPrixResult(
     };
   }
 
-  console.info(`[saveGrandPrixResult] Aantal verwijderde rijen: ${deletedCount ?? 0}`);
-
-  const { error: insertError, count: insertedCount } = await supabase
-    .from("grand_prix_driver_results")
-    .insert(rows, { count: "exact" });
+  const { error: insertError } = await adminCheck.supabase.from("grand_prix_driver_results").insert(rows);
 
   if (insertError) {
     return {
@@ -137,8 +192,7 @@ export async function saveGrandPrixResult(
     };
   }
 
-  console.info(`[saveGrandPrixResult] Aantal ingevoegde rijen: ${insertedCount ?? 0}`);
-
+  // Backwards-compatible behavior: saving a full result still publishes final scores.
   await calculateGrandPrixScores(grandPrixId);
 
   revalidatePath(`/admin/grand-prix/${grandPrixId}/result`);
