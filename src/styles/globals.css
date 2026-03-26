@@ -694,6 +694,37 @@ a {
   display: grid;
 }
 
+.league-management-panel {
+  border: 1px solid #313131;
+  border-radius: 12px;
+  padding: 0.9rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.league-management-row {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.league-management-label {
+  color: #d7d7d7;
+  font-size: 0.92rem;
+}
+
+.league-join-code-badge {
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid #494949;
+  border-radius: 8px;
+  background: #151515;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  word-break: break-all;
+}
+
 .league-delete-trigger {
   justify-self: start;
   border: 1px solid #a13a3a;
