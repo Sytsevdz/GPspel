@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { createLeague, joinLeague } from "@/app/actions/leagues";
+import { JoinLeagueAction } from "@/app/leagues/join-league-action";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 type LeaguesPageProps = {
@@ -80,7 +81,7 @@ export default async function LeaguesPage({ searchParams }: LeaguesPageProps) {
                 {membershipLeagueIds.has(league.id) ? (
                   <Link href={`/leagues/${league.id}`}>Open league</Link>
                 ) : (
-                  <a href="/leagues#join-league-form">Join league</a>
+                  <JoinLeagueAction leagueName={league.name} />
                 )}
               </li>
             ))
