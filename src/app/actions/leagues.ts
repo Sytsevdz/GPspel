@@ -2,11 +2,54 @@
 
 import { redirect } from "next/navigation";
 
-import { createServerSupabaseClient } from "@/lib/supabase";
+import { createServerSupabaseActionClient, createServerSupabaseClient } from "@/lib/supabase";
 
 const toLeaguesRedirect = (key: "error" | "message", value: string) => {
   const params = new URLSearchParams({ [key]: value });
   return `/leagues?${params.toString()}`;
+};
+
+const JOIN_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const JOIN_CODE_LENGTH = 8;
+
+const generateJoinCode = () => {
+  let code = "";
+
+  for (let index = 0; index < JOIN_CODE_LENGTH; index += 1) {
+    const randomIndex = Math.floor(Math.random() * JOIN_CODE_CHARS.length);
+    code += JOIN_CODE_CHARS[randomIndex];
+  }
+
+  return code;
+};
+
+const createLeagueWithUniqueJoinCode = async (
+  supabase: ReturnType<typeof createServerSupabaseActionClient>,
+  name: string,
+  userId: string,
+) => {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const joinCode = generateJoinCode();
+    const { data: league, error } = await supabase
+      .from("leagues")
+      .insert({
+        name,
+        join_code: joinCode,
+        created_by: userId,
+      })
+      .select("id, name")
+      .single();
+
+    if (!error) {
+      return { league, error: null as null };
+    }
+
+    if (error.code !== "23505") {
+      return { league: null, error };
+    }
+  }
+
+  return { league: null, error: null };
 };
 
 export async function joinLeague(formData: FormData) {
@@ -107,4 +150,66 @@ export async function joinLeague(formData: FormData) {
   }
 
   redirect(toLeaguesRedirect("message", `Succesvol deelgenomen aan ${league.name}.`));
+}
+
+export async function createLeague(formData: FormData) {
+  const name = String(formData.get("name") ?? "").trim();
+  const supabase = createServerSupabaseActionClient();
+
+  if (!name) {
+    redirect(toLeaguesRedirect("error", "Naam van de league is verplicht."));
+  }
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError) {
+    console.error("[createLeague] auth.getUser failed", {
+      message: authError.message,
+      code: authError.code,
+      status: authError.status,
+      name,
+    });
+    redirect(toLeaguesRedirect("error", "Log in en probeer het opnieuw."));
+  }
+
+  if (!user) {
+    redirect(toLeaguesRedirect("error", "Log in om een league aan te maken."));
+  }
+
+  const { league, error: createError } = await createLeagueWithUniqueJoinCode(supabase, name, user.id);
+
+  if (createError || !league) {
+    console.error("[createLeague] league insert failed", {
+      message: createError?.message,
+      code: createError?.code,
+      details: createError?.details,
+      hint: createError?.hint,
+      name,
+      userId: user.id,
+    });
+    redirect(toLeaguesRedirect("error", "Kon de league nu niet aanmaken. Probeer het opnieuw."));
+  }
+
+  const { error: membershipError } = await supabase.from("league_members").insert({
+    league_id: league.id,
+    user_id: user.id,
+    role: "owner",
+  });
+
+  if (membershipError) {
+    console.error("[createLeague] league_members insert failed", {
+      message: membershipError.message,
+      code: membershipError.code,
+      details: membershipError.details,
+      hint: membershipError.hint,
+      leagueId: league.id,
+      userId: user.id,
+    });
+    redirect(toLeaguesRedirect("error", "League aangemaakt, maar toevoegen als lid mislukte. Probeer opnieuw."));
+  }
+
+  redirect(`/leagues/${league.id}`);
 }

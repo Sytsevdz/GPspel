@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { joinLeague } from "@/app/actions/leagues";
+import { createLeague, joinLeague } from "@/app/actions/leagues";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 type LeaguesPageProps = {
@@ -34,6 +34,17 @@ export default async function LeaguesPage({ searchParams }: LeaguesPageProps) {
 
         {searchParams.error ? <p className="form-message error">{searchParams.error}</p> : null}
         {searchParams.message ? <p className="form-message success">{searchParams.message}</p> : null}
+
+        <details className="create-league-panel">
+          <summary className="create-league-toggle">League aanmaken</summary>
+          <form className="join-form create-league-form" action={createLeague}>
+            <label htmlFor="name">Naam van de league</label>
+            <div className="join-form-row">
+              <input id="name" name="name" type="text" required placeholder="Bijv. Vrienden League" maxLength={80} />
+              <button type="submit">League maken</button>
+            </div>
+          </form>
+        </details>
 
         <form className="join-form" action={joinLeague}>
           <label htmlFor="join_code">Deelnemingscode</label>
