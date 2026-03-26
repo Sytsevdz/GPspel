@@ -744,7 +744,7 @@ a {
 .gp-navigation {
   display: flex;
   justify-content: space-between;
-  align-items: end;
+  align-items: flex-end;
   gap: 0.75rem;
   flex-wrap: wrap;
 }
@@ -808,7 +808,7 @@ a {
   gap: 0.65rem;
   padding: 0;
   margin: 0;
-  align-items: start;
+  align-items: flex-start;
 }
 
 .selected-driver-cars li {
@@ -880,7 +880,7 @@ a {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 0.65rem;
-  align-items: start;
+  align-items: flex-start;
 }
 
 .driver-team-grid {
@@ -998,7 +998,7 @@ a {
 .podium-grid {
   display: grid;
   gap: 0.85rem;
-  align-items: end;
+  align-items: flex-end;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -1188,7 +1188,7 @@ button.podium-slot:hover {
   background: rgba(2, 2, 2, 0.68);
   backdrop-filter: blur(2px);
   display: flex;
-  align-items: end;
+  align-items: flex-end;
   justify-content: center;
   padding: 0.75rem;
 }
@@ -1211,7 +1211,7 @@ button.podium-slot:hover {
   display: flex;
   justify-content: space-between;
   gap: 0.75rem;
-  align-items: start;
+  align-items: flex-start;
 }
 
 .podium-selection-panel-header h3,
@@ -1245,10 +1245,88 @@ button.podium-slot:hover {
   overflow-y: auto;
 }
 
+.player-detail-header {
+  border: 1px solid #343434;
+  border-radius: 14px;
+  padding: 0.95rem;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.01)),
+    linear-gradient(180deg, rgba(29, 29, 29, 0.96), rgba(12, 12, 12, 0.98));
+}
+
+.player-detail-header-copy {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.player-detail-eyebrow {
+  display: inline-flex;
+  width: fit-content;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(232, 182, 44, 0.45);
+  background: rgba(232, 182, 44, 0.15);
+  color: #f3cf6b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.player-detail-header-copy h3 {
+  margin: 0;
+  font-size: clamp(1.15rem, 3.4vw, 1.55rem);
+}
+
+.player-detail-header-copy p {
+  margin: 0;
+  color: #d8d8d8;
+}
+
 .player-detail-content {
   display: grid;
-  gap: 1rem;
-  margin-top: 0.5rem;
+  gap: 1.2rem;
+  margin-top: 0.35rem;
+}
+
+.player-detail-section-header {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.player-detail-section-header h3 {
+  margin: 0;
+}
+
+.player-detail-section-header p {
+  margin: 0;
+  color: #cecece;
+  font-size: 0.9rem;
+}
+
+.player-detail-driver-card {
+  --team-accent: #6b7280;
+  --team-accent-secondary: #3f3f46;
+  --team-bg-from: rgba(107, 114, 128, 0.12);
+  --team-bg-to: rgba(63, 63, 70, 0.06);
+
+  border: 1px solid color-mix(in srgb, var(--team-accent) 44%, #3b3b3b);
+  background: linear-gradient(145deg, var(--team-bg-from), var(--team-bg-to));
+}
+
+.player-detail-driver-copy {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.player-detail-price {
+  justify-self: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--team-accent-secondary) 55%, #4a4a4a);
+  background: color-mix(in srgb, var(--team-accent) 16%, rgba(12, 12, 12, 0.85));
+  color: #f3f3f3;
 }
 
 .podium-driver-options {
@@ -1302,6 +1380,18 @@ button.podium-slot:hover {
 }
 
 @media (max-width: 699px) {
+  .player-detail-panel {
+    padding: 0.75rem;
+  }
+
+  .player-detail-header {
+    padding: 0.85rem;
+  }
+
+  .player-detail-header-copy p {
+    font-size: 0.9rem;
+  }
+
   .podium-grid {
     grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
@@ -1358,6 +1448,10 @@ button.podium-slot:hover {
   .podium-selection-panel {
     border-radius: 18px;
     max-height: min(80vh, 46rem);
+  }
+
+  .player-detail-content {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .podium-selection-close {
@@ -1617,7 +1711,7 @@ button.podium-slot:hover {
 
 @media (max-width: 699px) {
   .hero-section {
-    align-items: end;
+    align-items: flex-end;
   }
 
   .hero-content {

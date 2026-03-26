@@ -1,9 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState, useTransition, type ReactNode } from "react";
+import { useMemo, useState, useTransition, type CSSProperties, type ReactNode } from "react";
 
 import { getPlayerGrandPrixView, type PlayerGrandPrixViewResult } from "@/app/actions/player-grand-prix-view";
+import { getConstructorTeamColors } from "@/lib/team-colors";
 import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 
@@ -217,11 +218,14 @@ export function PlayerGrandPrixDetail({
             }
           }}
         >
-          <section className="podium-selection-panel player-detail-panel" role="dialog" aria-modal="true" aria-label="Spelerdetails">
-            <div className="podium-selection-panel-header">
-              <div>
+            <section className="podium-selection-panel player-detail-panel" role="dialog" aria-modal="true" aria-label="Spelerdetails">
+            <div className="podium-selection-panel-header player-detail-header">
+              <div className="player-detail-header-copy">
+                <span className="player-detail-eyebrow">Spelerdetail</span>
                 <h3>{snapshot?.playerName ?? selectedMember?.displayName ?? "Speler"}</h3>
-                <p>{grandPrixName}</p>
+                <p>
+                  <strong>Grand Prix:</strong> {grandPrixName}
+                </p>
               </div>
               <button type="button" className="podium-selection-close" onClick={() => setIsModalOpen(false)}>
                 Sluiten
@@ -234,15 +238,30 @@ export function PlayerGrandPrixDetail({
             {!isPending && snapshot ? (
               <div className="player-detail-content">
                 <section className="team-selection-summary compact-team-selection-summary">
-                  <h3>Team selectie (4 coureurs)</h3>
+                  <div className="player-detail-section-header">
+                    <h3>Team selectie (4 coureurs)</h3>
+                    <p>Opgeslagen selectie voor deze Grand Prix.</p>
+                  </div>
                   {snapshot.teamSelection.length > 0 ? (
                     <ul className="selected-driver-cars compact-selected-driver-cars" aria-label="Geselecteerde coureurs met teamwagens">
                       {snapshot.teamSelection.map((driver) => {
                         const team = resolveTeamSelectionTeam(driver.constructorTeam);
                         const imageSize = getTeamSideImageSize("selectedCard");
+                        const teamColors = getConstructorTeamColors(driver.constructorTeam);
 
                         return (
-                          <li key={driver.id}>
+                          <li
+                            key={driver.id}
+                            className="player-detail-driver-card"
+                            style={
+                              {
+                                "--team-accent": teamColors.accent,
+                                "--team-accent-secondary": teamColors.accentSecondary,
+                                "--team-bg-from": teamColors.backgroundFrom,
+                                "--team-bg-to": teamColors.backgroundTo,
+                              } as CSSProperties
+                            }
+                          >
                             <div className="selected-driver-car">
                               <Image
                                 src={team.image}
@@ -252,10 +271,12 @@ export function PlayerGrandPrixDetail({
                                 className={imageSize.className}
                               />
                             </div>
-                            <p>
-                              <strong>{driver.name}</strong>
-                              <span>{driver.constructorTeam}</span>
-                            </p>
+                            <div className="player-detail-driver-copy">
+                              <p>
+                                <strong>{driver.name}</strong>
+                                <span>{driver.constructorTeam}</span>
+                              </p>
+                            </div>
                           </li>
                         );
                       })}
@@ -266,6 +287,10 @@ export function PlayerGrandPrixDetail({
                 </section>
 
                 <section>
+                  <div className="player-detail-section-header">
+                    <h3>Voorspellingen</h3>
+                    <p>Kwalificatie en race staan los van elkaar weergegeven.</p>
+                  </div>
                   {snapshot.qualificationPodium || snapshot.racePodium ? (
                     <>
                       <PodiumReadOnly title="Kwalificatie" podium={snapshot.qualificationPodium} slots={QUALIFICATION_SLOTS} />
