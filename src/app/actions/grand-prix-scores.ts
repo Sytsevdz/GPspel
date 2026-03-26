@@ -49,12 +49,31 @@ const F1_RACE_POINTS_BY_POSITION: Record<number, number> = {
   10: 1,
 };
 
+const F1_QUALI_TEAM_POINTS_BY_POSITION: Record<number, number> = {
+  1: 10,
+  2: 8,
+  3: 6,
+  4: 5,
+  5: 4,
+  6: 3,
+  7: 2,
+  8: 1,
+};
+
 const getRacePointsForPosition = (position: number | null) => {
   if (position === null) {
     return 0;
   }
 
   return F1_RACE_POINTS_BY_POSITION[position] ?? 0;
+};
+
+const getQualiTeamPointsForPosition = (position: number | null) => {
+  if (position === null) {
+    return 0;
+  }
+
+  return F1_QUALI_TEAM_POINTS_BY_POSITION[position] ?? 0;
 };
 
 const calculateTopThreePredictionPoints = (predictedTopThree: string[], actualTopThree: string[]) => {
@@ -261,7 +280,7 @@ export async function calculateGrandPrixQualificationScores(grandPrixId: string)
   const officialQualiTopThree = buildTopThreeByPosition(driverResults, "quali_position");
   const qualiPointsByDriverId = new Map<string, number>();
   driverResults.forEach((row) => {
-    qualiPointsByDriverId.set(row.driver_id, getRacePointsForPosition(row.quali_position));
+    qualiPointsByDriverId.set(row.driver_id, getQualiTeamPointsForPosition(row.quali_position));
   });
 
   const componentByUserId = new Map<string, ScoreComponentValues>(existingComponentsByUserId);
