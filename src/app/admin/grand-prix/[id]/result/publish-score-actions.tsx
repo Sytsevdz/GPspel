@@ -23,7 +23,7 @@ export function PublishScoreActions({ grandPrixId }: { grandPrixId: string }) {
   return (
     <section className="predictions-section">
       <h2>Punten publiceren</h2>
-      <p>Publiceer eerst kwalificatiepunten en later de volledige racepunten.</p>
+      <p>Publiceer eerst kwalificatiepunten en later de racepunten per fase.</p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", alignItems: "flex-start" }}>
         <form action={qualificationAction}>
@@ -38,7 +38,7 @@ export function PublishScoreActions({ grandPrixId }: { grandPrixId: string }) {
 
         <form action={finalAction}>
           <input type="hidden" name="grand_prix_id" value={grandPrixId} />
-          <PublishButton label="Publiceer eindscore" pendingLabel="Publiceren..." />
+          <PublishButton label="Publiceer racepunten" pendingLabel="Publiceren..." />
         </form>
         {finalState.status !== "idle" && finalState.message && (
           <p className={`form-message ${finalState.status === "success" ? "success" : "error"}`}>{finalState.message}</p>
