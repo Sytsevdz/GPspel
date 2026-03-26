@@ -60,6 +60,27 @@ const F1_QUALI_TEAM_POINTS_BY_POSITION: Record<number, number> = {
   8: 1,
 };
 
+const F1_SPRINT_RACE_TEAM_POINTS_BY_POSITION: Record<number, number> = {
+  1: 15,
+  2: 12,
+  3: 10,
+  4: 8,
+  5: 6,
+  6: 4,
+  7: 3,
+  8: 2,
+  9: 1,
+};
+
+const F1_SPRINT_QUALI_TEAM_POINTS_BY_POSITION: Record<number, number> = {
+  1: 6,
+  2: 5,
+  3: 4,
+  4: 3,
+  5: 2,
+  6: 1,
+};
+
 const getRacePointsForPosition = (position: number | null) => {
   if (position === null) {
     return 0;
@@ -74,6 +95,22 @@ const getQualiTeamPointsForPosition = (position: number | null) => {
   }
 
   return F1_QUALI_TEAM_POINTS_BY_POSITION[position] ?? 0;
+};
+
+const getSprintRaceTeamPointsForPosition = (position: number | null) => {
+  if (position === null) {
+    return 0;
+  }
+
+  return F1_SPRINT_RACE_TEAM_POINTS_BY_POSITION[position] ?? 0;
+};
+
+const getSprintQualiTeamPointsForPosition = (position: number | null) => {
+  if (position === null) {
+    return 0;
+  }
+
+  return F1_SPRINT_QUALI_TEAM_POINTS_BY_POSITION[position] ?? 0;
 };
 
 const calculateTopThreePredictionPoints = (predictedTopThree: string[], actualTopThree: string[]) => {
@@ -127,11 +164,33 @@ const buildSprintPredictionComponents = (_isSprintWeekend: boolean) => ({
   sprintRacePredictionPoints: 0,
 });
 
-const buildSprintTeamComponents = (_isSprintWeekend: boolean) => ({
-  // Sprint publication is not active yet; keep explicit sprint components in place.
-  teamSprintQualiPoints: 0,
-  teamSprintRacePoints: 0,
-});
+const buildSprintTeamComponents = ({
+  isSprintWeekend,
+  selectedDriverIds,
+  sprintQualiPointsByDriverId,
+  sprintRacePointsByDriverId,
+}: {
+  isSprintWeekend: boolean;
+  selectedDriverIds: string[];
+  sprintQualiPointsByDriverId: Map<string, number>;
+  sprintRacePointsByDriverId: Map<string, number>;
+}) => {
+  if (!isSprintWeekend) {
+    return {
+      teamSprintQualiPoints: 0,
+      teamSprintRacePoints: 0,
+    };
+  }
+
+  return {
+    teamSprintQualiPoints: selectedDriverIds.reduce((total, driverId) => {
+      return total + (sprintQualiPointsByDriverId.get(driverId) ?? 0);
+    }, 0),
+    teamSprintRacePoints: selectedDriverIds.reduce((total, driverId) => {
+      return total + (sprintRacePointsByDriverId.get(driverId) ?? 0);
+    }, 0),
+  };
+};
 
 const ensureGrandPrixExists = async (grandPrixId: string) => {
   const supabase = createServerSupabaseClient();
@@ -279,8 +338,13 @@ export async function calculateGrandPrixQualificationScores(grandPrixId: string)
 
   const officialQualiTopThree = buildTopThreeByPosition(driverResults, "quali_position");
   const qualiPointsByDriverId = new Map<string, number>();
+  const sprintQualiPointsByDriverId = new Map<string, number>();
+  const sprintRacePointsByDriverId = new Map<string, number>();
   driverResults.forEach((row) => {
     qualiPointsByDriverId.set(row.driver_id, getQualiTeamPointsForPosition(row.quali_position));
+    // Sprint result publication is not active yet; keep mappings in place for phased rollout.
+    sprintQualiPointsByDriverId.set(row.driver_id, getSprintQualiTeamPointsForPosition(null));
+    sprintRacePointsByDriverId.set(row.driver_id, getSprintRaceTeamPointsForPosition(null));
   });
 
   const componentByUserId = new Map<string, ScoreComponentValues>(existingComponentsByUserId);
@@ -291,7 +355,13 @@ export async function calculateGrandPrixQualificationScores(grandPrixId: string)
     }, 0);
 
     const existing = componentByUserId.get(selection.user_id);
-    const sprintTeamComponents = buildSprintTeamComponents(grandPrix.is_sprint_weekend);
+    const selectedDriverIds = (selection.team_selection_drivers ?? []).map((selectedDriver) => selectedDriver.driver_id);
+    const sprintTeamComponents = buildSprintTeamComponents({
+      isSprintWeekend: grandPrix.is_sprint_weekend,
+      selectedDriverIds,
+      sprintQualiPointsByDriverId,
+      sprintRacePointsByDriverId,
+    });
     const sprintPredictionComponents = buildSprintPredictionComponents(grandPrix.is_sprint_weekend);
     componentByUserId.set(selection.user_id, {
       teamQualiPoints,
@@ -314,7 +384,12 @@ export async function calculateGrandPrixQualificationScores(grandPrixId: string)
     );
 
     const sprintComponents = buildSprintPredictionComponents(grandPrix.is_sprint_weekend);
-    const sprintTeamComponents = buildSprintTeamComponents(grandPrix.is_sprint_weekend);
+    const sprintTeamComponents = buildSprintTeamComponents({
+      isSprintWeekend: grandPrix.is_sprint_weekend,
+      selectedDriverIds: [],
+      sprintQualiPointsByDriverId,
+      sprintRacePointsByDriverId,
+    });
     const existing = componentByUserId.get(prediction.user_id);
 
     componentByUserId.set(prediction.user_id, {
@@ -352,8 +427,13 @@ export async function calculateGrandPrixRaceScores(grandPrixId: string) {
   const officialRaceTopThree = buildTopThreeByPosition(driverResults, "race_position");
 
   const racePointsByDriverId = new Map<string, number>();
+  const sprintQualiPointsByDriverId = new Map<string, number>();
+  const sprintRacePointsByDriverId = new Map<string, number>();
   driverResults.forEach((row) => {
     racePointsByDriverId.set(row.driver_id, getRacePointsForPosition(row.race_position));
+    // Sprint result publication is not active yet; keep mappings in place for phased rollout.
+    sprintQualiPointsByDriverId.set(row.driver_id, getSprintQualiTeamPointsForPosition(null));
+    sprintRacePointsByDriverId.set(row.driver_id, getSprintRaceTeamPointsForPosition(null));
   });
 
   const componentByUserId = new Map<string, ScoreComponentValues>(existingComponentsByUserId);
@@ -364,7 +444,13 @@ export async function calculateGrandPrixRaceScores(grandPrixId: string) {
     }, 0);
 
     const existing = componentByUserId.get(selection.user_id);
-    const sprintTeamComponents = buildSprintTeamComponents(grandPrix.is_sprint_weekend);
+    const selectedDriverIds = (selection.team_selection_drivers ?? []).map((selectedDriver) => selectedDriver.driver_id);
+    const sprintTeamComponents = buildSprintTeamComponents({
+      isSprintWeekend: grandPrix.is_sprint_weekend,
+      selectedDriverIds,
+      sprintQualiPointsByDriverId,
+      sprintRacePointsByDriverId,
+    });
     const sprintPredictionComponents = buildSprintPredictionComponents(grandPrix.is_sprint_weekend);
     componentByUserId.set(selection.user_id, {
       teamQualiPoints: existing?.teamQualiPoints ?? 0,
@@ -392,7 +478,12 @@ export async function calculateGrandPrixRaceScores(grandPrixId: string) {
     );
 
     const sprintComponents = buildSprintPredictionComponents(grandPrix.is_sprint_weekend);
-    const sprintTeamComponents = buildSprintTeamComponents(grandPrix.is_sprint_weekend);
+    const sprintTeamComponents = buildSprintTeamComponents({
+      isSprintWeekend: grandPrix.is_sprint_weekend,
+      selectedDriverIds: [],
+      sprintQualiPointsByDriverId,
+      sprintRacePointsByDriverId,
+    });
     const existing = componentByUserId.get(prediction.user_id);
 
     componentByUserId.set(prediction.user_id, {
