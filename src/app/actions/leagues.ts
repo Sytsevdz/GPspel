@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createServerSupabaseActionClient, createServerSupabaseClient } from "@/lib/supabase";
@@ -212,4 +213,91 @@ export async function createLeague(formData: FormData) {
   }
 
   redirect(`/leagues/${league.id}`);
+}
+
+export async function deleteLeague(formData: FormData) {
+  const leagueId = String(formData.get("league_id") ?? "").trim();
+  const supabase = createServerSupabaseActionClient();
+
+  if (!leagueId) {
+    redirect(toLeaguesRedirect("error", "Ongeldige league geselecteerd."));
+  }
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError) {
+    console.error("[deleteLeague] auth.getUser failed", {
+      message: authError.message,
+      code: authError.code,
+      status: authError.status,
+      leagueId,
+    });
+    redirect(toLeaguesRedirect("error", "Log in en probeer het opnieuw."));
+  }
+
+  if (!user) {
+    redirect(toLeaguesRedirect("error", "Log in om een league te verwijderen."));
+  }
+
+  const { data: league, error: leagueError } = await supabase
+    .from("leagues")
+    .select("id, created_by")
+    .eq("id", leagueId)
+    .maybeSingle<{ id: string; created_by: string | null }>();
+
+  if (leagueError || !league) {
+    console.error("[deleteLeague] league lookup failed", {
+      message: leagueError?.message,
+      code: leagueError?.code,
+      details: leagueError?.details,
+      hint: leagueError?.hint,
+      leagueId,
+      userId: user.id,
+    });
+    redirect(toLeaguesRedirect("error", "League niet gevonden of niet toegankelijk."));
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle<{ role: string | null }>();
+
+  if (profileError) {
+    console.error("[deleteLeague] profile lookup failed", {
+      message: profileError.message,
+      code: profileError.code,
+      details: profileError.details,
+      hint: profileError.hint,
+      leagueId,
+      userId: user.id,
+    });
+    redirect(toLeaguesRedirect("error", "Je rechten konden niet worden gecontroleerd."));
+  }
+
+  const canDeleteLeague = league.created_by === user.id || profile?.role === "admin";
+
+  if (!canDeleteLeague) {
+    redirect(toLeaguesRedirect("error", "Je hebt geen rechten om deze league te verwijderen."));
+  }
+
+  const { error: deleteError } = await supabase.from("leagues").delete().eq("id", leagueId);
+
+  if (deleteError) {
+    console.error("[deleteLeague] league delete failed", {
+      message: deleteError.message,
+      code: deleteError.code,
+      details: deleteError.details,
+      hint: deleteError.hint,
+      leagueId,
+      userId: user.id,
+    });
+    redirect(toLeaguesRedirect("error", "Verwijderen van de league is mislukt. Probeer het opnieuw."));
+  }
+
+  revalidatePath("/leagues");
+  redirect(toLeaguesRedirect("message", "League succesvol verwijderd."));
 }
