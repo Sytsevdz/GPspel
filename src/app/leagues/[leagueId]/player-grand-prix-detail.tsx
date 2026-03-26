@@ -17,7 +17,6 @@ type DriverEntry = {
   id: string;
   name: string;
   constructorTeam: string;
-  price?: number;
 };
 
 type PlayerGrandPrixDetailProps = {
@@ -277,7 +276,6 @@ export function PlayerGrandPrixDetail({
                                 <strong>{driver.name}</strong>
                                 <span>{driver.constructorTeam}</span>
                               </p>
-                              {typeof driver.price === "number" ? <span className="player-detail-price">€ {driver.price}M</span> : null}
                             </div>
                           </li>
                         );
