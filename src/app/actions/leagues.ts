@@ -301,3 +301,98 @@ export async function deleteLeague(formData: FormData) {
   revalidatePath("/leagues");
   redirect(toLeaguesRedirect("message", "League succesvol verwijderd."));
 }
+
+export async function leaveLeague(formData: FormData) {
+  const leagueId = String(formData.get("league_id") ?? "").trim();
+  const supabase = createServerSupabaseActionClient();
+
+  if (!leagueId) {
+    redirect(toLeaguesRedirect("error", "Ongeldige league geselecteerd."));
+  }
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError) {
+    console.error("[leaveLeague] auth.getUser failed", {
+      message: authError.message,
+      code: authError.code,
+      status: authError.status,
+      leagueId,
+    });
+    redirect(toLeaguesRedirect("error", "Log in en probeer het opnieuw."));
+  }
+
+  if (!user) {
+    redirect(toLeaguesRedirect("error", "Log in om een league te verlaten."));
+  }
+
+  const { data: league, error: leagueError } = await supabase
+    .from("leagues")
+    .select("id, created_by")
+    .eq("id", leagueId)
+    .maybeSingle<{ id: string; created_by: string | null }>();
+
+  if (leagueError || !league) {
+    console.error("[leaveLeague] league lookup failed", {
+      message: leagueError?.message,
+      code: leagueError?.code,
+      details: leagueError?.details,
+      hint: leagueError?.hint,
+      leagueId,
+      userId: user.id,
+    });
+    redirect(toLeaguesRedirect("error", "League niet gevonden of niet toegankelijk."));
+  }
+
+  if (league.created_by === user.id) {
+    redirect(toLeaguesRedirect("error", "De eigenaar kan de league niet verlaten."));
+  }
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("league_members")
+    .select("id")
+    .eq("league_id", leagueId)
+    .eq("user_id", user.id)
+    .maybeSingle<{ id: string }>();
+
+  if (membershipError) {
+    console.error("[leaveLeague] membership lookup failed", {
+      message: membershipError.message,
+      code: membershipError.code,
+      details: membershipError.details,
+      hint: membershipError.hint,
+      leagueId,
+      userId: user.id,
+    });
+    redirect(toLeaguesRedirect("error", "Je lidmaatschap kon niet worden gecontroleerd."));
+  }
+
+  if (!membership) {
+    redirect(toLeaguesRedirect("error", "Je bent geen lid van deze league."));
+  }
+
+  const { error: deleteMembershipError } = await supabase
+    .from("league_members")
+    .delete()
+    .eq("league_id", leagueId)
+    .eq("user_id", user.id);
+
+  if (deleteMembershipError) {
+    console.error("[leaveLeague] membership delete failed", {
+      message: deleteMembershipError.message,
+      code: deleteMembershipError.code,
+      details: deleteMembershipError.details,
+      hint: deleteMembershipError.hint,
+      leagueId,
+      userId: user.id,
+    });
+    redirect(toLeaguesRedirect("error", "Verlaten van de league is mislukt. Probeer het opnieuw."));
+  }
+
+  revalidatePath("/leagues");
+  revalidatePath(`/leagues/${leagueId}`);
+  redirect(toLeaguesRedirect("message", "Je hebt de league verlaten."));
+}

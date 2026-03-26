@@ -4,6 +4,7 @@ import { createServerSupabaseClient } from "@/lib/supabase";
 import { getCurrentSelectableGrandPrix } from "@/lib/team-selection-data";
 import { getAccessibleLeague } from "./league-access";
 import { DeleteLeagueAction } from "./delete-league-action";
+import { LeaveLeagueAction } from "./leave-league-action";
 import { LeagueResultsPanel } from "./league-results-panel";
 
 type LeaguePageProps = {
@@ -59,6 +60,11 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
     .select("user_id, profiles(display_name)")
     .eq("league_id", league.id)
     .returns<LeagueStandingsMemberRow[]>();
+
+  const isLeagueMember = Boolean(members?.some((member) => member.user_id === user?.id));
+  const showJoinCode = canManageLeague || isLeagueMember;
+  const showDeleteLeague = canManageLeague;
+  const showLeaveLeague = isLeagueMember && !canManageLeague;
 
   const memberIds = (members ?? []).map((member) => member.user_id);
 
@@ -187,14 +193,17 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
           Naar het GP spel
         </Link>
 
-        {canManageLeague ? (
+        {(showJoinCode || showDeleteLeague || showLeaveLeague) ? (
           <section className="league-section league-management-panel">
             <h2>Beheer</h2>
-            <div className="league-management-row">
-              <p className="league-management-label">Deelnemingscode</p>
-              <p className="league-join-code-badge">{league.join_code}</p>
-            </div>
-            <DeleteLeagueAction leagueId={league.id} />
+            {showJoinCode ? (
+              <div className="league-management-row">
+                <p className="league-management-label">Deelnemingscode</p>
+                <p className="league-join-code-badge">{league.join_code}</p>
+              </div>
+            ) : null}
+            {showDeleteLeague ? <DeleteLeagueAction leagueId={league.id} /> : null}
+            {showLeaveLeague ? <LeaveLeagueAction leagueId={league.id} /> : null}
           </section>
         ) : null}
       </section>
