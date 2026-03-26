@@ -412,6 +412,12 @@ a {
   font-weight: 700;
 }
 
+.dashboard-empty-state {
+  display: grid;
+  gap: 0.65rem;
+  justify-items: start;
+}
+
 .dashboard-data-list dl {
   display: grid;
   gap: 0.5rem;
