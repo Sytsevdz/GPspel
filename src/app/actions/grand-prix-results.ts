@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { calculateGrandPrixQualificationScores, calculateGrandPrixScores } from "@/app/actions/grand-prix-scores";
+import { calculateGrandPrixQualificationScores, calculateGrandPrixRaceScores } from "@/app/actions/grand-prix-scores";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 export type GrandPrixResultActionState = {
@@ -98,13 +98,13 @@ export async function publishGrandPrixFinalScores(
     };
   }
 
-  await calculateGrandPrixScores(grandPrixId);
+  await calculateGrandPrixRaceScores(grandPrixId);
 
   revalidatePath(`/admin/grand-prix/${grandPrixId}/result`);
 
   return {
     status: "success",
-    message: "Eindscore gepubliceerd",
+    message: "Racepunten gepubliceerd",
   };
 }
 
@@ -191,9 +191,6 @@ export async function saveGrandPrixResult(
       message: "Er ging iets mis bij het opslaan",
     };
   }
-
-  // Backwards-compatible behavior: saving a full result still publishes final scores.
-  await calculateGrandPrixScores(grandPrixId);
 
   revalidatePath(`/admin/grand-prix/${grandPrixId}/result`);
 

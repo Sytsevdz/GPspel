@@ -26,7 +26,10 @@ type PredictionRow = {
 };
 
 type ScoreComponentValues = {
-  teamPoints: number;
+  teamQualiPoints: number;
+  teamSprintQualiPoints: number;
+  teamSprintRacePoints: number;
+  teamRacePoints: number;
   qualiPredictionPoints: number;
   sprintQualiPredictionPoints: number;
   sprintRacePredictionPoints: number;
@@ -85,12 +88,13 @@ const buildTopThreeByPosition = (
     .map((row) => row.driver_id)
     .slice(0, 3);
 
-const buildTotalPoints = (components: ScoreComponentValues) =>
-  components.teamPoints +
-  components.qualiPredictionPoints +
-  components.sprintQualiPredictionPoints +
-  components.sprintRacePredictionPoints +
-  components.racePredictionPoints;
+const buildTeamPoints = (components: ScoreComponentValues) =>
+  components.teamQualiPoints +
+  components.teamSprintQualiPoints +
+  components.teamSprintRacePoints +
+  components.teamRacePoints;
+
+const buildTotalPoints = (components: ScoreComponentValues) => buildTeamPoints(components) + buildPredictionPoints(components);
 
 const buildPredictionPoints = (components: ScoreComponentValues) =>
   components.qualiPredictionPoints +
@@ -102,6 +106,12 @@ const buildSprintPredictionComponents = (_isSprintWeekend: boolean) => ({
   // Sprint publication is not active yet; keep explicit sprint components in place.
   sprintQualiPredictionPoints: 0,
   sprintRacePredictionPoints: 0,
+});
+
+const buildSprintTeamComponents = (_isSprintWeekend: boolean) => ({
+  // Sprint publication is not active yet; keep explicit sprint components in place.
+  teamSprintQualiPoints: 0,
+  teamSprintRacePoints: 0,
 });
 
 const ensureGrandPrixExists = async (grandPrixId: string) => {
@@ -165,6 +175,37 @@ const loadTeamSelections = async (grandPrixId: string) => {
   return (data ?? []) as TeamSelectionRow[];
 };
 
+const loadExistingScores = async (grandPrixId: string) => {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from("grand_prix_scores")
+    .select(
+      "user_id, team_quali_points, team_sprint_quali_points, team_sprint_race_points, team_race_points, quali_prediction_points, sprint_quali_prediction_points, sprint_race_prediction_points, race_prediction_points",
+    )
+    .eq("grand_prix_id", grandPrixId);
+
+  if (error) {
+    throw new Error(`[grand-prix-scores] Failed to load grand_prix_scores: ${error.message}`);
+  }
+
+  const componentByUserId = new Map<string, ScoreComponentValues>();
+
+  (data ?? []).forEach((row) => {
+    componentByUserId.set(row.user_id, {
+      teamQualiPoints: row.team_quali_points ?? 0,
+      teamSprintQualiPoints: row.team_sprint_quali_points ?? 0,
+      teamSprintRacePoints: row.team_sprint_race_points ?? 0,
+      teamRacePoints: row.team_race_points ?? 0,
+      qualiPredictionPoints: row.quali_prediction_points ?? 0,
+      sprintQualiPredictionPoints: row.sprint_quali_prediction_points ?? 0,
+      sprintRacePredictionPoints: row.sprint_race_prediction_points ?? 0,
+      racePredictionPoints: row.race_prediction_points ?? 0,
+    });
+  });
+
+  return componentByUserId;
+};
+
 async function upsertGrandPrixScoreRows(grandPrixId: string, componentByUserId: Map<string, ScoreComponentValues>) {
   const supabase = createServerSupabaseClient();
 
@@ -173,7 +214,12 @@ async function upsertGrandPrixScoreRows(grandPrixId: string, componentByUserId: 
     .map(([userId, components]) => ({
       grand_prix_id: grandPrixId,
       user_id: userId,
-      team_points: components.teamPoints,
+      team_quali_points: components.teamQualiPoints,
+      team_sprint_quali_points: components.teamSprintQualiPoints,
+      team_sprint_race_points: components.teamSprintRacePoints,
+      team_race_points: components.teamRacePoints,
+      // Legacy compatibility fields, still consumed in some views.
+      team_points: buildTeamPoints(components),
       quali_prediction_points: components.qualiPredictionPoints,
       sprint_quali_prediction_points: components.sprintQualiPredictionPoints,
       sprint_race_prediction_points: components.sprintRacePredictionPoints,
@@ -205,14 +251,42 @@ export async function calculateGrandPrixQualificationScores(grandPrixId: string)
   }
 
   const grandPrix = await ensureGrandPrixExists(normalizedGrandPrixId);
-  const [driverResults, predictions] = await Promise.all([
+  const [driverResults, teamSelections, predictions, existingComponentsByUserId] = await Promise.all([
     loadDriverResults(normalizedGrandPrixId),
+    loadTeamSelections(normalizedGrandPrixId),
     loadPredictions(normalizedGrandPrixId),
+    loadExistingScores(normalizedGrandPrixId),
   ]);
 
   const officialQualiTopThree = buildTopThreeByPosition(driverResults, "quali_position");
+  const qualiPointsByDriverId = new Map<string, number>();
+  driverResults.forEach((row) => {
+    qualiPointsByDriverId.set(row.driver_id, getRacePointsForPosition(row.quali_position));
+  });
 
-  const componentByUserId = new Map<string, ScoreComponentValues>();
+  const componentByUserId = new Map<string, ScoreComponentValues>(existingComponentsByUserId);
+
+  teamSelections.forEach((selection) => {
+    const teamQualiPoints = (selection.team_selection_drivers ?? []).reduce((total, selectedDriver) => {
+      return total + (qualiPointsByDriverId.get(selectedDriver.driver_id) ?? 0);
+    }, 0);
+
+    const existing = componentByUserId.get(selection.user_id);
+    const sprintTeamComponents = buildSprintTeamComponents(grandPrix.is_sprint_weekend);
+    const sprintPredictionComponents = buildSprintPredictionComponents(grandPrix.is_sprint_weekend);
+    componentByUserId.set(selection.user_id, {
+      teamQualiPoints,
+      teamSprintQualiPoints: existing?.teamSprintQualiPoints ?? sprintTeamComponents.teamSprintQualiPoints,
+      teamSprintRacePoints: existing?.teamSprintRacePoints ?? sprintTeamComponents.teamSprintRacePoints,
+      teamRacePoints: existing?.teamRacePoints ?? 0,
+      qualiPredictionPoints: existing?.qualiPredictionPoints ?? 0,
+      sprintQualiPredictionPoints:
+        existing?.sprintQualiPredictionPoints ?? sprintPredictionComponents.sprintQualiPredictionPoints,
+      sprintRacePredictionPoints:
+        existing?.sprintRacePredictionPoints ?? sprintPredictionComponents.sprintRacePredictionPoints,
+      racePredictionPoints: existing?.racePredictionPoints ?? 0,
+    });
+  });
 
   predictions.forEach((prediction) => {
     const qualiPredictionPoints = calculateTopThreePredictionPoints(
@@ -221,20 +295,25 @@ export async function calculateGrandPrixQualificationScores(grandPrixId: string)
     );
 
     const sprintComponents = buildSprintPredictionComponents(grandPrix.is_sprint_weekend);
+    const sprintTeamComponents = buildSprintTeamComponents(grandPrix.is_sprint_weekend);
+    const existing = componentByUserId.get(prediction.user_id);
 
     componentByUserId.set(prediction.user_id, {
-      teamPoints: 0,
+      teamQualiPoints: existing?.teamQualiPoints ?? 0,
+      teamSprintQualiPoints: existing?.teamSprintQualiPoints ?? sprintTeamComponents.teamSprintQualiPoints,
+      teamSprintRacePoints: existing?.teamSprintRacePoints ?? sprintTeamComponents.teamSprintRacePoints,
+      teamRacePoints: existing?.teamRacePoints ?? 0,
       qualiPredictionPoints,
-      sprintQualiPredictionPoints: sprintComponents.sprintQualiPredictionPoints,
-      sprintRacePredictionPoints: sprintComponents.sprintRacePredictionPoints,
-      racePredictionPoints: 0,
+      sprintQualiPredictionPoints: existing?.sprintQualiPredictionPoints ?? sprintComponents.sprintQualiPredictionPoints,
+      sprintRacePredictionPoints: existing?.sprintRacePredictionPoints ?? sprintComponents.sprintRacePredictionPoints,
+      racePredictionPoints: existing?.racePredictionPoints ?? 0,
     });
   });
 
   return upsertGrandPrixScoreRows(normalizedGrandPrixId, componentByUserId);
 }
 
-export async function calculateGrandPrixScores(grandPrixId: string) {
+export async function calculateGrandPrixRaceScores(grandPrixId: string) {
   const normalizedGrandPrixId = grandPrixId.trim();
 
   if (!normalizedGrandPrixId) {
@@ -243,10 +322,11 @@ export async function calculateGrandPrixScores(grandPrixId: string) {
 
   const grandPrix = await ensureGrandPrixExists(normalizedGrandPrixId);
 
-  const [driverResults, teamSelections, predictions] = await Promise.all([
+  const [driverResults, teamSelections, predictions, existingComponentsByUserId] = await Promise.all([
     loadDriverResults(normalizedGrandPrixId),
     loadTeamSelections(normalizedGrandPrixId),
     loadPredictions(normalizedGrandPrixId),
+    loadExistingScores(normalizedGrandPrixId),
   ]);
 
   const officialQualiTopThree = buildTopThreeByPosition(driverResults, "quali_position");
@@ -257,19 +337,26 @@ export async function calculateGrandPrixScores(grandPrixId: string) {
     racePointsByDriverId.set(row.driver_id, getRacePointsForPosition(row.race_position));
   });
 
-  const componentByUserId = new Map<string, ScoreComponentValues>();
+  const componentByUserId = new Map<string, ScoreComponentValues>(existingComponentsByUserId);
 
   teamSelections.forEach((selection) => {
-    const teamPoints = (selection.team_selection_drivers ?? []).reduce((total, selectedDriver) => {
+    const teamRacePoints = (selection.team_selection_drivers ?? []).reduce((total, selectedDriver) => {
       return total + (racePointsByDriverId.get(selectedDriver.driver_id) ?? 0);
     }, 0);
 
     const existing = componentByUserId.get(selection.user_id);
+    const sprintTeamComponents = buildSprintTeamComponents(grandPrix.is_sprint_weekend);
+    const sprintPredictionComponents = buildSprintPredictionComponents(grandPrix.is_sprint_weekend);
     componentByUserId.set(selection.user_id, {
-      teamPoints,
+      teamQualiPoints: existing?.teamQualiPoints ?? 0,
+      teamSprintQualiPoints: existing?.teamSprintQualiPoints ?? sprintTeamComponents.teamSprintQualiPoints,
+      teamSprintRacePoints: existing?.teamSprintRacePoints ?? sprintTeamComponents.teamSprintRacePoints,
+      teamRacePoints,
       qualiPredictionPoints: existing?.qualiPredictionPoints ?? 0,
-      sprintQualiPredictionPoints: existing?.sprintQualiPredictionPoints ?? 0,
-      sprintRacePredictionPoints: existing?.sprintRacePredictionPoints ?? 0,
+      sprintQualiPredictionPoints:
+        existing?.sprintQualiPredictionPoints ?? sprintPredictionComponents.sprintQualiPredictionPoints,
+      sprintRacePredictionPoints:
+        existing?.sprintRacePredictionPoints ?? sprintPredictionComponents.sprintRacePredictionPoints,
       racePredictionPoints: existing?.racePredictionPoints ?? 0,
     });
   });
@@ -285,18 +372,25 @@ export async function calculateGrandPrixScores(grandPrixId: string) {
       officialRaceTopThree,
     );
 
+    const sprintComponents = buildSprintPredictionComponents(grandPrix.is_sprint_weekend);
+    const sprintTeamComponents = buildSprintTeamComponents(grandPrix.is_sprint_weekend);
     const existing = componentByUserId.get(prediction.user_id);
 
-    const sprintComponents = buildSprintPredictionComponents(grandPrix.is_sprint_weekend);
-
     componentByUserId.set(prediction.user_id, {
-      teamPoints: existing?.teamPoints ?? 0,
-      qualiPredictionPoints,
-      sprintQualiPredictionPoints: sprintComponents.sprintQualiPredictionPoints,
-      sprintRacePredictionPoints: sprintComponents.sprintRacePredictionPoints,
+      teamQualiPoints: existing?.teamQualiPoints ?? 0,
+      teamSprintQualiPoints: existing?.teamSprintQualiPoints ?? sprintTeamComponents.teamSprintQualiPoints,
+      teamSprintRacePoints: existing?.teamSprintRacePoints ?? sprintTeamComponents.teamSprintRacePoints,
+      teamRacePoints: existing?.teamRacePoints ?? 0,
+      qualiPredictionPoints: existing?.qualiPredictionPoints ?? qualiPredictionPoints,
+      sprintQualiPredictionPoints: existing?.sprintQualiPredictionPoints ?? sprintComponents.sprintQualiPredictionPoints,
+      sprintRacePredictionPoints: existing?.sprintRacePredictionPoints ?? sprintComponents.sprintRacePredictionPoints,
       racePredictionPoints,
     });
   });
 
   return upsertGrandPrixScoreRows(normalizedGrandPrixId, componentByUserId);
+}
+
+export async function calculateGrandPrixScores(grandPrixId: string) {
+  return calculateGrandPrixRaceScores(grandPrixId);
 }
