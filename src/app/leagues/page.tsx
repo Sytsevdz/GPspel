@@ -80,7 +80,7 @@ export default async function LeaguesPage({ searchParams }: LeaguesPageProps) {
                 {membershipLeagueIds.has(league.id) ? (
                   <Link href={`/leagues/${league.id}`}>Open league</Link>
                 ) : (
-                  <Link href="#join-league-form">Join league</Link>
+                  <a href="/leagues#join-league-form">Join league</a>
                 )}
               </li>
             ))
