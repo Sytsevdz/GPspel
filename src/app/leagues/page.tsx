@@ -23,8 +23,14 @@ export default async function LeaguesPage({ searchParams }: LeaguesPageProps) {
 
   const { data: leagues, error } = await supabase
     .from("leagues")
-    .select("id, name, join_code")
+    .select("id, name")
     .order("name", { ascending: true });
+  const { data: memberships, error: membershipsError } = await supabase
+    .from("league_members")
+    .select("league_id")
+    .eq("user_id", user.id);
+
+  const membershipLeagueIds = new Set((memberships ?? []).map((membership) => membership.league_id));
 
   return (
     <main className="leagues-page">
@@ -46,7 +52,7 @@ export default async function LeaguesPage({ searchParams }: LeaguesPageProps) {
           </form>
         </details>
 
-        <form className="join-form" action={joinLeague}>
+        <form id="join-league-form" className="join-form" action={joinLeague}>
           <label htmlFor="join_code">Deelnemingscode</label>
           <div className="join-form-row">
             <input
@@ -62,7 +68,7 @@ export default async function LeaguesPage({ searchParams }: LeaguesPageProps) {
           </div>
         </form>
 
-        {error ? <p className="form-message error">Kon leagues nu niet laden.</p> : null}
+        {error || membershipsError ? <p className="form-message error">Kon leagues nu niet laden.</p> : null}
 
         <ul className="league-list" aria-label="Leagues">
           {leagues && leagues.length > 0 ? (
@@ -70,11 +76,12 @@ export default async function LeaguesPage({ searchParams }: LeaguesPageProps) {
               <li key={league.id} className="league-list-item">
                 <div>
                   <h2>{league.name}</h2>
-                  <p>
-                    Deelnemingscode: <span>{league.join_code}</span>
-                  </p>
                 </div>
-                <Link href={`/leagues/${league.id}`}>Open league</Link>
+                {membershipLeagueIds.has(league.id) ? (
+                  <Link href={`/leagues/${league.id}`}>Open league</Link>
+                ) : (
+                  <a href="/leagues#join-league-form">Join league</a>
+                )}
               </li>
             ))
           ) : (

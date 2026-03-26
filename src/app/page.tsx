@@ -218,7 +218,12 @@ export default async function HomePage() {
         <article className="dashboard-card dashboard-home-card">
           <h2>Jouw Leagues</h2>
           {myLeagues.length === 0 ? (
-            <p className="league-list-empty">Je zit nog niet in een league.</p>
+            <div className="dashboard-empty-state">
+              <p className="league-list-empty">Je zit nog niet in een league.</p>
+              <Link className="dashboard-secondary-cta" href="/leagues">
+                Ga naar Leagues
+              </Link>
+            </div>
           ) : (
             <ul className="dashboard-league-list" aria-label="Jouw Leagues">
               {myLeagues.map((league) => (
