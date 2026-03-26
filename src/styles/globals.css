@@ -535,6 +535,32 @@ a {
   gap: 0.5rem;
 }
 
+.create-league-panel {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.create-league-toggle {
+  list-style: none;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: fit-content;
+  padding: 0.7rem 1rem;
+  border-radius: 10px;
+  border: 1px solid #545454;
+  background: #171717;
+  cursor: pointer;
+}
+
+.create-league-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.create-league-form {
+  margin-top: 0.1rem;
+}
+
 .join-form-row {
   display: grid;
   gap: 0.6rem;
