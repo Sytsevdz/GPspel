@@ -51,7 +51,7 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
     ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle<{ role: string | null }>()
     : { data: null };
 
-  const canDeleteLeague = Boolean(user && (league.created_by === user.id || profile?.role === "admin"));
+  const canManageLeague = Boolean(user && (league.created_by === user.id || profile?.role === "admin"));
   const nowIso = new Date().toISOString();
 
   const { data: members, error: membersError } = await supabase
@@ -127,9 +127,6 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
         <div className="league-detail-header">
           <div>
             <h1>{league.name}</h1>
-            <p>
-              Deelnemingscode: <span>{league.join_code}</span>
-            </p>
           </div>
           <Link href="/leagues" className="league-back-link">
             ← Alle leagues
@@ -190,7 +187,16 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
           Naar het GP spel
         </Link>
 
-        {canDeleteLeague ? <DeleteLeagueAction leagueId={league.id} /> : null}
+        {canManageLeague ? (
+          <section className="league-section league-management-panel">
+            <h2>Beheer</h2>
+            <div className="league-management-row">
+              <p className="league-management-label">Deelnemingscode</p>
+              <p className="league-join-code-badge">{league.join_code}</p>
+            </div>
+            <DeleteLeagueAction leagueId={league.id} />
+          </section>
+        ) : null}
       </section>
     </main>
   );
