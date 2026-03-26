@@ -583,6 +583,7 @@ a {
 
 .join-form button,
 .league-list-item a,
+.league-join-trigger,
 .league-back-link {
   display: inline-flex;
   justify-content: center;
@@ -591,6 +592,12 @@ a {
   border-radius: 10px;
   border: 1px solid #545454;
   background: #171717;
+}
+
+.league-join-trigger {
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
 
 .league-list {
