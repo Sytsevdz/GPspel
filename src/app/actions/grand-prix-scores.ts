@@ -15,6 +15,13 @@ type TeamSelectionRow = {
   }> | null;
 };
 
+type GrandPrixScoreDetailRow = {
+  user_id: string;
+  driver_id: string;
+  team_quali_points: number | null;
+  team_race_points: number | null;
+};
+
 type PredictionRow = {
   user_id: string;
   quali_p1: string;
@@ -321,6 +328,78 @@ async function upsertGrandPrixScoreRows(grandPrixId: string, componentByUserId: 
   return { scoresWritten: rowsToUpsert.length };
 }
 
+const loadExistingScoreDetails = async (grandPrixId: string) => {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from("grand_prix_score_details")
+    .select("user_id, driver_id, team_quali_points, team_race_points")
+    .eq("grand_prix_id", grandPrixId);
+
+  if (error) {
+    throw new Error(`[grand-prix-scores] Failed to load grand_prix_score_details: ${error.message}`);
+  }
+
+  const detailByUserAndDriver = new Map<string, GrandPrixScoreDetailRow>();
+  (data ?? []).forEach((row) => {
+    const key = `${row.user_id}:${row.driver_id}`;
+    detailByUserAndDriver.set(key, row as GrandPrixScoreDetailRow);
+  });
+
+  return detailByUserAndDriver;
+};
+
+const upsertGrandPrixScoreDetailRows = async ({
+  grandPrixId,
+  teamSelections,
+  qualiPointsByDriverId,
+  racePointsByDriverId,
+  preserveExistingQualiPoints,
+}: {
+  grandPrixId: string;
+  teamSelections: TeamSelectionRow[];
+  qualiPointsByDriverId: Map<string, number>;
+  racePointsByDriverId: Map<string, number>;
+  preserveExistingQualiPoints: boolean;
+}) => {
+  const supabase = createServerSupabaseClient();
+  const existingDetailByUserAndDriver = preserveExistingQualiPoints
+    ? await loadExistingScoreDetails(grandPrixId)
+    : new Map<string, GrandPrixScoreDetailRow>();
+
+  const rowsToUpsert = teamSelections.flatMap((selection) =>
+    (selection.team_selection_drivers ?? []).map((selectedDriver) => {
+      const existing = existingDetailByUserAndDriver.get(`${selection.user_id}:${selectedDriver.driver_id}`);
+      const teamQualiPoints = preserveExistingQualiPoints
+        ? (existing?.team_quali_points ?? 0)
+        : (qualiPointsByDriverId.get(selectedDriver.driver_id) ?? 0);
+      const teamRacePoints = racePointsByDriverId.get(selectedDriver.driver_id) ?? 0;
+
+      return {
+        grand_prix_id: grandPrixId,
+        user_id: selection.user_id,
+        driver_id: selectedDriver.driver_id,
+        team_quali_points: teamQualiPoints,
+        team_race_points: teamRacePoints,
+        total_points: teamQualiPoints + teamRacePoints,
+      };
+    }),
+  );
+
+  if (rowsToUpsert.length === 0) {
+    return { detailsWritten: 0 };
+  }
+
+  const { error } = await supabase.from("grand_prix_score_details").upsert(rowsToUpsert, {
+    onConflict: "grand_prix_id,user_id,driver_id",
+  });
+
+  if (error) {
+    throw new Error(`[grand-prix-scores] Failed to upsert score details: ${error.message}`);
+  }
+
+  return { detailsWritten: rowsToUpsert.length };
+};
+
 export async function calculateGrandPrixQualificationScores(grandPrixId: string) {
   const normalizedGrandPrixId = grandPrixId.trim();
 
@@ -346,6 +425,7 @@ export async function calculateGrandPrixQualificationScores(grandPrixId: string)
     sprintQualiPointsByDriverId.set(row.driver_id, getSprintQualiTeamPointsForPosition(null));
     sprintRacePointsByDriverId.set(row.driver_id, getSprintRaceTeamPointsForPosition(null));
   });
+  const racePointsByDriverId = new Map<string, number>();
 
   const componentByUserId = new Map<string, ScoreComponentValues>(existingComponentsByUserId);
 
@@ -404,7 +484,18 @@ export async function calculateGrandPrixQualificationScores(grandPrixId: string)
     });
   });
 
-  return upsertGrandPrixScoreRows(normalizedGrandPrixId, componentByUserId);
+  const [scoreWriteResult] = await Promise.all([
+    upsertGrandPrixScoreRows(normalizedGrandPrixId, componentByUserId),
+    upsertGrandPrixScoreDetailRows({
+      grandPrixId: normalizedGrandPrixId,
+      teamSelections,
+      qualiPointsByDriverId,
+      racePointsByDriverId,
+      preserveExistingQualiPoints: false,
+    }),
+  ]);
+
+  return scoreWriteResult;
 }
 
 export async function calculateGrandPrixRaceScores(grandPrixId: string) {
@@ -435,6 +526,7 @@ export async function calculateGrandPrixRaceScores(grandPrixId: string) {
     sprintQualiPointsByDriverId.set(row.driver_id, getSprintQualiTeamPointsForPosition(null));
     sprintRacePointsByDriverId.set(row.driver_id, getSprintRaceTeamPointsForPosition(null));
   });
+  const qualiPointsByDriverId = new Map<string, number>();
 
   const componentByUserId = new Map<string, ScoreComponentValues>(existingComponentsByUserId);
 
@@ -498,7 +590,18 @@ export async function calculateGrandPrixRaceScores(grandPrixId: string) {
     });
   });
 
-  return upsertGrandPrixScoreRows(normalizedGrandPrixId, componentByUserId);
+  const [scoreWriteResult] = await Promise.all([
+    upsertGrandPrixScoreRows(normalizedGrandPrixId, componentByUserId),
+    upsertGrandPrixScoreDetailRows({
+      grandPrixId: normalizedGrandPrixId,
+      teamSelections,
+      qualiPointsByDriverId,
+      racePointsByDriverId,
+      preserveExistingQualiPoints: true,
+    }),
+  ]);
+
+  return scoreWriteResult;
 }
 
 export async function calculateGrandPrixScores(grandPrixId: string) {
