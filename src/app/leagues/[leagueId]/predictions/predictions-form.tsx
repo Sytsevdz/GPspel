@@ -34,6 +34,14 @@ type PredictionsFormProps = {
     quali: number | null;
     race: number | null;
   };
+  publishedSlotPoints?: {
+    qualiP1: number | null;
+    qualiP2: number | null;
+    qualiP3: number | null;
+    raceP1: number | null;
+    raceP2: number | null;
+    raceP3: number | null;
+  };
   readOnly?: boolean;
 };
 
@@ -145,6 +153,7 @@ export function PredictionsForm({
   drivers,
   initialValues,
   publishedPoints,
+  publishedSlotPoints,
   readOnly = false,
 }: PredictionsFormProps) {
   const [state, formAction] = useFormState(savePrediction, INITIAL_STATE);
@@ -259,6 +268,7 @@ export function PredictionsForm({
               const selectedTeam = selectedDriver ? resolveTeamSelectionTeam(selectedDriver.constructorTeam) : null;
               const selectedCardImageSize = getTeamSideImageSize("selectedCard");
               const isActive = activeField === slot.field;
+              const slotPublishedPoints = publishedSlotPoints?.[slot.field];
               const slotClasses = [
                 "podium-slot",
                 slot.heightClassName,
@@ -274,7 +284,12 @@ export function PredictionsForm({
                   <div className="podium-slot-content">
                     <div className="podium-slot-heading">
                       <span className="podium-slot-position">{slot.position}</span>
-                      <span className="podium-slot-rank-label">{slot.rankLabel}</span>
+                      <div className="podium-slot-meta">
+                        <span className="podium-slot-rank-label">{slot.rankLabel}</span>
+                        {slotPublishedPoints !== null && slotPublishedPoints !== undefined ? (
+                          <span className="podium-slot-points">+{slotPublishedPoints}</span>
+                        ) : null}
+                      </div>
                     </div>
                     <div className="podium-slot-visual">
                       {selectedDriver && selectedTeam ? (
