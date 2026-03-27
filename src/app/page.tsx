@@ -197,11 +197,11 @@ export default async function HomePage() {
                             <p className="dashboard-result-driver-name">{driverName}</p>
                             <dl className="dashboard-result-driver-points">
                               <div>
-                                <dt>Team kwalificatie</dt>
+                                <dt>Kwalificatie</dt>
                                 <dd>{detail.team_quali_points ?? 0}</dd>
                               </div>
                               <div>
-                                <dt>Team race</dt>
+                                <dt>Race</dt>
                                 <dd>{detail.team_race_points ?? 0}</dd>
                               </div>
                               <div>
