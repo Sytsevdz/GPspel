@@ -1984,6 +1984,33 @@ button.podium-slot:hover {
   border-top: 1px solid #2f2f2f;
 }
 
+.gp-spel-score-card {
+  gap: 1rem;
+}
+
+.gp-spel-score-breakdown-group {
+  display: grid;
+  gap: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 0.65rem;
+  background: rgba(9, 11, 18, 0.52);
+}
+
+.gp-spel-score-breakdown-title {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.gp-spel-score-breakdown-list {
+  gap: 0.35rem;
+}
+
+.gp-spel-score-breakdown-subtle dt,
+.gp-spel-score-breakdown-subtle dd {
+  color: #b9b9b9;
+}
+
 .compact-team-selection-form {
   position: relative;
 }
