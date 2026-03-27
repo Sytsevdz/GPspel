@@ -61,6 +61,15 @@ type UserGrandPrixPredictionScoreDetailRow = {
   points: number;
 };
 
+type PredictionSlotPoints = {
+  qualiP1: number | null;
+  qualiP2: number | null;
+  qualiP3: number | null;
+  raceP1: number | null;
+  raceP2: number | null;
+  raceP3: number | null;
+};
+
 export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPageProps) {
   const league = await getAccessibleLeague(params.leagueId);
 
@@ -146,7 +155,7 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
       raceP2: existingPrediction?.race_p2 ?? "",
       raceP3: existingPrediction?.race_p3 ?? "",
     };
-    const slotPredictionPointsByField: Record<string, number | null> = {
+    const slotPredictionPointsByField: PredictionSlotPoints = {
       qualiP1: null,
       qualiP2: null,
       qualiP3: null,
@@ -156,7 +165,7 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
     };
     (predictionScoreDetails ?? []).forEach((detail) => {
       const sectionPrefix = detail.prediction_type === "quali" ? "quali" : "race";
-      const field = `${sectionPrefix}P${detail.slot_position}`;
+      const field = `${sectionPrefix}P${detail.slot_position}` as keyof PredictionSlotPoints;
       slotPredictionPointsByField[field] = detail.points;
     });
     const scoreDetails = userScoreDetails ?? [];
