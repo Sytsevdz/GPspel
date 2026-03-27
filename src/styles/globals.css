@@ -1366,6 +1366,23 @@ button.podium-slot:hover {
   text-transform: uppercase;
 }
 
+.podium-slot-meta {
+  display: grid;
+  justify-items: end;
+  gap: 0.2rem;
+}
+
+.podium-slot-points {
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(232, 182, 44, 0.45);
+  background: rgba(232, 182, 44, 0.13);
+  color: #f2cc66;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
 .podium-slot-visual {
   display: grid;
   gap: 0.8rem;
