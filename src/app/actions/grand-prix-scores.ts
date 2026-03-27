@@ -32,6 +32,15 @@ type PredictionRow = {
   race_p3: string;
 };
 
+type GrandPrixPredictionScoreDetailRow = {
+  grand_prix_id: string;
+  user_id: string;
+  prediction_type: "quali" | "race";
+  slot_position: 1 | 2 | 3;
+  predicted_driver_id: string;
+  points: number;
+};
+
 type ScoreComponentValues = {
   teamQualiPoints: number;
   teamSprintQualiPoints: number;
@@ -120,25 +129,32 @@ const getSprintQualiTeamPointsForPosition = (position: number | null) => {
   return F1_SPRINT_QUALI_TEAM_POINTS_BY_POSITION[position] ?? 0;
 };
 
+const calculateTopThreePredictionPointsBySlot = (predictedTopThree: string[], actualTopThree: string[]) => {
+  if (actualTopThree.length !== 3) {
+    return [0, 0, 0] as const;
+  }
+
+  return predictedTopThree.map((driverId, index) => {
+    if (driverId === actualTopThree[index]) {
+      return 10;
+    }
+
+    if (actualTopThree.includes(driverId)) {
+      return 5;
+    }
+
+    return 0;
+  }) as [number, number, number];
+};
+
 const calculateTopThreePredictionPoints = (predictedTopThree: string[], actualTopThree: string[]) => {
   if (actualTopThree.length !== 3) {
     return 0;
   }
 
-  let points = 0;
-
-  predictedTopThree.forEach((driverId, index) => {
-    if (driverId === actualTopThree[index]) {
-      points += 10;
-      return;
-    }
-
-    if (actualTopThree.includes(driverId)) {
-      points += 5;
-    }
-  });
-
-  return points;
+  return calculateTopThreePredictionPointsBySlot(predictedTopThree, actualTopThree).reduce((total, slotPoints) => {
+    return total + slotPoints;
+  }, 0);
 };
 
 const buildTopThreeByPosition = (
@@ -400,6 +416,42 @@ const upsertGrandPrixScoreDetailRows = async ({
   return { detailsWritten: rowsToUpsert.length };
 };
 
+const upsertGrandPrixPredictionScoreDetailRows = async ({
+  grandPrixId,
+  rows,
+  predictionType,
+}: {
+  grandPrixId: string;
+  rows: GrandPrixPredictionScoreDetailRow[];
+  predictionType: "quali" | "race";
+}) => {
+  const supabase = createServerSupabaseClient();
+
+  const { error: deleteError } = await supabase
+    .from("grand_prix_prediction_score_details")
+    .delete()
+    .eq("grand_prix_id", grandPrixId)
+    .eq("prediction_type", predictionType);
+
+  if (deleteError) {
+    throw new Error(`[grand-prix-scores] Failed to delete prediction score details: ${deleteError.message}`);
+  }
+
+  if (rows.length === 0) {
+    return { detailsWritten: 0 };
+  }
+
+  const { error } = await supabase.from("grand_prix_prediction_score_details").upsert(rows, {
+    onConflict: "grand_prix_id,user_id,prediction_type,slot_position",
+  });
+
+  if (error) {
+    throw new Error(`[grand-prix-scores] Failed to upsert prediction score details: ${error.message}`);
+  }
+
+  return { detailsWritten: rows.length };
+};
+
 export async function calculateGrandPrixQualificationScores(grandPrixId: string) {
   const normalizedGrandPrixId = grandPrixId.trim();
 
@@ -484,8 +536,27 @@ export async function calculateGrandPrixQualificationScores(grandPrixId: string)
     });
   });
 
+  const qualiPredictionDetailRows: GrandPrixPredictionScoreDetailRow[] = predictions.flatMap((prediction) => {
+    const predictedTopThree = [prediction.quali_p1, prediction.quali_p2, prediction.quali_p3];
+    const pointsBySlot = calculateTopThreePredictionPointsBySlot(predictedTopThree, officialQualiTopThree);
+
+    return predictedTopThree.map((predictedDriverId, index) => ({
+      grand_prix_id: normalizedGrandPrixId,
+      user_id: prediction.user_id,
+      prediction_type: "quali",
+      slot_position: (index + 1) as 1 | 2 | 3,
+      predicted_driver_id: predictedDriverId,
+      points: pointsBySlot[index] ?? 0,
+    }));
+  });
+
   const [scoreWriteResult] = await Promise.all([
     upsertGrandPrixScoreRows(normalizedGrandPrixId, componentByUserId),
+    upsertGrandPrixPredictionScoreDetailRows({
+      grandPrixId: normalizedGrandPrixId,
+      rows: qualiPredictionDetailRows,
+      predictionType: "quali",
+    }),
     upsertGrandPrixScoreDetailRows({
       grandPrixId: normalizedGrandPrixId,
       teamSelections,
@@ -590,8 +661,27 @@ export async function calculateGrandPrixRaceScores(grandPrixId: string) {
     });
   });
 
+  const racePredictionDetailRows: GrandPrixPredictionScoreDetailRow[] = predictions.flatMap((prediction) => {
+    const predictedTopThree = [prediction.race_p1, prediction.race_p2, prediction.race_p3];
+    const pointsBySlot = calculateTopThreePredictionPointsBySlot(predictedTopThree, officialRaceTopThree);
+
+    return predictedTopThree.map((predictedDriverId, index) => ({
+      grand_prix_id: normalizedGrandPrixId,
+      user_id: prediction.user_id,
+      prediction_type: "race",
+      slot_position: (index + 1) as 1 | 2 | 3,
+      predicted_driver_id: predictedDriverId,
+      points: pointsBySlot[index] ?? 0,
+    }));
+  });
+
   const [scoreWriteResult] = await Promise.all([
     upsertGrandPrixScoreRows(normalizedGrandPrixId, componentByUserId),
+    upsertGrandPrixPredictionScoreDetailRows({
+      grandPrixId: normalizedGrandPrixId,
+      rows: racePredictionDetailRows,
+      predictionType: "race",
+    }),
     upsertGrandPrixScoreDetailRows({
       grandPrixId: normalizedGrandPrixId,
       teamSelections,

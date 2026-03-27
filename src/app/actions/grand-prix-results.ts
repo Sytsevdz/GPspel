@@ -215,6 +215,18 @@ export async function resetGrandPrixPlayerScores(
     };
   }
 
+  const { error: predictionDetailDeleteError } = await adminCheck.supabase
+    .from("grand_prix_prediction_score_details")
+    .delete()
+    .eq("grand_prix_id", grandPrixId);
+
+  if (predictionDetailDeleteError) {
+    return {
+      status: "error",
+      message: "Er ging iets mis bij het resetten",
+    };
+  }
+
   const { error: scoreDeleteError } = await adminCheck.supabase.from("grand_prix_scores").delete().eq("grand_prix_id", grandPrixId);
 
   if (scoreDeleteError) {
