@@ -8,7 +8,7 @@ import {
   calculateGrandPrixSprintQualificationScores,
   calculateGrandPrixSprintRaceScores,
 } from "@/app/actions/grand-prix-scores";
-import { createServerSupabaseClient } from "@/lib/supabase";
+import { createAdminSupabaseClient, createServerSupabaseClient } from "@/lib/supabase";
 
 export type GrandPrixResultActionState = {
   status: "idle" | "success" | "error";
@@ -203,7 +203,9 @@ export async function resetGrandPrixPlayerScores(
     };
   }
 
-  const { error: detailDeleteError } = await adminCheck.supabase
+  const adminSupabase = createAdminSupabaseClient();
+
+  const { error: detailDeleteError } = await adminSupabase
     .from("grand_prix_score_details")
     .delete()
     .eq("grand_prix_id", grandPrixId);
@@ -215,12 +217,31 @@ export async function resetGrandPrixPlayerScores(
     };
   }
 
-  const { error: scoreDeleteError } = await adminCheck.supabase.from("grand_prix_scores").delete().eq("grand_prix_id", grandPrixId);
+  const { error: scoreDeleteError } = await adminSupabase.from("grand_prix_scores").delete().eq("grand_prix_id", grandPrixId);
 
   if (scoreDeleteError) {
     return {
       status: "error",
       message: "Er ging iets mis bij het resetten",
+    };
+  }
+
+  const [{ count: remainingScoreCount, error: remainingScoreError }, { count: remainingDetailCount, error: remainingDetailError }] =
+    await Promise.all([
+      adminSupabase
+        .from("grand_prix_scores")
+        .select("id", { head: true, count: "exact" })
+        .eq("grand_prix_id", grandPrixId),
+      adminSupabase
+        .from("grand_prix_score_details")
+        .select("id", { head: true, count: "exact" })
+        .eq("grand_prix_id", grandPrixId),
+    ]);
+
+  if (remainingScoreError || remainingDetailError || (remainingScoreCount ?? 0) > 0 || (remainingDetailCount ?? 0) > 0) {
+    return {
+      status: "error",
+      message: "Niet alle spelerspunten konden worden verwijderd",
     };
   }
 
