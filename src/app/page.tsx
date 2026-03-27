@@ -168,7 +168,7 @@ export default async function HomePage() {
       </section>
 
       <section className="dashboard-grid" aria-label="Dashboard-overzicht">
-        <article className="dashboard-card dashboard-home-card">
+        <article className="dashboard-card dashboard-home-card dashboard-home-card--latest">
           <h2>Laatste Grand Prix</h2>
           {!latestGrandPrix ? (
             <p className="league-list-empty">Er is nog geen afgeronde Grand Prix beschikbaar.</p>
@@ -237,7 +237,7 @@ export default async function HomePage() {
           )}
         </article>
 
-        <article className="dashboard-card dashboard-home-card">
+        <article className="dashboard-card dashboard-home-card dashboard-home-card--standings">
           <h2>Algemeen klassement</h2>
           {globalStandings.length === 0 ? (
             <p className="league-list-empty">Er zijn nog geen spelers om te tonen.</p>
