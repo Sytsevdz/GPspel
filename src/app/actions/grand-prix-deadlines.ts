@@ -79,6 +79,7 @@ export async function updateGrandPrixDeadline(
   }
 
   revalidatePath("/admin");
+  revalidatePath(`/admin/grand-prix/${grandPrixId}`);
   revalidatePath(`/admin/grand-prix/${grandPrixId}/deadline`);
 
   return { status: "success", message: DEADLINE_SUCCESS_MESSAGE } as const;

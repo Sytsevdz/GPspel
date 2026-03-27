@@ -1,12 +1,7 @@
 import Link from "next/link";
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { isRedirectError } from "next/dist/client/components/redirect";
 
-import { generateGrandPrixPricesFromPreviousResult, resetDriverPrices } from "@/app/actions/driver-prices";
-import { calculateGrandPrixScores } from "@/app/actions/grand-prix-scores";
 import { createServerSupabaseClient } from "@/lib/supabase";
-import { ResetPricesSubmitButton } from "@/app/admin/reset-prices-submit-button";
 
 type AdminPageProps = {
   searchParams: {
@@ -60,98 +55,17 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     );
   }
 
-  async function recalculatePrices(formData: FormData) {
-    "use server";
-
-    const grandPrixId = String(formData.get("grand_prix_id") ?? "").trim();
-
-    if (!grandPrixId) {
-      redirect("/admin?error=Er+ging+iets+mis+bij+het+berekenen+van+de+prijzen");
-    }
-
-    try {
-      await generateGrandPrixPricesFromPreviousResult(grandPrixId);
-      redirect("/admin?message=Prijzen+succesvol+berekend");
-    } catch (error) {
-      if (isRedirectError(error)) {
-        throw error;
-      }
-
-      const message =
-        error instanceof Error && error.message
-          ? error.message
-          : "Er ging iets mis bij het berekenen van de prijzen";
-
-      redirect(`/admin?error=${encodeURIComponent(message)}`);
-    }
-  }
-
-
-  async function clearPrices(formData: FormData) {
-    "use server";
-
-    const grandPrixId = String(formData.get("grand_prix_id") ?? "").trim();
-
-    if (!grandPrixId) {
-      redirect("/admin?error=Er+ging+iets+mis+bij+het+verwijderen+van+de+prijzen");
-    }
-
-    try {
-      await resetDriverPrices(grandPrixId);
-      redirect("/admin?message=Prijzen+succesvol+verwijderd");
-    } catch (error) {
-      if (isRedirectError(error)) {
-        throw error;
-      }
-
-      redirect("/admin?error=Er+ging+iets+mis+bij+het+verwijderen+van+de+prijzen");
-    }
-  }
-
-  async function recalculateScores(formData: FormData) {
-    "use server";
-
-    const grandPrixId = String(formData.get("grand_prix_id") ?? "").trim();
-
-    if (!grandPrixId) {
-      redirect("/admin?error=Ongeldige+Grand+Prix");
-    }
-
-    const supabase = createServerSupabaseClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      redirect("/login");
-    }
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle<{ role: string | null }>();
-
-    if (profile?.role !== "admin") {
-      redirect("/admin?error=Je+hebt+geen+toegang+tot+deze+pagina.");
-    }
-
-    await calculateGrandPrixScores(grandPrixId);
-    revalidatePath("/admin");
-    redirect("/admin?message=Scores+zijn+berekend");
-  }
-
   const { data: grandPrixRows } = await supabase
     .from("grand_prix")
     .select("id, name, status, qualification_start, deadline")
-    .order("qualification_start", { ascending: false })
+    .order("qualification_start", { ascending: true })
     .returns<GrandPrixRow[]>();
 
   return (
     <main className="leagues-page">
       <section className="leagues-card">
         <h1>Admin dashboard</h1>
-        <p>Beheer hier de Grand Prix invoer en berekeningen.</p>
+        <p>Beheer elke Grand Prix via één centrale Beheer GP-flow.</p>
 
         {searchParams.error ? <p className="form-message error">{searchParams.error}</p> : null}
         {searchParams.message ? <p className="form-message success">{searchParams.message}</p> : null}
@@ -165,21 +79,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 <p>Kwalificatie start: {formatDateTime(grandPrix.qualification_start)}</p>
                 <p>Deadline: {formatDateTime(grandPrix.deadline)}</p>
               </div>
-              <div className="home-actions">
-                <Link href={`/admin/grand-prix/${grandPrix.id}/result`}>Uitslag invoeren</Link>
-                <Link href={`/admin/grand-prix/${grandPrix.id}/deadline`}>Deadline aanpassen</Link>
-                <form action={recalculatePrices}>
-                  <input type="hidden" name="grand_prix_id" value={grandPrix.id} />
-                  <button type="submit">Prijzen berekenen</button>
-                </form>
-                <form action={recalculateScores}>
-                  <input type="hidden" name="grand_prix_id" value={grandPrix.id} />
-                  <button type="submit">Scores berekenen</button>
-                </form>
-                <form action={clearPrices}>
-                  <input type="hidden" name="grand_prix_id" value={grandPrix.id} />
-                  <ResetPricesSubmitButton />
-                </form>
+              <div className="admin-action-stack">
+                <Link href={`/admin/grand-prix/${grandPrix.id}`}>Beheer GP</Link>
               </div>
             </li>
           ))}
