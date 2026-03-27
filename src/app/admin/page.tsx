@@ -65,7 +65,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     <main className="leagues-page">
       <section className="leagues-card">
         <h1>Admin dashboard</h1>
-        <p>Beheer elke Grand Prix via één centrale "Beheer GP"-flow.</p>
+        <p>Beheer elke Grand Prix via één centrale Beheer GP-flow.</p>
 
         {searchParams.error ? <p className="form-message error">{searchParams.error}</p> : null}
         {searchParams.message ? <p className="form-message success">{searchParams.message}</p> : null}
