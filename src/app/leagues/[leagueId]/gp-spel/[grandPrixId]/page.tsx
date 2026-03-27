@@ -135,6 +135,7 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
       raceP2: existingPrediction?.race_p2 ?? "",
       raceP3: existingPrediction?.race_p3 ?? "",
     };
+    const scoreDetails = userScoreDetails ?? [];
 
     const isReadOnly = gpData.grandPrix.deadline <= new Date().toISOString();
 
@@ -212,9 +213,9 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
               <p className="league-list-empty">Nog geen punten gepubliceerd voor deze Grand Prix</p>
             ) : (
               <div className="dashboard-latest-result-card gp-spel-score-card">
-                {(userScoreDetails ?? []).length > 0 ? (
+                {scoreDetails.length > 0 ? (
                   <ul className="dashboard-result-driver-grid" aria-label="Teampunten per coureur">
-                    {userScoreDetails.map((detail) => {
+                    {scoreDetails.map((detail) => {
                       const driverName = detail.drivers?.name ?? "Onbekende coureur";
                       const constructorTeam = detail.drivers?.constructor_team ?? "Onbekend team";
                       const team = resolveTeamSelectionTeam(constructorTeam);
