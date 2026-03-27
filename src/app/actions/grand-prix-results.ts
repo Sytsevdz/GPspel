@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 
-import { calculateGrandPrixQualificationScores, calculateGrandPrixRaceScores } from "@/app/actions/grand-prix-scores";
+import {
+  calculateGrandPrixQualificationScores,
+  calculateGrandPrixRaceScores,
+  calculateGrandPrixSprintQualificationScores,
+  calculateGrandPrixSprintRaceScores,
+} from "@/app/actions/grand-prix-scores";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 export type GrandPrixResultActionState = {
@@ -68,11 +73,78 @@ export async function publishGrandPrixQualificationScores(
 
   await calculateGrandPrixQualificationScores(grandPrixId);
 
+  revalidatePath(`/admin/grand-prix/${grandPrixId}`);
   revalidatePath(`/admin/grand-prix/${grandPrixId}/result`);
 
   return {
     status: "success",
     message: "Kwalificatiepunten gepubliceerd",
+  };
+}
+
+export async function publishGrandPrixSprintQualificationScores(
+  _prevState: GrandPrixResultActionState = initialState,
+  formData: FormData,
+): Promise<GrandPrixResultActionState> {
+  const grandPrixId = String(formData.get("grand_prix_id") ?? "").trim();
+
+  if (!grandPrixId) {
+    return {
+      status: "error",
+      message: "Er ging iets mis bij het publiceren",
+    };
+  }
+
+  const { error } = await requireAdminAndGrandPrix(grandPrixId);
+
+  if (error) {
+    return {
+      status: "error",
+      message: error,
+    };
+  }
+
+  await calculateGrandPrixSprintQualificationScores(grandPrixId);
+
+  revalidatePath(`/admin/grand-prix/${grandPrixId}`);
+  revalidatePath(`/admin/grand-prix/${grandPrixId}/result`);
+
+  return {
+    status: "success",
+    message: "Sprintkwalificatiepunten gepubliceerd",
+  };
+}
+
+export async function publishGrandPrixSprintRaceScores(
+  _prevState: GrandPrixResultActionState = initialState,
+  formData: FormData,
+): Promise<GrandPrixResultActionState> {
+  const grandPrixId = String(formData.get("grand_prix_id") ?? "").trim();
+
+  if (!grandPrixId) {
+    return {
+      status: "error",
+      message: "Er ging iets mis bij het publiceren",
+    };
+  }
+
+  const { error } = await requireAdminAndGrandPrix(grandPrixId);
+
+  if (error) {
+    return {
+      status: "error",
+      message: error,
+    };
+  }
+
+  await calculateGrandPrixSprintRaceScores(grandPrixId);
+
+  revalidatePath(`/admin/grand-prix/${grandPrixId}`);
+  revalidatePath(`/admin/grand-prix/${grandPrixId}/result`);
+
+  return {
+    status: "success",
+    message: "Sprintracepunten gepubliceerd",
   };
 }
 
@@ -100,11 +172,104 @@ export async function publishGrandPrixFinalScores(
 
   await calculateGrandPrixRaceScores(grandPrixId);
 
+  revalidatePath(`/admin/grand-prix/${grandPrixId}`);
   revalidatePath(`/admin/grand-prix/${grandPrixId}/result`);
 
   return {
     status: "success",
     message: "Racepunten gepubliceerd",
+  };
+}
+
+export async function resetGrandPrixPlayerScores(
+  _prevState: GrandPrixResultActionState = initialState,
+  formData: FormData,
+): Promise<GrandPrixResultActionState> {
+  const grandPrixId = String(formData.get("grand_prix_id") ?? "").trim();
+
+  if (!grandPrixId) {
+    return {
+      status: "error",
+      message: "Er ging iets mis bij het resetten",
+    };
+  }
+
+  const adminCheck = await requireAdminAndGrandPrix(grandPrixId);
+
+  if (adminCheck.error || !adminCheck.supabase) {
+    return {
+      status: "error",
+      message: adminCheck.error ?? "Er ging iets mis bij het resetten",
+    };
+  }
+
+  const { error: detailDeleteError } = await adminCheck.supabase
+    .from("grand_prix_score_details")
+    .delete()
+    .eq("grand_prix_id", grandPrixId);
+
+  if (detailDeleteError) {
+    return {
+      status: "error",
+      message: "Er ging iets mis bij het resetten",
+    };
+  }
+
+  const { error: scoreDeleteError } = await adminCheck.supabase.from("grand_prix_scores").delete().eq("grand_prix_id", grandPrixId);
+
+  if (scoreDeleteError) {
+    return {
+      status: "error",
+      message: "Er ging iets mis bij het resetten",
+    };
+  }
+
+  revalidatePath(`/admin/grand-prix/${grandPrixId}`);
+  revalidatePath(`/admin/grand-prix/${grandPrixId}/result`);
+
+  return {
+    status: "success",
+    message: "Spelerspunten voor deze GP zijn gereset",
+  };
+}
+
+export async function resetGrandPrixResult(
+  _prevState: GrandPrixResultActionState = initialState,
+  formData: FormData,
+): Promise<GrandPrixResultActionState> {
+  const grandPrixId = String(formData.get("grand_prix_id") ?? "").trim();
+
+  if (!grandPrixId) {
+    return {
+      status: "error",
+      message: "Er ging iets mis bij het resetten",
+    };
+  }
+
+  const adminCheck = await requireAdminAndGrandPrix(grandPrixId);
+
+  if (adminCheck.error || !adminCheck.supabase) {
+    return {
+      status: "error",
+      message: adminCheck.error ?? "Er ging iets mis bij het resetten",
+    };
+  }
+
+  const { error: deleteError } = await adminCheck.supabase.from("grand_prix_driver_results").delete().eq("grand_prix_id", grandPrixId);
+
+  if (deleteError) {
+    return {
+      status: "error",
+      message: "Er ging iets mis bij het resetten",
+    };
+  }
+
+  revalidatePath(`/admin/grand-prix/${grandPrixId}`);
+  revalidatePath(`/admin/grand-prix/${grandPrixId}/result`);
+
+  return {
+    status: "success",
+    message: "Uitslag voor deze GP is gereset",
   };
 }
 
@@ -192,6 +357,7 @@ export async function saveGrandPrixResult(
     };
   }
 
+  revalidatePath(`/admin/grand-prix/${grandPrixId}`);
   revalidatePath(`/admin/grand-prix/${grandPrixId}/result`);
 
   return {

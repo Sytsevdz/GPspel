@@ -1099,6 +1099,30 @@ a {
   gap: 1rem;
 }
 
+.admin-action-stack {
+  display: grid;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.admin-action-stack form {
+  width: 100%;
+}
+
+.admin-action-stack a,
+.admin-action-stack button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border-radius: 10px;
+  border: 1px solid #545454;
+  background: #171717;
+  color: #f7f7f7;
+  font: inherit;
+}
+
 .predictions-section {
   border: 1px solid #313131;
   border-radius: 18px;

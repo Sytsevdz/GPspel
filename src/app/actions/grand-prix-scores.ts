@@ -604,6 +604,34 @@ export async function calculateGrandPrixRaceScores(grandPrixId: string) {
   return scoreWriteResult;
 }
 
+export async function calculateGrandPrixSprintQualificationScores(grandPrixId: string) {
+  const normalizedGrandPrixId = grandPrixId.trim();
+
+  if (!normalizedGrandPrixId) {
+    throw new Error("calculateGrandPrixSprintQualificationScores requires a valid grandPrixId");
+  }
+
+  await ensureGrandPrixExists(normalizedGrandPrixId);
+
+  // Sprint publication is intentionally kept as a separate phase, but sprint
+  // result scoring is not active yet in the gameplay logic.
+  return { scoresWritten: 0 };
+}
+
+export async function calculateGrandPrixSprintRaceScores(grandPrixId: string) {
+  const normalizedGrandPrixId = grandPrixId.trim();
+
+  if (!normalizedGrandPrixId) {
+    throw new Error("calculateGrandPrixSprintRaceScores requires a valid grandPrixId");
+  }
+
+  await ensureGrandPrixExists(normalizedGrandPrixId);
+
+  // Sprint publication is intentionally kept as a separate phase, but sprint
+  // result scoring is not active yet in the gameplay logic.
+  return { scoresWritten: 0 };
+}
+
 export async function calculateGrandPrixScores(grandPrixId: string) {
   return calculateGrandPrixRaceScores(grandPrixId);
 }

@@ -2,9 +2,13 @@
 
 import { useFormState, useFormStatus } from "react-dom";
 
+import { ConfirmSubmitButton } from "@/app/admin/confirm-submit-button";
 import {
   publishGrandPrixFinalScores,
   publishGrandPrixQualificationScores,
+  publishGrandPrixSprintQualificationScores,
+  publishGrandPrixSprintRaceScores,
+  resetGrandPrixPlayerScores,
   type GrandPrixResultActionState,
 } from "@/app/actions/grand-prix-results";
 
@@ -16,33 +20,62 @@ function PublishButton({ label, pendingLabel }: { label: string; pendingLabel: s
   return <button type="submit">{pending ? pendingLabel : label}</button>;
 }
 
+function ActionFeedback({ status, message }: GrandPrixResultActionState) {
+  if (status === "idle" || !message) {
+    return null;
+  }
+
+  return <p className={`form-message ${status === "success" ? "success" : "error"}`}>{message}</p>;
+}
+
 export function PublishScoreActions({ grandPrixId }: { grandPrixId: string }) {
   const [qualificationState, qualificationAction] = useFormState(publishGrandPrixQualificationScores, INITIAL_STATE);
+  const [sprintQualificationState, sprintQualificationAction] = useFormState(
+    publishGrandPrixSprintQualificationScores,
+    INITIAL_STATE,
+  );
+  const [sprintRaceState, sprintRaceAction] = useFormState(publishGrandPrixSprintRaceScores, INITIAL_STATE);
   const [finalState, finalAction] = useFormState(publishGrandPrixFinalScores, INITIAL_STATE);
+  const [resetState, resetAction] = useFormState(resetGrandPrixPlayerScores, INITIAL_STATE);
 
   return (
     <section className="predictions-section">
-      <h2>Punten publiceren</h2>
-      <p>Publiceer eerst kwalificatiepunten en later de racepunten per fase.</p>
+      <h2>Scores spelers</h2>
+      <p>Publiceer de spelerspunten in fases. Elke fase blijft een aparte handeling.</p>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", alignItems: "flex-start" }}>
+      <div className="admin-action-stack">
         <form action={qualificationAction}>
           <input type="hidden" name="grand_prix_id" value={grandPrixId} />
-          <PublishButton label="Publiceer kwalificatiepunten" pendingLabel="Publiceren..." />
+          <PublishButton label="Kwalificatie publiceren" pendingLabel="Publiceren..." />
         </form>
-        {qualificationState.status !== "idle" && qualificationState.message && (
-          <p className={`form-message ${qualificationState.status === "success" ? "success" : "error"}`}>
-            {qualificationState.message}
-          </p>
-        )}
+        <ActionFeedback {...qualificationState} />
+
+        <form action={sprintQualificationAction}>
+          <input type="hidden" name="grand_prix_id" value={grandPrixId} />
+          <PublishButton label="Sprintkwalificatie publiceren" pendingLabel="Publiceren..." />
+        </form>
+        <ActionFeedback {...sprintQualificationState} />
+
+        <form action={sprintRaceAction}>
+          <input type="hidden" name="grand_prix_id" value={grandPrixId} />
+          <PublishButton label="Sprintrace publiceren" pendingLabel="Publiceren..." />
+        </form>
+        <ActionFeedback {...sprintRaceState} />
 
         <form action={finalAction}>
           <input type="hidden" name="grand_prix_id" value={grandPrixId} />
-          <PublishButton label="Publiceer racepunten" pendingLabel="Publiceren..." />
+          <PublishButton label="Race publiceren" pendingLabel="Publiceren..." />
         </form>
-        {finalState.status !== "idle" && finalState.message && (
-          <p className={`form-message ${finalState.status === "success" ? "success" : "error"}`}>{finalState.message}</p>
-        )}
+        <ActionFeedback {...finalState} />
+
+        <form action={resetAction}>
+          <input type="hidden" name="grand_prix_id" value={grandPrixId} />
+          <ConfirmSubmitButton
+            confirmMessage="Weet je zeker dat je alle spelerspunten voor deze Grand Prix wilt resetten?"
+            label="Punten resetten voor spelers"
+          />
+        </form>
+        <ActionFeedback {...resetState} />
       </div>
     </section>
   );

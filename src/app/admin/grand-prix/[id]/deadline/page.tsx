@@ -90,8 +90,8 @@ export default async function GrandPrixDeadlinePage({ params }: DeadlinePageProp
               Grand Prix: <strong>{grandPrix.name}</strong>
             </p>
           </div>
-          <Link href="/admin" className="league-back-link">
-            ← Terug naar admin dashboard
+          <Link href={`/admin/grand-prix/${grandPrix.id}`} className="league-back-link">
+            ← Terug naar Beheer GP
           </Link>
         </div>
 
