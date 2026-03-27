@@ -31,6 +31,9 @@ export function MainNavigation({ isAdmin, defaultLeagueId }: MainNavigationProps
       <Link href="/leagues" className={isLeaguesActive ? "nav-link active" : "nav-link"}>
         Leagues
       </Link>
+      <Link href="/spelregels" className={pathname === "/spelregels" ? "nav-link active" : "nav-link"}>
+        Spelregels
+      </Link>
       <Link href="/profile" className={pathname === "/profile" ? "nav-link active" : "nav-link"}>
         Profiel
       </Link>
