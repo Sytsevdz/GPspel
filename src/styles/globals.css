@@ -2021,3 +2021,60 @@ button.podium-slot:hover {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+.rules-page {
+  min-height: calc(100vh - 64px);
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+}
+
+.rules-card {
+  width: min(100%, 860px);
+  border: 1px solid #303030;
+  border-radius: 14px;
+  padding: clamp(1.2rem, 2.4vw, 2rem);
+  background: rgba(255, 255, 255, 0.03);
+  display: grid;
+  gap: 1.25rem;
+}
+
+.rules-section {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.rules-section + .rules-section {
+  border-top: 1px solid #2f2f2f;
+  padding-top: 1rem;
+}
+
+.rules-section h1,
+.rules-section h2,
+.rules-subsection h3 {
+  line-height: 1.2;
+}
+
+.rules-section h1 {
+  font-size: clamp(1.8rem, 3.1vw, 2.2rem);
+}
+
+.rules-section h2 {
+  font-size: clamp(1.25rem, 2.4vw, 1.55rem);
+}
+
+.rules-subsection + .rules-subsection {
+  margin-top: 0.8rem;
+}
+
+.rules-section p,
+.rules-section li {
+  color: #e5e5e5;
+  line-height: 1.55;
+}
+
+.rules-section ul {
+  display: grid;
+  gap: 0.42rem;
+  padding-left: 1.25rem;
+}
