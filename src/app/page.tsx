@@ -1,6 +1,8 @@
 import Link from "next/link";
+import Image from "next/image";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 import { getCurrentSelectableGrandPrix } from "@/lib/team-selection-data";
 
 type LeagueMembershipRow = {
@@ -22,6 +24,17 @@ type UserGrandPrixScoreRow = {
   team_points: number | null;
   prediction_points: number | null;
   total_points: number | null;
+};
+
+type GrandPrixScoreDetailRow = {
+  driver_id: string;
+  team_quali_points: number | null;
+  team_race_points: number | null;
+  total_points: number | null;
+  drivers: {
+    name: string;
+    constructor_team: string;
+  } | null;
 };
 
 type ProfileRow = {
@@ -115,6 +128,18 @@ export default async function HomePage() {
       ).data
     : null;
 
+  const userLatestScoreDetails = latestGrandPrix
+    ? (
+        await supabase
+          .from("grand_prix_score_details")
+          .select("driver_id, team_quali_points, team_race_points, total_points, drivers(name, constructor_team)")
+          .eq("grand_prix_id", latestGrandPrix.id)
+          .eq("user_id", user.id)
+          .order("total_points", { ascending: false })
+          .returns<GrandPrixScoreDetailRow[]>()
+      ).data ?? []
+    : [];
+
   const totalPointsByUserId = new Map<string, number>();
 
   (allScoreRows ?? []).forEach((scoreRow) => {
@@ -152,20 +177,59 @@ export default async function HomePage() {
               <p className="dashboard-result-kicker">Jouw resultaat</p>
               <p className="dashboard-data-title">{latestGrandPrix.name}</p>
               {userLatestScore ? (
-                <dl className="dashboard-result-stats">
-                  <div className="dashboard-result-stat">
-                    <dt>Team punten</dt>
-                    <dd>{userLatestScore.team_points ?? 0}</dd>
-                  </div>
-                  <div className="dashboard-result-stat">
-                    <dt>Voorspelling punten</dt>
-                    <dd>{userLatestScore.prediction_points ?? 0}</dd>
-                  </div>
-                  <div className="dashboard-result-stat dashboard-result-total-stat">
-                    <dt>Totaal punten</dt>
-                    <dd>{userLatestScore.total_points ?? 0}</dd>
-                  </div>
-                </dl>
+                <>
+                  {userLatestScoreDetails.length > 0 ? (
+                    <ul className="dashboard-result-driver-grid" aria-label="Teampunten per coureur">
+                      {userLatestScoreDetails.map((detail) => {
+                        const driverName = detail.drivers?.name ?? "Onbekende coureur";
+                        const constructorTeam = detail.drivers?.constructor_team ?? "Onbekend team";
+                        const team = resolveTeamSelectionTeam(constructorTeam);
+
+                        return (
+                          <li key={detail.driver_id} className="dashboard-result-driver-card">
+                            <Image
+                              src={team.image}
+                              alt={`${constructorTeam} wagen`}
+                              width={140}
+                              height={56}
+                              className="dashboard-result-driver-image"
+                            />
+                            <p className="dashboard-result-driver-name">{driverName}</p>
+                            <dl className="dashboard-result-driver-points">
+                              <div>
+                                <dt>Kwalificatie</dt>
+                                <dd>{detail.team_quali_points ?? 0}</dd>
+                              </div>
+                              <div>
+                                <dt>Race</dt>
+                                <dd>{detail.team_race_points ?? 0}</dd>
+                              </div>
+                              <div>
+                                <dt>Totaal</dt>
+                                <dd>{detail.total_points ?? 0}</dd>
+                              </div>
+                            </dl>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : null}
+
+                  <dl className="dashboard-result-summary">
+                    <div className="dashboard-result-stat">
+                      <dt>Team punten</dt>
+                      <dd>{userLatestScore.team_points ?? 0}</dd>
+                    </div>
+                    <div className="dashboard-result-stat">
+                      <dt>Voorspelling punten</dt>
+                      <dd>{userLatestScore.prediction_points ?? 0}</dd>
+                    </div>
+                    <div className="dashboard-result-stat dashboard-result-total-stat">
+                      <dt>Totaal</dt>
+                      <dd>{userLatestScore.total_points ?? 0}</dd>
+                    </div>
+                  </dl>
+                </>
               ) : (
                 <p className="league-list-empty">Je hebt voor deze Grand Prix nog geen score.</p>
               )}
