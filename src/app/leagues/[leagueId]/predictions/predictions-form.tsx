@@ -30,6 +30,10 @@ type PredictionsFormProps = {
   grandPrixId: string;
   drivers: DriverOption[];
   initialValues: PredictionValues;
+  publishedPoints?: {
+    quali: number | null;
+    race: number | null;
+  };
   readOnly?: boolean;
 };
 
@@ -135,7 +139,14 @@ function SaveButton({ disabled }: { disabled: boolean }) {
 const getSectionSelections = (values: PredictionValues, sectionId: PodiumSectionConfig["id"]) =>
   sectionId === "quali" ? [values.qualiP1, values.qualiP2, values.qualiP3] : [values.raceP1, values.raceP2, values.raceP3];
 
-export function PredictionsForm({ leagueId, grandPrixId, drivers, initialValues, readOnly = false }: PredictionsFormProps) {
+export function PredictionsForm({
+  leagueId,
+  grandPrixId,
+  drivers,
+  initialValues,
+  publishedPoints,
+  readOnly = false,
+}: PredictionsFormProps) {
   const [state, formAction] = useFormState(savePrediction, INITIAL_STATE);
   const [values, setValues] = useState<PredictionValues>(initialValues);
   const [activeField, setActiveField] = useState<PredictionField | null>(null);
@@ -235,6 +246,9 @@ export function PredictionsForm({ leagueId, grandPrixId, drivers, initialValues,
         <section key={section.id} className="predictions-section">
           <div className="predictions-section-header">
             <h2>{section.title}</h2>
+            {publishedPoints && publishedPoints[section.id] !== null ? (
+              <p className="predictions-points-chip">Punten: {publishedPoints[section.id] ?? 0}</p>
+            ) : null}
             {!readOnly ? <p>Klik op een podiumplek om een coureur te kiezen of aan te passen.</p> : null}
           </div>
 
