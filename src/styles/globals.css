@@ -1220,6 +1220,18 @@ a {
   gap: 0.35rem;
 }
 
+.predictions-points-chip {
+  margin: 0;
+  width: fit-content;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(232, 182, 44, 0.45);
+  background: rgba(232, 182, 44, 0.14);
+  color: #f2cc66;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 .predictions-section-header h2 {
   margin: 0;
 }
@@ -1973,6 +1985,24 @@ button.podium-slot:hover {
   gap: 1.5rem;
 }
 
+.gp-spel-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.gp-spel-section-header h2 {
+  margin: 0;
+}
+
+.gp-spel-section-points {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #d6d6d6;
+}
+
 .gp-spel-section {
   display: grid;
   gap: 0.85rem;
@@ -1982,33 +2012,6 @@ button.podium-slot:hover {
   margin-top: 0.5rem;
   padding-top: 1.2rem;
   border-top: 1px solid #2f2f2f;
-}
-
-.gp-spel-score-card {
-  gap: 1rem;
-}
-
-.gp-spel-score-breakdown-group {
-  display: grid;
-  gap: 0.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  padding: 0.65rem;
-  background: rgba(9, 11, 18, 0.52);
-}
-
-.gp-spel-score-breakdown-title {
-  margin: 0;
-  font-size: 0.9rem;
-}
-
-.gp-spel-score-breakdown-list {
-  gap: 0.35rem;
-}
-
-.gp-spel-score-breakdown-subtle dt,
-.gp-spel-score-breakdown-subtle dd {
-  color: #b9b9b9;
 }
 
 .compact-team-selection-form {
@@ -2088,9 +2091,63 @@ button.podium-slot:hover {
   color: #d7d7d7;
 }
 
+.gp-team-slot-points {
+  width: 100%;
+  margin: 0;
+  display: grid;
+  gap: 0.22rem;
+}
+
+.gp-team-slot-points div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.7rem;
+  font-size: 0.82rem;
+}
+
+.gp-team-slot-points dt {
+  color: #c7c7c7;
+}
+
+.gp-team-slot-points dd {
+  margin: 0;
+  font-weight: 700;
+  color: #f2f2f2;
+}
+
 .gp-team-slot-team-name {
   font-size: 0.85rem;
   color: #cecece;
+}
+
+.gp-spel-totals-section {
+  margin-top: 0.2rem;
+}
+
+.gp-spel-inline-totals {
+  margin: 0;
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.gp-spel-inline-totals div {
+  border: 1px solid #353535;
+  border-radius: 10px;
+  padding: 0.55rem 0.65rem;
+  background: rgba(12, 12, 12, 0.72);
+}
+
+.gp-spel-inline-totals dt {
+  margin: 0;
+  color: #c6c6c6;
+  font-size: 0.78rem;
+}
+
+.gp-spel-inline-totals dd {
+  margin: 0.25rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 800;
 }
 
 .gp-team-selection-panel {
@@ -2139,6 +2196,10 @@ button.podium-slot:hover {
 
   .team-side-image--slot {
     max-height: 116px;
+  }
+
+  .gp-spel-inline-totals {
+    grid-template-columns: 1fr;
   }
 }
 

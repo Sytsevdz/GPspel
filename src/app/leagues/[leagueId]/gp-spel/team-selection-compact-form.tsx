@@ -26,6 +26,16 @@ type TeamSelectionCompactFormProps = {
   grandPrixId: string;
   drivers: DriverWithPrice[];
   initialSelectedDriverIds: string[];
+  publishedDriverScores?: Record<
+    string,
+    {
+      qualiPoints: number | null;
+      racePoints: number | null;
+      totalPoints: number | null;
+    }
+  >;
+  hasPublishedQualiPoints?: boolean;
+  hasPublishedRacePoints?: boolean;
   savingDisabled?: boolean;
   readOnly?: boolean;
   showFallbackNotice?: boolean;
@@ -50,6 +60,9 @@ export function TeamSelectionCompactForm({
   grandPrixId,
   drivers,
   initialSelectedDriverIds,
+  publishedDriverScores = {},
+  hasPublishedQualiPoints = false,
+  hasPublishedRacePoints = false,
   savingDisabled = false,
   readOnly = false,
   showFallbackNotice = false,
@@ -232,6 +245,10 @@ export function TeamSelectionCompactForm({
           {slots.map((slotDriver, index) => {
             const slotTeam = slotDriver ? resolveTeamSelectionTeam(slotDriver.constructorTeam) : null;
             const slotImageSize = getTeamSideImageSize("slot");
+            const slotScore = slotDriver ? publishedDriverScores[slotDriver.id] : null;
+            const hasPublishedScore = Boolean(slotScore && (hasPublishedQualiPoints || hasPublishedRacePoints));
+            const slotTotalPoints =
+              slotScore?.totalPoints ?? ((slotScore?.qualiPoints ?? 0) + (slotScore?.racePoints ?? 0));
 
             return (
               <button
@@ -257,6 +274,26 @@ export function TeamSelectionCompactForm({
                       <span className="gp-team-slot-team-name">{slotDriver.constructorTeam}</span>
                       <span>{formatPrice(slotDriver.price)}</span>
                     </p>
+                    {hasPublishedScore ? (
+                      <dl className="gp-team-slot-points">
+                        {hasPublishedQualiPoints ? (
+                          <div>
+                            <dt>Kwali</dt>
+                            <dd>{slotScore?.qualiPoints ?? 0}</dd>
+                          </div>
+                        ) : null}
+                        {hasPublishedRacePoints ? (
+                          <div>
+                            <dt>Race</dt>
+                            <dd>{slotScore?.racePoints ?? 0}</dd>
+                          </div>
+                        ) : null}
+                        <div>
+                          <dt>Totaal</dt>
+                          <dd>{slotTotalPoints}</dd>
+                        </div>
+                      </dl>
+                    ) : null}
                   </>
                 ) : (
                   <div className="gp-team-slot-empty">

@@ -1,9 +1,7 @@
 import Link from "next/link";
-import Image from "next/image";
 import { redirect } from "next/navigation";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
-import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 import {
   getGrandPrixAndDriversById,
   getGrandPrixNavigation,
@@ -43,8 +41,6 @@ type UserGrandPrixScoreRow = {
   prediction_points: number | null;
   total_points: number | null;
   quali_prediction_points: number | null;
-  sprint_quali_prediction_points: number | null;
-  sprint_race_prediction_points: number | null;
   race_prediction_points: number | null;
 };
 
@@ -109,9 +105,7 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
           .maybeSingle<ExistingPrediction>(),
         supabase
           .from("grand_prix_scores")
-          .select(
-            "team_points, prediction_points, total_points, quali_prediction_points, sprint_quali_prediction_points, sprint_race_prediction_points, race_prediction_points",
-          )
+          .select("team_points, prediction_points, total_points, quali_prediction_points, race_prediction_points")
           .eq("user_id", user.id)
           .eq("grand_prix_id", gpData.grandPrix.id)
           .maybeSingle<UserGrandPrixScoreRow>(),
@@ -136,6 +130,20 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
       raceP3: existingPrediction?.race_p3 ?? "",
     };
     const scoreDetails = userScoreDetails ?? [];
+    const publishedDriverScores = Object.fromEntries(
+      scoreDetails.map((detail) => [
+        detail.driver_id,
+        {
+          qualiPoints: detail.team_quali_points,
+          racePoints: detail.team_race_points,
+          totalPoints: detail.total_points,
+        },
+      ]),
+    );
+    const hasPublishedQualiTeamPoints = scoreDetails.some((detail) => detail.team_quali_points !== null);
+    const hasPublishedRaceTeamPoints = scoreDetails.some((detail) => detail.team_race_points !== null);
+    const hasPublishedPredictionQualiPoints = userScore?.quali_prediction_points !== null;
+    const hasPublishedPredictionRacePoints = userScore?.race_prediction_points !== null;
 
     const isReadOnly = gpData.grandPrix.deadline <= new Date().toISOString();
 
@@ -183,12 +191,18 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
           </nav>
 
           <section className="gp-spel-section" aria-labelledby="team-kiezen-title">
-            <h2 id="team-kiezen-title">Team kiezen</h2>
+            <div className="gp-spel-section-header">
+              <h2 id="team-kiezen-title">Team kiezen</h2>
+              {userScore ? <p className="gp-spel-section-points">Team punten: {userScore.team_points ?? 0}</p> : null}
+            </div>
             <TeamSelectionCompactForm
               leagueId={league.id}
               grandPrixId={gpData.grandPrix.id}
               drivers={gpData.drivers}
               initialSelectedDriverIds={initialSelectedDriverIds}
+              publishedDriverScores={publishedDriverScores}
+              hasPublishedQualiPoints={hasPublishedQualiTeamPoints}
+              hasPublishedRacePoints={hasPublishedRaceTeamPoints}
               savingDisabled={false}
               readOnly={isReadOnly}
               showFallbackNotice={gpData.usesFallbackPrices}
@@ -196,103 +210,44 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
           </section>
 
           <section className="gp-spel-section" aria-labelledby="voorspellingen-title">
-            <h2 id="voorspellingen-title">Voorspellingen</h2>
+            <div className="gp-spel-section-header">
+              <h2 id="voorspellingen-title">Voorspellingen</h2>
+              {userScore ? (
+                <p className="gp-spel-section-points">Voorspelling punten: {userScore.prediction_points ?? 0}</p>
+              ) : null}
+            </div>
             <PredictionsForm
               leagueId={league.id}
               grandPrixId={gpData.grandPrix.id}
               drivers={gpData.drivers}
               initialValues={initialPredictionValues}
+              publishedPoints={{
+                quali: hasPublishedPredictionQualiPoints ? (userScore?.quali_prediction_points ?? 0) : null,
+                race: hasPublishedPredictionRacePoints ? (userScore?.race_prediction_points ?? 0) : null,
+              }}
               readOnly={isReadOnly}
             />
           </section>
-
-          <section className="gp-spel-section" aria-labelledby="punten-overzicht-title">
-            <h2 id="punten-overzicht-title">Puntenoverzicht</h2>
-
-            {!userScore ? (
-              <p className="league-list-empty">Nog geen punten gepubliceerd voor deze Grand Prix</p>
-            ) : (
-              <div className="dashboard-latest-result-card gp-spel-score-card">
-                {scoreDetails.length > 0 ? (
-                  <ul className="dashboard-result-driver-grid" aria-label="Teampunten per coureur">
-                    {scoreDetails.map((detail) => {
-                      const driverName = detail.drivers?.name ?? "Onbekende coureur";
-                      const constructorTeam = detail.drivers?.constructor_team ?? "Onbekend team";
-                      const team = resolveTeamSelectionTeam(constructorTeam);
-
-                      return (
-                        <li key={detail.driver_id} className="dashboard-result-driver-card">
-                          <Image
-                            src={team.image}
-                            alt={`${constructorTeam} wagen`}
-                            width={140}
-                            height={56}
-                            className="dashboard-result-driver-image"
-                          />
-                          <p className="dashboard-result-driver-name">{driverName}</p>
-                          <dl className="dashboard-result-driver-points">
-                            <div>
-                              <dt>Team kwalificatie</dt>
-                              <dd>{detail.team_quali_points ?? 0}</dd>
-                            </div>
-                            <div>
-                              <dt>Team race</dt>
-                              <dd>{detail.team_race_points ?? 0}</dd>
-                            </div>
-                            <div>
-                              <dt>Totaal</dt>
-                              <dd>{detail.total_points ?? 0}</dd>
-                            </div>
-                          </dl>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : null}
-
-                <div className="gp-spel-score-breakdown-group">
-                  <h3 className="gp-spel-score-breakdown-title">Voorspelling punten</h3>
-                  <dl className="dashboard-result-driver-points gp-spel-score-breakdown-list">
-                    <div>
-                      <dt>Kwalificatie voorspelling</dt>
-                      <dd>{userScore.quali_prediction_points ?? 0}</dd>
-                    </div>
-                    <div>
-                      <dt>Race voorspelling</dt>
-                      <dd>{userScore.race_prediction_points ?? 0}</dd>
-                    </div>
-                    {(userScore.sprint_quali_prediction_points ?? 0) > 0 ? (
-                      <div className="gp-spel-score-breakdown-subtle">
-                        <dt>Sprint kwalificatie</dt>
-                        <dd>{userScore.sprint_quali_prediction_points ?? 0}</dd>
-                      </div>
-                    ) : null}
-                    {(userScore.sprint_race_prediction_points ?? 0) > 0 ? (
-                      <div className="gp-spel-score-breakdown-subtle">
-                        <dt>Sprint race</dt>
-                        <dd>{userScore.sprint_race_prediction_points ?? 0}</dd>
-                      </div>
-                    ) : null}
-                  </dl>
+          {userScore ? (
+            <section className="gp-spel-section gp-spel-totals-section" aria-label="Punten totaal">
+              <dl className="gp-spel-inline-totals">
+                <div>
+                  <dt>Team punten</dt>
+                  <dd>{userScore.team_points ?? 0}</dd>
                 </div>
-
-                <dl className="dashboard-result-summary">
-                  <div className="dashboard-result-stat">
-                    <dt>Team punten</dt>
-                    <dd>{userScore.team_points ?? 0}</dd>
-                  </div>
-                  <div className="dashboard-result-stat">
-                    <dt>Voorspelling punten</dt>
-                    <dd>{userScore.prediction_points ?? 0}</dd>
-                  </div>
-                  <div className="dashboard-result-stat dashboard-result-total-stat">
-                    <dt>Totaal punten</dt>
-                    <dd>{userScore.total_points ?? 0}</dd>
-                  </div>
-                </dl>
-              </div>
-            )}
-          </section>
+                <div>
+                  <dt>Voorspelling punten</dt>
+                  <dd>{userScore.prediction_points ?? 0}</dd>
+                </div>
+                <div>
+                  <dt>Totaal punten</dt>
+                  <dd>{userScore.total_points ?? 0}</dd>
+                </div>
+              </dl>
+            </section>
+          ) : (
+            <p className="league-list-empty">Nog geen punten gepubliceerd voor deze Grand Prix</p>
+          )}
         </section>
       </main>
     );
