@@ -190,6 +190,48 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     redirect(`/admin/grand-prix/${params.id}?message=Grand+Prix+weer+actief+gemaakt`);
   }
 
+  async function cancelGrandPrix(formData: FormData) {
+    "use server";
+
+    const grandPrixId = String(formData.get("grand_prix_id") ?? "").trim();
+
+    if (!grandPrixId) {
+      redirect(`/admin/grand-prix/${params.id}?error=Er+ging+iets+mis+bij+het+annuleren+van+deze+Grand+Prix`);
+    }
+
+    if (isGrandPrixCancelled(managedGrandPrix.status)) {
+      redirect(`/admin/grand-prix/${params.id}?error=Deze+Grand+Prix+is+al+geannuleerd`);
+    }
+
+    const actionSupabase = createServerSupabaseClient();
+    const {
+      data: { user: actionUser },
+      error: actionUserError,
+    } = await actionSupabase.auth.getUser();
+
+    if (actionUserError || !actionUser) {
+      redirect(`/admin/grand-prix/${params.id}?error=Je+hebt+geen+toegang+tot+deze+actie`);
+    }
+
+    const { data: actionProfile } = await actionSupabase
+      .from("profiles")
+      .select("role")
+      .eq("id", actionUser.id)
+      .maybeSingle<{ role: string | null }>();
+
+    if (actionProfile?.role !== "admin") {
+      redirect(`/admin/grand-prix/${params.id}?error=Je+hebt+geen+toegang+tot+deze+actie`);
+    }
+
+    const { error } = await actionSupabase.from("grand_prix").update({ status: "cancelled" }).eq("id", grandPrixId);
+
+    if (error) {
+      redirect(`/admin/grand-prix/${params.id}?error=Er+ging+iets+mis+bij+het+annuleren+van+deze+Grand+Prix`);
+    }
+
+    redirect(`/admin/grand-prix/${params.id}?message=Grand+Prix+geannuleerd`);
+  }
+
   const isCancelled = isGrandPrixCancelled(managedGrandPrix.status);
 
   return (
@@ -223,8 +265,8 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
             initialDeadline={toAmsterdamDateTimeLocalValue(managedGrandPrix.deadline)}
             initialQualificationStart={toAmsterdamDateTimeLocalValue(managedGrandPrix.qualification_start)}
           />
-          {isCancelled ? (
-            <div className="admin-action-stack">
+          <div className="admin-action-stack">
+            {isCancelled ? (
               <form action={reactivateGrandPrix}>
                 <input type="hidden" name="grand_prix_id" value={managedGrandPrix.id} />
                 <ConfirmReactivateSubmitButton
@@ -235,8 +277,17 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
                   cancelLabel="Annuleren"
                 />
               </form>
-            </div>
-          ) : null}
+            ) : (
+              <form action={cancelGrandPrix}>
+                <input type="hidden" name="grand_prix_id" value={managedGrandPrix.id} />
+                <ConfirmSubmitButton
+                  confirmMessage="Weet je zeker dat je deze Grand Prix wilt annuleren?"
+                  label="Grand Prix annuleren"
+                  pendingLabel="Annuleren..."
+                />
+              </form>
+            )}
+          </div>
         </section>
 
         <section className="predictions-section">
