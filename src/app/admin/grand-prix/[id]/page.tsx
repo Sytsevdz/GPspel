@@ -77,6 +77,8 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     );
   }
 
+  const managedGrandPrix = grandPrix;
+
   async function recalculatePrices(formData: FormData) {
     "use server";
 
@@ -85,7 +87,7 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     if (!grandPrixId) {
       redirect(`/admin/grand-prix/${params.id}?error=Er+ging+iets+mis+bij+het+berekenen+van+de+prijzen`);
     }
-    if (isGrandPrixCancelled(grandPrix.status)) {
+    if (isGrandPrixCancelled(managedGrandPrix.status)) {
       redirect(`/admin/grand-prix/${params.id}?error=Deze+Grand+Prix+is+geannuleerd.+Prijzen+kunnen+niet+worden+berekend`);
     }
 
@@ -114,7 +116,7 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     if (!grandPrixId) {
       redirect(`/admin/grand-prix/${params.id}?error=Er+ging+iets+mis+bij+het+resetten+van+de+prijzen`);
     }
-    if (isGrandPrixCancelled(grandPrix.status)) {
+    if (isGrandPrixCancelled(managedGrandPrix.status)) {
       redirect(`/admin/grand-prix/${params.id}?error=Deze+Grand+Prix+is+geannuleerd.+Prijzen+kunnen+niet+worden+beheerd`);
     }
 
@@ -133,7 +135,7 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
   async function clearResult(formData: FormData) {
     "use server";
 
-    if (isGrandPrixCancelled(grandPrix.status)) {
+    if (isGrandPrixCancelled(managedGrandPrix.status)) {
       redirect(`/admin/grand-prix/${params.id}?error=Deze+Grand+Prix+is+geannuleerd.+Resultaten+kunnen+niet+worden+gewijzigd`);
     }
 
@@ -145,7 +147,7 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     redirect(`/admin/grand-prix/${params.id}?error=${encodeURIComponent(state.message ?? "Er ging iets mis bij het resetten")}`);
   }
 
-  const isCancelled = isGrandPrixCancelled(grandPrix.status);
+  const isCancelled = isGrandPrixCancelled(managedGrandPrix.status);
 
   return (
     <main className="leagues-page">
@@ -154,13 +156,13 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
           <div>
             <h1>Beheer GP</h1>
             <p>
-              <strong>{grandPrix.name}</strong>
+              <strong>{managedGrandPrix.name}</strong>
             </p>
             <p>
-              Status: {getGrandPrixStatusLabel(grandPrix.status)}
+              Status: {getGrandPrixStatusLabel(managedGrandPrix.status)}
               {isCancelled ? <span className="gp-status-badge">Geannuleerd</span> : null}
             </p>
-            <p>Deadline: {formatUtcIsoInAmsterdam(grandPrix.deadline)}</p>
+            <p>Deadline: {formatUtcIsoInAmsterdam(managedGrandPrix.deadline)}</p>
           </div>
           <Link href="/admin" className="league-back-link">
             ← Terug naar admin dashboard
@@ -174,9 +176,9 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
           <h2>A. Instellingen</h2>
           <p>Pas de timing voor deze Grand Prix aan.</p>
           <DeadlineForm
-            grandPrixId={grandPrix.id}
-            initialDeadline={toAmsterdamDateTimeLocalValue(grandPrix.deadline)}
-            initialQualificationStart={toAmsterdamDateTimeLocalValue(grandPrix.qualification_start)}
+            grandPrixId={managedGrandPrix.id}
+            initialDeadline={toAmsterdamDateTimeLocalValue(managedGrandPrix.deadline)}
+            initialQualificationStart={toAmsterdamDateTimeLocalValue(managedGrandPrix.qualification_start)}
           />
         </section>
 
@@ -187,9 +189,9 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
           <div className="admin-action-stack">
             {!isCancelled ? (
               <>
-                <Link href={`/admin/grand-prix/${grandPrix.id}/result`}>Uitslag invoeren</Link>
+                <Link href={`/admin/grand-prix/${managedGrandPrix.id}/result`}>Uitslag invoeren</Link>
                 <form action={clearResult}>
-                  <input type="hidden" name="grand_prix_id" value={grandPrix.id} />
+                  <input type="hidden" name="grand_prix_id" value={managedGrandPrix.id} />
                   <ConfirmSubmitButton
                     confirmMessage="Weet je zeker dat je de opgeslagen uitslag voor deze Grand Prix wilt verwijderen?"
                     label="Uitslag resetten"
@@ -200,7 +202,7 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
           </div>
         </section>
 
-        <PublishScoreActions grandPrixId={grandPrix.id} disabled={isCancelled} />
+        <PublishScoreActions grandPrixId={managedGrandPrix.id} disabled={isCancelled} />
 
         <section className="predictions-section">
           <h2>D. Coureurs / prijzen</h2>
@@ -210,12 +212,12 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
             {!isCancelled ? (
               <>
                 <form action={recalculatePrices}>
-                  <input type="hidden" name="grand_prix_id" value={grandPrix.id} />
+                  <input type="hidden" name="grand_prix_id" value={managedGrandPrix.id} />
                   <button type="submit">Prijzen berekenen voor coureurs</button>
                 </form>
 
                 <form action={clearPrices}>
-                  <input type="hidden" name="grand_prix_id" value={grandPrix.id} />
+                  <input type="hidden" name="grand_prix_id" value={managedGrandPrix.id} />
                   <ResetPricesSubmitButton />
                 </form>
               </>
