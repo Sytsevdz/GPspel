@@ -94,7 +94,8 @@ export async function saveTeamSelection(
     };
   }
 
-  if (teamSelectionData.grandPrix.deadline <= new Date().toISOString()) {
+  const deadlineTimestamp = new Date(teamSelectionData.grandPrix.deadline).getTime();
+  if (deadlineTimestamp <= Date.now()) {
     return {
       status: "error",
       message: "De deadline van deze Grand Prix is verstreken.",

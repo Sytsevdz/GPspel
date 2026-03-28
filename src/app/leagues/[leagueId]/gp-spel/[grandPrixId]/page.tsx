@@ -184,7 +184,8 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
     const hasPublishedPredictionQualiPoints = userScore?.quali_prediction_points !== null;
     const hasPublishedPredictionRacePoints = userScore?.race_prediction_points !== null;
 
-    const isReadOnly = gpData.grandPrix.deadline <= new Date().toISOString();
+    const deadlineTimestamp = new Date(gpData.grandPrix.deadline).getTime();
+    const isReadOnly = deadlineTimestamp <= Date.now();
 
     return (
       <main className="leagues-page">
