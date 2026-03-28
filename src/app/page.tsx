@@ -17,7 +17,7 @@ type LeagueMembershipRow = {
 type LatestGrandPrixRow = {
   id: string;
   name: string;
-  qualification_start: string;
+  deadline: string;
 };
 
 type UserGrandPrixScoreRow = {
@@ -58,6 +58,7 @@ function formatDate(dateIso: string): string {
 
 export default async function HomePage() {
   const supabase = createServerSupabaseClient();
+  const nowIso = new Date().toISOString();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -95,9 +96,9 @@ export default async function HomePage() {
         .returns<LeagueMembershipRow[]>(),
       supabase
         .from("grand_prix")
-        .select("id, name, qualification_start")
-        .eq("status", "finished")
-        .order("qualification_start", { ascending: false })
+        .select("id, name, deadline")
+        .lte("deadline", nowIso)
+        .order("deadline", { ascending: false })
         .limit(1)
         .maybeSingle<LatestGrandPrixRow>(),
       supabase.from("profiles").select("id, display_name").returns<ProfileRow[]>(),
@@ -114,7 +115,6 @@ export default async function HomePage() {
       })) ?? [];
 
   const nextGrandPrix = await getCurrentSelectableGrandPrix(supabase).catch(() => null);
-  const nowIso = new Date().toISOString();
   const hasSelectableGrandPrix = nextGrandPrix ? nextGrandPrix.deadline > nowIso : false;
 
   const userLatestScore = latestGrandPrix
