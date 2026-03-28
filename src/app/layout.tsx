@@ -45,7 +45,7 @@ export default async function RootLayout({
             Home
           </Link>
 
-          <nav>
+          <nav className="desktop-nav" aria-label="Hoofdnavigatie">
             {user ? (
               <div className="nav-auth">
                 <MainNavigation isAdmin={isAdmin} defaultLeagueId={defaultLeagueId} />
@@ -62,6 +62,31 @@ export default async function RootLayout({
               </div>
             )}
           </nav>
+
+          <details className="mobile-menu">
+            <summary aria-label="Open menu">Menu</summary>
+            <div className="mobile-menu-panel">
+              {user ? (
+                <>
+                  <div className="mobile-menu-links">
+                    <MainNavigation isAdmin={isAdmin} defaultLeagueId={defaultLeagueId} />
+                  </div>
+                  <form action={logout}>
+                    <button type="submit" className="link-button mobile-menu-button">
+                      Uitloggen
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <div className="mobile-menu-links">
+                  <Link href="/login">Inloggen</Link>
+                  <Link href="/register">Meld je aan</Link>
+                  <Link href="/leagues">Leagues</Link>
+                  <Link href="/spelregels">Spelregels</Link>
+                </div>
+              )}
+            </div>
+          </details>
         </header>
         {children}
       </body>

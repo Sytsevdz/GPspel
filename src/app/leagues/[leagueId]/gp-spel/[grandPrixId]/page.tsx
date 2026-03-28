@@ -211,26 +211,27 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
               selectedGrandPrixId={gpData.grandPrix.id}
               routeBase={`/leagues/${league.id}/gp-spel`}
             />
+            <div className="gp-navigation-buttons">
+              {previousGrandPrixId ? (
+                <Link href={`/leagues/${league.id}/gp-spel/${previousGrandPrixId}`} className="league-back-link">
+                  ← Vorige GP
+                </Link>
+              ) : (
+                <span className="league-back-link disabled-link" aria-disabled="true">
+                  ← Vorige GP
+                </span>
+              )}
 
-            {previousGrandPrixId ? (
-              <Link href={`/leagues/${league.id}/gp-spel/${previousGrandPrixId}`} className="league-back-link">
-                ← Vorige GP
-              </Link>
-            ) : (
-              <span className="league-back-link disabled-link" aria-disabled="true">
-                ← Vorige GP
-              </span>
-            )}
-
-            {nextGrandPrixId ? (
-              <Link href={`/leagues/${league.id}/gp-spel/${nextGrandPrixId}`} className="league-back-link">
-                Volgende GP →
-              </Link>
-            ) : (
-              <span className="league-back-link disabled-link" aria-disabled="true">
-                Volgende GP →
-              </span>
-            )}
+              {nextGrandPrixId ? (
+                <Link href={`/leagues/${league.id}/gp-spel/${nextGrandPrixId}`} className="league-back-link">
+                  Volgende GP →
+                </Link>
+              ) : (
+                <span className="league-back-link disabled-link" aria-disabled="true">
+                  Volgende GP →
+                </span>
+              )}
+            </div>
           </nav>
 
           {isCancelled ? (
