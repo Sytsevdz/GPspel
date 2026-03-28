@@ -44,6 +44,7 @@ type ProfileRow = {
 };
 
 type ScoreRow = {
+  grand_prix_id: string;
   user_id: string;
   total_points: number | null;
 };
@@ -78,7 +79,7 @@ export default async function HomePage() {
     );
   }
 
-  const [{ data: memberships }, { data: latestGrandPrix }, { data: profiles }, { data: allScoreRows }] =
+  const [{ data: memberships }, { data: profiles }, { data: allScoreRows }, { data: activeGrandPrixRows }] =
     await Promise.all([
       supabase
         .from("league_members")
@@ -86,15 +87,9 @@ export default async function HomePage() {
         .eq("user_id", user.id)
         .order("joined_at", { ascending: true })
         .returns<LeagueMembershipRow[]>(),
-      supabase
-        .from("grand_prix")
-        .select("id, name, deadline")
-        .lte("deadline", nowIso)
-        .order("deadline", { ascending: false })
-        .limit(1)
-        .maybeSingle<LatestGrandPrixRow>(),
       supabase.from("profiles").select("id, display_name").returns<ProfileRow[]>(),
-      supabase.from("grand_prix_scores").select("user_id, total_points").returns<ScoreRow[]>(),
+      supabase.from("grand_prix_scores").select("grand_prix_id, user_id, total_points").returns<ScoreRow[]>(),
+      supabase.from("grand_prix").select("id").neq("status", "cancelled").returns<Array<{ id: string }>>(),
     ]);
 
   const firstLeagueId = memberships?.[0]?.league_id ?? null;
@@ -108,6 +103,20 @@ export default async function HomePage() {
 
   const nextGrandPrix = await getCurrentSelectableGrandPrix(supabase).catch(() => null);
   const hasSelectableGrandPrix = nextGrandPrix ? nextGrandPrix.deadline > nowIso : false;
+  const activeGrandPrixIds = new Set((activeGrandPrixRows ?? []).map((grandPrix) => grandPrix.id));
+  const scoredActiveGrandPrixIds = [...new Set((allScoreRows ?? []).map((row) => row.grand_prix_id))]
+    .filter((grandPrixId) => activeGrandPrixIds.has(grandPrixId));
+  const { data: latestGrandPrix } = scoredActiveGrandPrixIds.length
+    ? await supabase
+        .from("grand_prix")
+        .select("id, name, deadline")
+        .in("id", scoredActiveGrandPrixIds)
+        .eq("status", "finished")
+        .lte("deadline", nowIso)
+        .order("deadline", { ascending: false })
+        .limit(1)
+        .maybeSingle<LatestGrandPrixRow>()
+    : { data: null };
 
   const userLatestScore = latestGrandPrix
     ? (
@@ -134,10 +143,12 @@ export default async function HomePage() {
 
   const totalPointsByUserId = new Map<string, number>();
 
-  (allScoreRows ?? []).forEach((scoreRow) => {
-    const currentTotal = totalPointsByUserId.get(scoreRow.user_id) ?? 0;
-    totalPointsByUserId.set(scoreRow.user_id, currentTotal + (scoreRow.total_points ?? 0));
-  });
+  (allScoreRows ?? [])
+    .filter((scoreRow) => activeGrandPrixIds.has(scoreRow.grand_prix_id))
+    .forEach((scoreRow) => {
+      const currentTotal = totalPointsByUserId.get(scoreRow.user_id) ?? 0;
+      totalPointsByUserId.set(scoreRow.user_id, currentTotal + (scoreRow.total_points ?? 0));
+    });
 
   const globalStandings = (profiles ?? [])
     .map((profile) => ({

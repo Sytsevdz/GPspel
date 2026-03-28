@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { getGrandPrixStatusLabel, isGrandPrixCancelled, type GrandPrixStatus } from "@/lib/grand-prix-status";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 import { PublishScoreActions } from "./publish-score-actions";
@@ -50,9 +51,9 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
 
   const { data: grandPrix } = await supabase
     .from("grand_prix")
-    .select("id, name")
+    .select("id, name, status")
     .eq("id", params.id)
-    .maybeSingle<{ id: string; name: string }>();
+    .maybeSingle<{ id: string; name: string; status: GrandPrixStatus }>();
 
   if (!grandPrix) {
     return (
@@ -67,6 +68,8 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
       </main>
     );
   }
+
+  const isCancelled = isGrandPrixCancelled(grandPrix.status);
 
   const { data: drivers } = await supabase
     .from("drivers")
@@ -122,23 +125,31 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
             <p>
               Grand Prix: <strong>{grandPrix.name}</strong>
             </p>
+            <p>
+              Status: {getGrandPrixStatusLabel(grandPrix.status)}
+              {isCancelled ? <span className="gp-status-badge">Geannuleerd</span> : null}
+            </p>
           </div>
           <Link href={`/admin/grand-prix/${grandPrix.id}`} className="league-back-link">
             ← Terug naar Beheer GP
           </Link>
         </div>
 
-        <ResultForm
-          grandPrixId={grandPrix.id}
-          drivers={drivers.map((driver) => ({
-            id: driver.id,
-            name: driver.name,
-            constructorTeam: driver.constructor_team,
-          }))}
-          initialValues={initialValues}
-        />
+        {isCancelled ? (
+          <p className="league-list-empty">Deze GP is geannuleerd. Uitslag invoeren en score-publicatie zijn uitgeschakeld.</p>
+        ) : (
+          <ResultForm
+            grandPrixId={grandPrix.id}
+            drivers={drivers.map((driver) => ({
+              id: driver.id,
+              name: driver.name,
+              constructorTeam: driver.constructor_team,
+            }))}
+            initialValues={initialValues}
+          />
+        )}
 
-        <PublishScoreActions grandPrixId={grandPrix.id} />
+        <PublishScoreActions grandPrixId={grandPrix.id} disabled={isCancelled} />
       </section>
     </main>
   );

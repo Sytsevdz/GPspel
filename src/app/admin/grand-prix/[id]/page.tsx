@@ -9,6 +9,7 @@ import { ResetPricesSubmitButton } from "@/app/admin/reset-prices-submit-button"
 import { PublishScoreActions } from "@/app/admin/grand-prix/[id]/result/publish-score-actions";
 import { DeadlineForm } from "@/app/admin/grand-prix/[id]/deadline/deadline-form";
 import { formatUtcIsoInAmsterdam, toAmsterdamDateTimeLocalValue } from "@/lib/datetime";
+import { getGrandPrixStatusLabel, isGrandPrixCancelled, type GrandPrixStatus } from "@/lib/grand-prix-status";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 type GrandPrixManagementPageProps = {
@@ -24,7 +25,7 @@ type GrandPrixManagementPageProps = {
 type GrandPrixRow = {
   id: string;
   name: string;
-  status: string;
+  status: GrandPrixStatus;
   deadline: string;
   qualification_start: string;
 };
@@ -84,6 +85,9 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     if (!grandPrixId) {
       redirect(`/admin/grand-prix/${params.id}?error=Er+ging+iets+mis+bij+het+berekenen+van+de+prijzen`);
     }
+    if (isGrandPrixCancelled(grandPrix.status)) {
+      redirect(`/admin/grand-prix/${params.id}?error=Deze+Grand+Prix+is+geannuleerd.+Prijzen+kunnen+niet+worden+berekend`);
+    }
 
     try {
       await generateGrandPrixPricesFromPreviousResult(grandPrixId);
@@ -110,6 +114,9 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     if (!grandPrixId) {
       redirect(`/admin/grand-prix/${params.id}?error=Er+ging+iets+mis+bij+het+resetten+van+de+prijzen`);
     }
+    if (isGrandPrixCancelled(grandPrix.status)) {
+      redirect(`/admin/grand-prix/${params.id}?error=Deze+Grand+Prix+is+geannuleerd.+Prijzen+kunnen+niet+worden+beheerd`);
+    }
 
     try {
       await resetDriverPrices(grandPrixId);
@@ -126,6 +133,10 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
   async function clearResult(formData: FormData) {
     "use server";
 
+    if (isGrandPrixCancelled(grandPrix.status)) {
+      redirect(`/admin/grand-prix/${params.id}?error=Deze+Grand+Prix+is+geannuleerd.+Resultaten+kunnen+niet+worden+gewijzigd`);
+    }
+
     const state = await resetGrandPrixResult(undefined, formData);
     if (state.status === "success") {
       redirect(`/admin/grand-prix/${params.id}?message=${encodeURIComponent(state.message ?? "Uitslag gereset")}`);
@@ -133,6 +144,8 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
 
     redirect(`/admin/grand-prix/${params.id}?error=${encodeURIComponent(state.message ?? "Er ging iets mis bij het resetten")}`);
   }
+
+  const isCancelled = isGrandPrixCancelled(grandPrix.status);
 
   return (
     <main className="leagues-page">
@@ -143,7 +156,10 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
             <p>
               <strong>{grandPrix.name}</strong>
             </p>
-            <p>Status: {grandPrix.status}</p>
+            <p>
+              Status: {getGrandPrixStatusLabel(grandPrix.status)}
+              {isCancelled ? <span className="gp-status-badge">Geannuleerd</span> : null}
+            </p>
             <p>Deadline: {formatUtcIsoInAmsterdam(grandPrix.deadline)}</p>
           </div>
           <Link href="/admin" className="league-back-link">
@@ -167,33 +183,43 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
         <section className="predictions-section">
           <h2>B. Resultaten</h2>
           <p>Voer de uitslag in en beheer alleen de resultaatdata van deze GP.</p>
+          {isCancelled ? <p className="league-list-empty">Deze GP is geannuleerd. Resultaatbeheer is uitgeschakeld.</p> : null}
           <div className="admin-action-stack">
-            <Link href={`/admin/grand-prix/${grandPrix.id}/result`}>Uitslag invoeren</Link>
-            <form action={clearResult}>
-              <input type="hidden" name="grand_prix_id" value={grandPrix.id} />
-              <ConfirmSubmitButton
-                confirmMessage="Weet je zeker dat je de opgeslagen uitslag voor deze Grand Prix wilt verwijderen?"
-                label="Uitslag resetten"
-              />
-            </form>
+            {!isCancelled ? (
+              <>
+                <Link href={`/admin/grand-prix/${grandPrix.id}/result`}>Uitslag invoeren</Link>
+                <form action={clearResult}>
+                  <input type="hidden" name="grand_prix_id" value={grandPrix.id} />
+                  <ConfirmSubmitButton
+                    confirmMessage="Weet je zeker dat je de opgeslagen uitslag voor deze Grand Prix wilt verwijderen?"
+                    label="Uitslag resetten"
+                  />
+                </form>
+              </>
+            ) : null}
           </div>
         </section>
 
-        <PublishScoreActions grandPrixId={grandPrix.id} />
+        <PublishScoreActions grandPrixId={grandPrix.id} disabled={isCancelled} />
 
         <section className="predictions-section">
           <h2>D. Coureurs / prijzen</h2>
           <p>Bereken of reset coureursprijzen voor deze GP.</p>
+          {isCancelled ? <p className="league-list-empty">Deze GP is geannuleerd. Prijsbeheer is uitgeschakeld.</p> : null}
           <div className="admin-action-stack">
-            <form action={recalculatePrices}>
-              <input type="hidden" name="grand_prix_id" value={grandPrix.id} />
-              <button type="submit">Prijzen berekenen voor coureurs</button>
-            </form>
+            {!isCancelled ? (
+              <>
+                <form action={recalculatePrices}>
+                  <input type="hidden" name="grand_prix_id" value={grandPrix.id} />
+                  <button type="submit">Prijzen berekenen voor coureurs</button>
+                </form>
 
-            <form action={clearPrices}>
-              <input type="hidden" name="grand_prix_id" value={grandPrix.id} />
-              <ResetPricesSubmitButton />
-            </form>
+                <form action={clearPrices}>
+                  <input type="hidden" name="grand_prix_id" value={grandPrix.id} />
+                  <ResetPricesSubmitButton />
+                </form>
+              </>
+            ) : null}
           </div>
         </section>
       </section>

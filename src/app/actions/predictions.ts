@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { getGrandPrixAndDriversById } from "@/lib/team-selection-data";
+import { isGrandPrixCancelled } from "@/lib/grand-prix-status";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 export type PredictionsActionState = {
@@ -92,6 +93,13 @@ export async function savePrediction(
     return {
       status: "error",
       message: "De deadline van deze Grand Prix is verstreken.",
+    };
+  }
+
+  if (isGrandPrixCancelled(teamSelectionData.grandPrix.status)) {
+    return {
+      status: "error",
+      message: "Deze Grand Prix is geannuleerd. Voorspellingen zijn niet beschikbaar.",
     };
   }
 

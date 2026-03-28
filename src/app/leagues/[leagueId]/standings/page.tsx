@@ -36,21 +36,29 @@ export default async function StandingsPage({ params }: StandingsPageProps) {
     .returns<Array<{ user_id: string; profiles: { display_name: string } | null }>>();
 
   const memberIds = (members ?? []).map((member) => member.user_id);
+  const { data: activeGrandPrixRows } = await supabase
+    .from("grand_prix")
+    .select("id")
+    .neq("status", "cancelled")
+    .returns<Array<{ id: string }>>();
+  const activeGrandPrixIds = new Set((activeGrandPrixRows ?? []).map((grandPrix) => grandPrix.id));
 
   const { data: scoreRows, error: scoresError } = memberIds.length
     ? await supabase
         .from("grand_prix_scores")
-        .select("user_id, total_points")
+        .select("grand_prix_id, user_id, total_points")
         .in("user_id", memberIds)
-        .returns<Array<{ user_id: string; total_points: number }>>()
+        .returns<Array<{ grand_prix_id: string; user_id: string; total_points: number }>>()
     : { data: [], error: null };
 
   const totalPointsByUserId = new Map<string, number>();
 
-  (scoreRows ?? []).forEach((scoreRow) => {
-    const existingTotal = totalPointsByUserId.get(scoreRow.user_id) ?? 0;
-    totalPointsByUserId.set(scoreRow.user_id, existingTotal + (scoreRow.total_points ?? 0));
-  });
+  (scoreRows ?? [])
+    .filter((scoreRow) => activeGrandPrixIds.has(scoreRow.grand_prix_id))
+    .forEach((scoreRow) => {
+      const existingTotal = totalPointsByUserId.get(scoreRow.user_id) ?? 0;
+      totalPointsByUserId.set(scoreRow.user_id, existingTotal + (scoreRow.total_points ?? 0));
+    });
 
   const standings = (members ?? [])
     .map((member) => ({

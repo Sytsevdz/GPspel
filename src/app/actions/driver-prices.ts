@@ -3,11 +3,13 @@
 import { revalidatePath } from "next/cache";
 
 import { calculateDriverPricesFromSeasonResults } from "@/lib/driver-pricing";
+import { isGrandPrixCancelled, type GrandPrixStatus } from "@/lib/grand-prix-status";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 type GrandPrixCandidate = {
   id: string;
   name: string;
+  status: GrandPrixStatus;
   qualification_start: string;
 };
 
@@ -44,12 +46,15 @@ export async function generateGrandPrixPricesFromPreviousResult(grandPrixId: str
 
   const { data: targetGrandPrix, error: targetGrandPrixError } = await supabase
     .from("grand_prix")
-    .select("id, name, qualification_start")
+    .select("id, name, status, qualification_start")
     .eq("id", grandPrixId)
     .maybeSingle<GrandPrixCandidate>();
 
   if (targetGrandPrixError || !targetGrandPrix) {
     throw new Error("Grand Prix niet gevonden");
+  }
+  if (isGrandPrixCancelled(targetGrandPrix.status)) {
+    throw new Error("Deze Grand Prix is geannuleerd. Prijzen kunnen niet worden berekend.");
   }
 
   const { data: activeDrivers, error: activeDriversError } = await supabase

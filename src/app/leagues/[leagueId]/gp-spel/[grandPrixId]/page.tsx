@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { getGrandPrixStatusLabel, isGrandPrixCancelled } from "@/lib/grand-prix-status";
 import {
   getGrandPrixAndDriversById,
   getGrandPrixNavigation,
@@ -185,7 +186,8 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
     const hasPublishedPredictionRacePoints = userScore?.race_prediction_points !== null;
 
     const deadlineTimestamp = new Date(gpData.grandPrix.deadline).getTime();
-    const isReadOnly = deadlineTimestamp <= Date.now();
+    const isCancelled = isGrandPrixCancelled(gpData.grandPrix.status);
+    const isReadOnly = isCancelled || deadlineTimestamp <= Date.now();
 
     return (
       <main className="leagues-page">
@@ -196,6 +198,7 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
               <p>
                 Grand Prix: <strong>{gpData.grandPrix.name}</strong>
               </p>
+              {isCancelled ? <p className="gp-status-badge">{getGrandPrixStatusLabel(gpData.grandPrix.status)}</p> : null}
             </div>
             <Link href="/" className="league-back-link">
               ← Terug naar dashboard
@@ -230,46 +233,56 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
             )}
           </nav>
 
-          <section className="gp-spel-section" aria-labelledby="team-kiezen-title">
-            <div className="gp-spel-section-header">
-              <h2 id="team-kiezen-title">Team kiezen</h2>
-              {userScore ? <p className="gp-spel-section-points">Team punten: {userScore.team_points ?? 0}</p> : null}
-            </div>
-            <TeamSelectionCompactForm
-              leagueId={league.id}
-              grandPrixId={gpData.grandPrix.id}
-              drivers={gpData.drivers}
-              initialSelectedDriverIds={initialSelectedDriverIds}
-              publishedDriverScores={publishedDriverScores}
-              hasPublishedQualiPoints={hasPublishedQualiTeamPoints}
-              hasPublishedRacePoints={hasPublishedRaceTeamPoints}
-              savingDisabled={false}
-              readOnly={isReadOnly}
-              showFallbackNotice={gpData.usesFallbackPrices}
-            />
-          </section>
+          {isCancelled ? (
+            <section className="gp-spel-section">
+              <p className="league-list-empty">
+                Deze Grand Prix is geannuleerd. Team kiezen, voorspellingen en scores zijn niet van toepassing.
+              </p>
+            </section>
+          ) : (
+            <>
+              <section className="gp-spel-section" aria-labelledby="team-kiezen-title">
+                <div className="gp-spel-section-header">
+                  <h2 id="team-kiezen-title">Team kiezen</h2>
+                  {userScore ? <p className="gp-spel-section-points">Team punten: {userScore.team_points ?? 0}</p> : null}
+                </div>
+                <TeamSelectionCompactForm
+                  leagueId={league.id}
+                  grandPrixId={gpData.grandPrix.id}
+                  drivers={gpData.drivers}
+                  initialSelectedDriverIds={initialSelectedDriverIds}
+                  publishedDriverScores={publishedDriverScores}
+                  hasPublishedQualiPoints={hasPublishedQualiTeamPoints}
+                  hasPublishedRacePoints={hasPublishedRaceTeamPoints}
+                  savingDisabled={false}
+                  readOnly={isReadOnly}
+                  showFallbackNotice={gpData.usesFallbackPrices}
+                />
+              </section>
 
-          <section className="gp-spel-section" aria-labelledby="voorspellingen-title">
-            <div className="gp-spel-section-header">
-              <h2 id="voorspellingen-title">Voorspellingen</h2>
-              {userScore ? (
-                <p className="gp-spel-section-points">Voorspelling punten: {userScore.prediction_points ?? 0}</p>
-              ) : null}
-            </div>
-            <PredictionsForm
-              leagueId={league.id}
-              grandPrixId={gpData.grandPrix.id}
-              drivers={gpData.drivers}
-              initialValues={initialPredictionValues}
-              publishedPoints={{
-                quali: hasPublishedPredictionQualiPoints ? (userScore?.quali_prediction_points ?? 0) : null,
-                race: hasPublishedPredictionRacePoints ? (userScore?.race_prediction_points ?? 0) : null,
-              }}
-              publishedSlotPoints={slotPredictionPointsByField}
-              readOnly={isReadOnly}
-            />
-          </section>
-          {userScore ? (
+              <section className="gp-spel-section" aria-labelledby="voorspellingen-title">
+                <div className="gp-spel-section-header">
+                  <h2 id="voorspellingen-title">Voorspellingen</h2>
+                  {userScore ? (
+                    <p className="gp-spel-section-points">Voorspelling punten: {userScore.prediction_points ?? 0}</p>
+                  ) : null}
+                </div>
+                <PredictionsForm
+                  leagueId={league.id}
+                  grandPrixId={gpData.grandPrix.id}
+                  drivers={gpData.drivers}
+                  initialValues={initialPredictionValues}
+                  publishedPoints={{
+                    quali: hasPublishedPredictionQualiPoints ? (userScore?.quali_prediction_points ?? 0) : null,
+                    race: hasPublishedPredictionRacePoints ? (userScore?.race_prediction_points ?? 0) : null,
+                  }}
+                  publishedSlotPoints={slotPredictionPointsByField}
+                  readOnly={isReadOnly}
+                />
+              </section>
+            </>
+          )}
+          {!isCancelled && userScore ? (
             <section className="gp-spel-section gp-spel-totals-section" aria-label="Punten totaal">
               <dl className="gp-spel-inline-totals">
                 <div>
@@ -286,9 +299,9 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
                 </div>
               </dl>
             </section>
-          ) : (
+          ) : !isCancelled ? (
             <p className="league-list-empty">Nog geen punten gepubliceerd voor deze Grand Prix</p>
-          )}
+          ) : null}
         </section>
       </main>
     );

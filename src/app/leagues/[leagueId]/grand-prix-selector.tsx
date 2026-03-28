@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 
 import type { GrandPrixTimelineItem } from "@/lib/team-selection-data";
+import { getGrandPrixStatusLabel } from "@/lib/grand-prix-status";
 
 type GrandPrixSelectorProps = {
   timeline: GrandPrixTimelineItem[];
@@ -25,7 +26,7 @@ export function GrandPrixSelector({ timeline, selectedGrandPrixId, routeBase }: 
       >
         {timeline.map((grandPrix) => (
           <option key={grandPrix.id} value={grandPrix.id}>
-            {grandPrix.name}
+            {grandPrix.name} {grandPrix.status === "cancelled" ? `(${getGrandPrixStatusLabel(grandPrix.status)})` : ""}
           </option>
         ))}
       </select>
