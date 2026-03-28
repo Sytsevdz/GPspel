@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { formatUtcIsoInAmsterdam } from "@/lib/datetime";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 type AdminPageProps = {
@@ -17,16 +18,6 @@ type GrandPrixRow = {
   qualification_start: string;
   deadline: string;
 };
-
-function formatDateTime(dateValue: string) {
-  return new Intl.DateTimeFormat("nl-NL", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(dateValue));
-}
 
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const supabase = createServerSupabaseClient();
@@ -76,8 +67,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               <div>
                 <h2>{grandPrix.name}</h2>
                 <p>Status: {grandPrix.status}</p>
-                <p>Kwalificatie start: {formatDateTime(grandPrix.qualification_start)}</p>
-                <p>Deadline: {formatDateTime(grandPrix.deadline)}</p>
+                <p>Kwalificatie start: {formatUtcIsoInAmsterdam(grandPrix.qualification_start)}</p>
+                <p>Deadline: {formatUtcIsoInAmsterdam(grandPrix.deadline)}</p>
               </div>
               <div className="admin-action-stack">
                 <Link href={`/admin/grand-prix/${grandPrix.id}`}>Beheer GP</Link>

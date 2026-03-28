@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { toAmsterdamDateTimeLocalValue } from "@/lib/datetime";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 import { DeadlineForm } from "./deadline-form";
@@ -17,18 +18,6 @@ type GrandPrixDeadlineRow = {
   deadline: string;
   qualification_start: string;
 };
-
-function toDateTimeLocalValue(dateValue: string) {
-  const date = new Date(dateValue);
-
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  const pad = (value: number) => String(value).padStart(2, "0");
-
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
 
 export default async function GrandPrixDeadlinePage({ params }: DeadlinePageProps) {
   const supabase = createServerSupabaseClient();
@@ -97,8 +86,8 @@ export default async function GrandPrixDeadlinePage({ params }: DeadlinePageProp
 
         <DeadlineForm
           grandPrixId={grandPrix.id}
-          initialDeadline={toDateTimeLocalValue(grandPrix.deadline)}
-          initialQualificationStart={toDateTimeLocalValue(grandPrix.qualification_start)}
+          initialDeadline={toAmsterdamDateTimeLocalValue(grandPrix.deadline)}
+          initialQualificationStart={toAmsterdamDateTimeLocalValue(grandPrix.qualification_start)}
         />
       </section>
     </main>
