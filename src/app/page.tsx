@@ -142,7 +142,7 @@ export default async function HomePage() {
           .from("grand_prix_scores")
           .select("id")
           .eq("grand_prix_id", latestGrandPrix.id)
-          .or("team_race_points.not.is.null,race_prediction_points.not.is.null")
+          .or("team_race_points.gt.0,race_prediction_points.gt.0")
           .limit(1)
           .maybeSingle<PublishedRaceScoreRow>()
       ).data !== null
