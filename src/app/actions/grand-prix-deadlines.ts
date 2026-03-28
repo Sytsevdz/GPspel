@@ -3,29 +3,10 @@
 import { revalidatePath } from "next/cache";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { parseAmsterdamDateTimeLocalToUtcIso } from "@/lib/datetime";
 
 const DEADLINE_ERROR_MESSAGE = "Er ging iets mis bij het opslaan van de deadline";
 const DEADLINE_SUCCESS_MESSAGE = "Deadline succesvol opgeslagen";
-
-const toDateIsoString = (value: FormDataEntryValue | null) => {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmed = value.trim();
-
-  if (!trimmed) {
-    return null;
-  }
-
-  const parsedDate = new Date(trimmed);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return null;
-  }
-
-  return parsedDate.toISOString();
-};
 
 export type DeadlineActionState = {
   status: "idle" | "success" | "error";
@@ -39,8 +20,8 @@ export async function updateGrandPrixDeadline(
   formData: FormData,
 ): Promise<DeadlineActionState> {
   const grandPrixId = String(formData.get("grand_prix_id") ?? "").trim();
-  const deadline = toDateIsoString(formData.get("deadline"));
-  const qualificationStart = toDateIsoString(formData.get("qualification_start"));
+  const deadline = parseAmsterdamDateTimeLocalToUtcIso(formData.get("deadline"));
+  const qualificationStart = parseAmsterdamDateTimeLocalToUtcIso(formData.get("qualification_start"));
 
   if (!grandPrixId || !deadline || !qualificationStart) {
     return { status: "error", message: DEADLINE_ERROR_MESSAGE } as const;

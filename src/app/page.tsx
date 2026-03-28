@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 
+import { formatUtcIsoInAmsterdamShort } from "@/lib/datetime";
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 import { getCurrentSelectableGrandPrix } from "@/lib/team-selection-data";
@@ -46,15 +47,6 @@ type ScoreRow = {
   user_id: string;
   total_points: number | null;
 };
-
-function formatDate(dateIso: string): string {
-  return new Date(dateIso).toLocaleString("nl-NL", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 export default async function HomePage() {
   const supabase = createServerSupabaseClient();
@@ -306,7 +298,9 @@ export default async function HomePage() {
               <p className="dashboard-data-title">{nextGrandPrix.name}</p>
               <p>
                 {hasSelectableGrandPrix ? "Deadline" : "Kwalificatie start"}:{" "}
-                {formatDate(hasSelectableGrandPrix ? nextGrandPrix.deadline : nextGrandPrix.qualification_start)}
+                {formatUtcIsoInAmsterdamShort(
+                  hasSelectableGrandPrix ? nextGrandPrix.deadline : nextGrandPrix.qualification_start,
+                )}
               </p>
               <Link
                 className="dashboard-secondary-cta"

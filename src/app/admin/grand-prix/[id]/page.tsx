@@ -8,6 +8,7 @@ import { ConfirmSubmitButton } from "@/app/admin/confirm-submit-button";
 import { ResetPricesSubmitButton } from "@/app/admin/reset-prices-submit-button";
 import { PublishScoreActions } from "@/app/admin/grand-prix/[id]/result/publish-score-actions";
 import { DeadlineForm } from "@/app/admin/grand-prix/[id]/deadline/deadline-form";
+import { formatUtcIsoInAmsterdam, toAmsterdamDateTimeLocalValue } from "@/lib/datetime";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 type GrandPrixManagementPageProps = {
@@ -27,28 +28,6 @@ type GrandPrixRow = {
   deadline: string;
   qualification_start: string;
 };
-
-function toDateTimeLocalValue(dateValue: string) {
-  const date = new Date(dateValue);
-
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  const pad = (value: number) => String(value).padStart(2, "0");
-
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function formatDateTime(dateValue: string) {
-  return new Intl.DateTimeFormat("nl-NL", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(dateValue));
-}
 
 export default async function GrandPrixManagementPage({ params, searchParams }: GrandPrixManagementPageProps) {
   const supabase = createServerSupabaseClient();
@@ -165,7 +144,7 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
               <strong>{grandPrix.name}</strong>
             </p>
             <p>Status: {grandPrix.status}</p>
-            <p>Deadline: {formatDateTime(grandPrix.deadline)}</p>
+            <p>Deadline: {formatUtcIsoInAmsterdam(grandPrix.deadline)}</p>
           </div>
           <Link href="/admin" className="league-back-link">
             ← Terug naar admin dashboard
@@ -180,8 +159,8 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
           <p>Pas de timing voor deze Grand Prix aan.</p>
           <DeadlineForm
             grandPrixId={grandPrix.id}
-            initialDeadline={toDateTimeLocalValue(grandPrix.deadline)}
-            initialQualificationStart={toDateTimeLocalValue(grandPrix.qualification_start)}
+            initialDeadline={toAmsterdamDateTimeLocalValue(grandPrix.deadline)}
+            initialQualificationStart={toAmsterdamDateTimeLocalValue(grandPrix.qualification_start)}
           />
         </section>
 

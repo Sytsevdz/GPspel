@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatUtcIsoInAmsterdamShort } from "@/lib/datetime";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 import { getCurrentSelectableGrandPrix } from "@/lib/team-selection-data";
@@ -173,12 +174,7 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
                 Status: <strong>{isGrandPrixSelectable ? "Open voor keuzes" : "Meest recente Grand Prix"}</strong>
               </p>
               <p>
-                Deadline: {new Date(currentOrUpcomingGrandPrix.deadline).toLocaleString("nl-NL", {
-                  day: "2-digit",
-                  month: "short",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+                Deadline: {formatUtcIsoInAmsterdamShort(currentOrUpcomingGrandPrix.deadline)}
               </p>
             </div>
           ) : (
