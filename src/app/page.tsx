@@ -79,7 +79,13 @@ export default async function HomePage() {
     );
   }
 
-  const [{ data: memberships }, { data: profiles }, { data: allScoreRows }, { data: activeGrandPrixRows }] =
+  const [
+    { data: memberships },
+    { data: profiles },
+    { data: allScoreRows },
+    { data: activeGrandPrixRows },
+    { data: currentOrRecentGrandPrix },
+  ] =
     await Promise.all([
       supabase
         .from("league_members")
@@ -90,6 +96,14 @@ export default async function HomePage() {
       supabase.from("profiles").select("id, display_name").returns<ProfileRow[]>(),
       supabase.from("grand_prix_scores").select("grand_prix_id, user_id, total_points").returns<ScoreRow[]>(),
       supabase.from("grand_prix").select("id").neq("status", "cancelled").returns<Array<{ id: string }>>(),
+      supabase
+        .from("grand_prix")
+        .select("id, name, deadline")
+        .neq("status", "cancelled")
+        .lte("deadline", nowIso)
+        .order("deadline", { ascending: false })
+        .limit(1)
+        .maybeSingle<LatestGrandPrixRow>(),
     ]);
 
   const firstLeagueId = memberships?.[0]?.league_id ?? null;
@@ -106,17 +120,17 @@ export default async function HomePage() {
   const activeGrandPrixIds = new Set((activeGrandPrixRows ?? []).map((grandPrix) => grandPrix.id));
   const scoredActiveGrandPrixIds = [...new Set((allScoreRows ?? []).map((row) => row.grand_prix_id))]
     .filter((grandPrixId) => activeGrandPrixIds.has(grandPrixId));
-  const { data: latestGrandPrix } = scoredActiveGrandPrixIds.length
+  const { data: fallbackScoredGrandPrix } = scoredActiveGrandPrixIds.length
     ? await supabase
         .from("grand_prix")
         .select("id, name, deadline")
         .in("id", scoredActiveGrandPrixIds)
-        .eq("status", "finished")
-        .lte("deadline", nowIso)
+        .neq("status", "cancelled")
         .order("deadline", { ascending: false })
         .limit(1)
         .maybeSingle<LatestGrandPrixRow>()
     : { data: null };
+  const latestGrandPrix = currentOrRecentGrandPrix ?? fallbackScoredGrandPrix;
 
   const userLatestScore = latestGrandPrix
     ? (
