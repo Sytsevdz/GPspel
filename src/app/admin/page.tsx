@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { formatUtcIsoInAmsterdam } from "@/lib/datetime";
+import { getGrandPrixStatusLabel, type GrandPrixStatus } from "@/lib/grand-prix-status";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 type AdminPageProps = {
@@ -14,7 +15,7 @@ type AdminPageProps = {
 type GrandPrixRow = {
   id: string;
   name: string;
-  status: string;
+  status: GrandPrixStatus;
   qualification_start: string;
   deadline: string;
 };
@@ -66,7 +67,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             <li key={grandPrix.id} className="league-list-item">
               <div>
                 <h2>{grandPrix.name}</h2>
-                <p>Status: {grandPrix.status}</p>
+                <p>
+                  Status: {getGrandPrixStatusLabel(grandPrix.status)}
+                  {grandPrix.status === "cancelled" ? <span className="gp-status-badge">Geannuleerd</span> : null}
+                </p>
                 <p>Kwalificatie start: {formatUtcIsoInAmsterdam(grandPrix.qualification_start)}</p>
                 <p>Deadline: {formatUtcIsoInAmsterdam(grandPrix.deadline)}</p>
               </div>

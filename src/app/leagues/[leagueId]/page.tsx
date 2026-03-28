@@ -68,6 +68,12 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
   const showLeaveLeague = isLeagueMember && !canManageLeague;
 
   const memberIds = (members ?? []).map((member) => member.user_id);
+  const { data: activeGrandPrixRows } = await supabase
+    .from("grand_prix")
+    .select("id")
+    .neq("status", "cancelled")
+    .returns<Array<{ id: string }>>();
+  const activeGrandPrixIds = new Set((activeGrandPrixRows ?? []).map((grandPrix) => grandPrix.id));
 
   const { data: scoreRows, error: scoresError } = memberIds.length
     ? await supabase
@@ -76,10 +82,11 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
         .in("user_id", memberIds)
         .returns<LeagueScoreRow[]>()
     : { data: [], error: null };
+  const filteredScoreRows = (scoreRows ?? []).filter((scoreRow) => activeGrandPrixIds.has(scoreRow.grand_prix_id));
 
   const totalPointsByUserId = new Map<string, number>();
 
-  (scoreRows ?? []).forEach((scoreRow) => {
+  filteredScoreRows.forEach((scoreRow) => {
     const currentPoints = totalPointsByUserId.get(scoreRow.user_id) ?? 0;
     totalPointsByUserId.set(scoreRow.user_id, currentPoints + (scoreRow.total_points ?? 0));
   });
@@ -92,13 +99,14 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
     }))
     .sort((left, right) => right.totaalPunten - left.totaalPunten || left.spelerNaam.localeCompare(right.spelerNaam));
 
-  const scoredGrandPrixIds = [...new Set((scoreRows ?? []).map((scoreRow) => scoreRow.grand_prix_id))];
+  const scoredGrandPrixIds = [...new Set(filteredScoreRows.map((scoreRow) => scoreRow.grand_prix_id))];
 
   const { data: latestScoredGrandPrix } = scoredGrandPrixIds.length
     ? await supabase
         .from("grand_prix")
         .select("id, name, deadline")
         .in("id", scoredGrandPrixIds)
+        .eq("status", "finished")
         .lte("deadline", nowIso)
         .order("deadline", { ascending: false })
         .limit(1)
@@ -107,8 +115,8 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
 
   const latestGrandPrixPointsByUserId = new Map<string, number>();
 
-  if (latestScoredGrandPrix && scoreRows) {
-    scoreRows
+  if (latestScoredGrandPrix) {
+    filteredScoreRows
       .filter((scoreRow) => scoreRow.grand_prix_id === latestScoredGrandPrix.id)
       .forEach((scoreRow) => {
         latestGrandPrixPointsByUserId.set(scoreRow.user_id, scoreRow.total_points ?? 0);

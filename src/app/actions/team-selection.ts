@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { isGrandPrixCancelled } from "@/lib/grand-prix-status";
 import { getGrandPrixAndDriversById } from "@/lib/team-selection-data";
 
 const MAX_BUDGET = 1000;
@@ -95,6 +96,13 @@ export async function saveTeamSelection(
   }
 
   const deadlineTimestamp = new Date(teamSelectionData.grandPrix.deadline).getTime();
+  if (isGrandPrixCancelled(teamSelectionData.grandPrix.status)) {
+    return {
+      status: "error",
+      message: "Deze Grand Prix is geannuleerd. Team kiezen is niet beschikbaar.",
+    };
+  }
+
   if (deadlineTimestamp <= Date.now()) {
     return {
       status: "error",

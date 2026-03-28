@@ -7,7 +7,7 @@ import { createServerSupabaseClient } from "@/lib/supabase";
 export type SelectableGrandPrix = {
   id: string;
   name: string;
-  status: "upcoming" | "open" | "locked" | "finished";
+  status: "upcoming" | "open" | "locked" | "finished" | "cancelled";
   qualification_start: string;
   deadline: string;
 };
@@ -15,6 +15,7 @@ export type SelectableGrandPrix = {
 export type GrandPrixTimelineItem = {
   id: string;
   name: string;
+  status: "upcoming" | "open" | "locked" | "finished" | "cancelled";
   qualification_start: string;
   deadline: string;
 };
@@ -155,7 +156,7 @@ export async function getGrandPrixTimeline(
 ): Promise<GrandPrixTimelineItem[]> {
   const { data, error } = await supabase
     .from("grand_prix")
-    .select("id, name, qualification_start, deadline")
+    .select("id, name, status, qualification_start, deadline")
     .order("qualification_start", { ascending: true })
     .returns<GrandPrixTimelineItem[]>();
 
@@ -175,14 +176,15 @@ export async function getCurrentSelectableGrandPrix(
 ): Promise<GrandPrixTimelineItem> {
   const timeline = await getGrandPrixTimeline(supabase);
   const serverNowIso = new Date().toISOString();
+  const activeTimeline = timeline.filter((grandPrix) => grandPrix.status !== "cancelled");
 
-  const selectableGrandPrix = timeline.find((grandPrix) => grandPrix.deadline > serverNowIso);
+  const selectableGrandPrix = activeTimeline.find((grandPrix) => grandPrix.deadline > serverNowIso);
 
   if (selectableGrandPrix) {
     return selectableGrandPrix;
   }
 
-  const mostRecentPastGrandPrix = [...timeline]
+  const mostRecentPastGrandPrix = [...activeTimeline]
     .filter((grandPrix) => grandPrix.deadline <= serverNowIso)
     .sort((left, right) => right.qualification_start.localeCompare(left.qualification_start))[0];
 
@@ -199,7 +201,7 @@ export async function getGrandPrixAndDriversById(
 ): Promise<TeamSelectionDataResult> {
   const { data: grandPrix, error: grandPrixError } = await supabase
     .from("grand_prix")
-    .select("id, name, qualification_start, deadline")
+    .select("id, name, status, qualification_start, deadline")
     .eq("id", grandPrixId)
     .maybeSingle<GrandPrixTimelineItem>();
 

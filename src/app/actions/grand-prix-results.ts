@@ -8,6 +8,7 @@ import {
   calculateGrandPrixSprintQualificationScores,
   calculateGrandPrixSprintRaceScores,
 } from "@/app/actions/grand-prix-scores";
+import { isGrandPrixCancelled, type GrandPrixStatus } from "@/lib/grand-prix-status";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 export type GrandPrixResultActionState = {
@@ -40,10 +41,17 @@ async function requireAdminAndGrandPrix(grandPrixId: string) {
     return { supabase: null, error: "Je hebt geen toegang tot deze pagina." };
   }
 
-  const { data: grandPrix } = await supabase.from("grand_prix").select("id").eq("id", grandPrixId).maybeSingle<{ id: string }>();
+  const { data: grandPrix } = await supabase
+    .from("grand_prix")
+    .select("id, status")
+    .eq("id", grandPrixId)
+    .maybeSingle<{ id: string; status: GrandPrixStatus }>();
 
   if (!grandPrix) {
     return { supabase: null, error: "Er ging iets mis bij het opslaan" };
+  }
+  if (isGrandPrixCancelled(grandPrix.status)) {
+    return { supabase: null, error: "Deze Grand Prix is geannuleerd. Deze actie is niet beschikbaar." };
   }
 
   return { supabase, error: null };

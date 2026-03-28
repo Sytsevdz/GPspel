@@ -7,13 +7,19 @@ type ConfirmSubmitButtonProps = {
   confirmMessage: string;
   label: string;
   pendingLabel?: string;
+  disabled?: boolean;
 };
 
-export function ConfirmSubmitButton({ confirmMessage, label, pendingLabel = "Bezig..." }: ConfirmSubmitButtonProps) {
+export function ConfirmSubmitButton({
+  confirmMessage,
+  label,
+  pendingLabel = "Bezig...",
+  disabled = false,
+}: ConfirmSubmitButtonProps) {
   const { pending } = useFormStatus();
 
   const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
-    if (pending) {
+    if (pending || disabled) {
       return;
     }
 
@@ -25,7 +31,7 @@ export function ConfirmSubmitButton({ confirmMessage, label, pendingLabel = "Bez
   };
 
   return (
-    <button type="submit" onClick={handleClick} disabled={pending}>
+    <button type="submit" onClick={handleClick} disabled={disabled || pending}>
       {pending ? pendingLabel : label}
     </button>
   );

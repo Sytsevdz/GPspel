@@ -10,7 +10,7 @@ create extension if not exists pgcrypto;
 do $$
 begin
   if not exists (select 1 from pg_type where typname = 'grand_prix_status') then
-    create type grand_prix_status as enum ('upcoming', 'open', 'locked', 'finished');
+    create type grand_prix_status as enum ('upcoming', 'open', 'locked', 'finished', 'cancelled');
   end if;
 end$$;
 
