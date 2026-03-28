@@ -3,6 +3,7 @@ import { formatUtcIsoInAmsterdamShort } from "@/lib/datetime";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 import { getCurrentSelectableGrandPrix } from "@/lib/team-selection-data";
+import { getLatestCurrentOrScoredGrandPrix } from "@/lib/latest-grand-prix";
 import { getAccessibleLeague } from "./league-access";
 import { DeleteLeagueAction } from "./delete-league-action";
 import { LeaveLeagueAction } from "./leave-league-action";
@@ -101,29 +102,19 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
 
   const scoredGrandPrixIds = [...new Set(filteredScoreRows.map((scoreRow) => scoreRow.grand_prix_id))];
 
-  const { data: latestScoredGrandPrix } = scoredGrandPrixIds.length
-    ? await supabase
-        .from("grand_prix")
-        .select("id, name, deadline")
-        .in("id", scoredGrandPrixIds)
-        .eq("status", "finished")
-        .lte("deadline", nowIso)
-        .order("deadline", { ascending: false })
-        .limit(1)
-        .maybeSingle<{ id: string; name: string; deadline: string }>()
-    : { data: null };
+  const latestGrandPrix = await getLatestCurrentOrScoredGrandPrix(supabase, scoredGrandPrixIds, nowIso);
 
   const latestGrandPrixPointsByUserId = new Map<string, number>();
 
-  if (latestScoredGrandPrix) {
+  if (latestGrandPrix) {
     filteredScoreRows
-      .filter((scoreRow) => scoreRow.grand_prix_id === latestScoredGrandPrix.id)
+      .filter((scoreRow) => scoreRow.grand_prix_id === latestGrandPrix.id)
       .forEach((scoreRow) => {
         latestGrandPrixPointsByUserId.set(scoreRow.user_id, scoreRow.total_points ?? 0);
       });
   }
 
-  const latestGrandPrixStandings = latestScoredGrandPrix
+  const latestGrandPrixStandings = latestGrandPrix
     ? (members ?? [])
         .map((member) => ({
           userId: member.user_id,
@@ -157,10 +148,10 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
           <LeagueResultsPanel
             leagueId={league.id}
             latestCompletedGrandPrix={
-              latestScoredGrandPrix
+              latestGrandPrix
                 ? {
-                    id: latestScoredGrandPrix.id,
-                    name: latestScoredGrandPrix.name,
+                    id: latestGrandPrix.id,
+                    name: latestGrandPrix.name,
                   }
                 : null
             }

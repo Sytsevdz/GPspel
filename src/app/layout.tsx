@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { MainNavigation } from "@/app/main-navigation";
+import { MobileMenu } from "@/app/mobile-menu";
 import { logout } from "@/app/actions/auth";
 import { createServerSupabaseClient } from "@/lib/supabase";
 import "@/styles/globals.css";
@@ -63,30 +64,7 @@ export default async function RootLayout({
             )}
           </nav>
 
-          <details className="mobile-menu">
-            <summary aria-label="Open menu">Menu</summary>
-            <div className="mobile-menu-panel">
-              {user ? (
-                <>
-                  <div className="mobile-menu-links">
-                    <MainNavigation isAdmin={isAdmin} defaultLeagueId={defaultLeagueId} />
-                  </div>
-                  <form action={logout}>
-                    <button type="submit" className="link-button mobile-menu-button">
-                      Uitloggen
-                    </button>
-                  </form>
-                </>
-              ) : (
-                <div className="mobile-menu-links">
-                  <Link href="/login">Inloggen</Link>
-                  <Link href="/register">Meld je aan</Link>
-                  <Link href="/leagues">Leagues</Link>
-                  <Link href="/spelregels">Spelregels</Link>
-                </div>
-              )}
-            </div>
-          </details>
+          <MobileMenu isAuthenticated={Boolean(user)} isAdmin={isAdmin} defaultLeagueId={defaultLeagueId} />
         </header>
         {children}
       </body>
