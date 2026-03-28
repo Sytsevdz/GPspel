@@ -19,6 +19,7 @@ type LatestGrandPrixRow = {
   id: string;
   name: string;
   deadline: string;
+  status: "upcoming" | "open" | "locked" | "finished";
 };
 
 type UserGrandPrixScoreRow = {
@@ -47,6 +48,10 @@ type ScoreRow = {
   grand_prix_id: string;
   user_id: string;
   total_points: number | null;
+};
+
+type PublishedRaceScoreRow = {
+  id: string;
 };
 
 export default async function HomePage() {
@@ -98,7 +103,7 @@ export default async function HomePage() {
       supabase.from("grand_prix").select("id").neq("status", "cancelled").returns<Array<{ id: string }>>(),
       supabase
         .from("grand_prix")
-        .select("id, name, deadline")
+        .select("id, name, deadline, status")
         .neq("status", "cancelled")
         .lte("deadline", nowIso)
         .order("deadline", { ascending: false })
@@ -123,7 +128,7 @@ export default async function HomePage() {
   const { data: fallbackScoredGrandPrix } = scoredActiveGrandPrixIds.length
     ? await supabase
         .from("grand_prix")
-        .select("id, name, deadline")
+        .select("id, name, deadline, status")
         .in("id", scoredActiveGrandPrixIds)
         .neq("status", "cancelled")
         .order("deadline", { ascending: false })
@@ -131,6 +136,21 @@ export default async function HomePage() {
         .maybeSingle<LatestGrandPrixRow>()
     : { data: null };
   const latestGrandPrix = currentOrRecentGrandPrix ?? fallbackScoredGrandPrix;
+  const hasPublishedRaceScores = latestGrandPrix
+    ? (
+        await supabase
+          .from("grand_prix_scores")
+          .select("id")
+          .eq("grand_prix_id", latestGrandPrix.id)
+          .or("team_race_points.not.is.null,race_prediction_points.not.is.null")
+          .limit(1)
+          .maybeSingle<PublishedRaceScoreRow>()
+      ).data !== null
+    : false;
+  const isLatestGrandPrixFinished = latestGrandPrix
+    ? latestGrandPrix.status === "finished" || hasPublishedRaceScores
+    : false;
+  const latestGrandPrixStatusLabel = isLatestGrandPrixFinished ? "Afgelopen" : "Bezig";
 
   const userLatestScore = latestGrandPrix
     ? (
@@ -186,7 +206,18 @@ export default async function HomePage() {
 
       <section className="dashboard-grid" aria-label="Dashboard-overzicht">
         <article className="dashboard-card dashboard-home-card dashboard-home-card--latest">
-          <h2>Laatste Grand Prix</h2>
+          <div className="dashboard-card-heading">
+            <h2>Laatste Grand Prix</h2>
+            {latestGrandPrix ? (
+              <span
+                className={`dashboard-gp-status-badge ${
+                  isLatestGrandPrixFinished ? "dashboard-gp-status-badge--finished" : "dashboard-gp-status-badge--ongoing"
+                }`}
+              >
+                {latestGrandPrixStatusLabel}
+              </span>
+            ) : null}
+          </div>
           {!latestGrandPrix ? (
             <p className="league-list-empty">Er is nog geen afgeronde Grand Prix beschikbaar.</p>
           ) : (
