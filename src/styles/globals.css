@@ -1648,6 +1648,33 @@ button.podium-slot:hover {
   gap: 0.5rem;
 }
 
+.player-detail-driver-points {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+}
+
+.player-detail-driver-points div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.player-detail-driver-points dt {
+  color: #c5c5c5;
+  font-size: 0.74rem;
+}
+
+.player-detail-driver-points dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.player-detail-totals {
+  margin-top: 0.2rem;
+}
+
 .player-detail-price {
   justify-self: center;
   padding: 0.2rem 0.55rem;

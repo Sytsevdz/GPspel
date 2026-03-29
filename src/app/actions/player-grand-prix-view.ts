@@ -9,6 +9,19 @@ type PodiumEntry = {
   constructorTeam: string;
 };
 
+type TeamScoreDetail = {
+  driverId: string;
+  teamQualiPoints: number | null;
+  teamRacePoints: number | null;
+  totalPoints: number | null;
+};
+
+type PredictionSlotScore = {
+  predictionType: "quali" | "race";
+  slotPosition: 1 | 2 | 3;
+  points: number | null;
+};
+
 export type PlayerGrandPrixViewResult =
   | {
       status: "success";
@@ -16,6 +29,13 @@ export type PlayerGrandPrixViewResult =
       teamSelection: PodiumEntry[];
       qualificationPodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null;
       racePodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null;
+      teamScoreDetails: TeamScoreDetail[];
+      predictionSlotScores: PredictionSlotScore[];
+      totals: {
+        teamPoints: number | null;
+        predictionPoints: number | null;
+        totalPoints: number | null;
+      };
     }
   | {
       status: "error";
@@ -116,7 +136,8 @@ export async function getPlayerGrandPrixView(
     };
   }
 
-  const [{ data: teamSelection }, { data: prediction }] = await Promise.all([
+  const [{ data: teamSelection }, { data: prediction }, { data: teamScoreDetails }, { data: predictionSlotScores }, { data: totals }] =
+    await Promise.all([
     supabase
       .from("team_selections")
       .select("id, team_selection_drivers(driver_id, drivers(id, name, constructor_team))")
@@ -145,6 +166,41 @@ export async function getPlayerGrandPrixView(
         race_p1: string;
         race_p2: string;
         race_p3: string;
+      }>(),
+    supabase
+      .from("grand_prix_score_details")
+      .select("driver_id, team_quali_points, team_race_points, total_points")
+      .eq("user_id", safePlayerId)
+      .eq("grand_prix_id", safeGrandPrixId)
+      .returns<
+        Array<{
+          driver_id: string;
+          team_quali_points: number | null;
+          team_race_points: number | null;
+          total_points: number | null;
+        }>
+      >(),
+    supabase
+      .from("grand_prix_prediction_score_details")
+      .select("prediction_type, slot_position, points")
+      .eq("user_id", safePlayerId)
+      .eq("grand_prix_id", safeGrandPrixId)
+      .returns<
+        Array<{
+          prediction_type: "quali" | "race";
+          slot_position: 1 | 2 | 3;
+          points: number | null;
+        }>
+      >(),
+    supabase
+      .from("grand_prix_scores")
+      .select("team_points, prediction_points, total_points")
+      .eq("user_id", safePlayerId)
+      .eq("grand_prix_id", safeGrandPrixId)
+      .maybeSingle<{
+        team_points: number | null;
+        prediction_points: number | null;
+        total_points: number | null;
       }>(),
   ]);
 
@@ -210,5 +266,21 @@ export async function getPlayerGrandPrixView(
     teamSelection: teamSelectionDrivers,
     qualificationPodium,
     racePodium,
+    teamScoreDetails: (teamScoreDetails ?? []).map((detail) => ({
+      driverId: detail.driver_id,
+      teamQualiPoints: detail.team_quali_points,
+      teamRacePoints: detail.team_race_points,
+      totalPoints: detail.total_points,
+    })),
+    predictionSlotScores: (predictionSlotScores ?? []).map((detail) => ({
+      predictionType: detail.prediction_type,
+      slotPosition: detail.slot_position,
+      points: detail.points,
+    })),
+    totals: {
+      teamPoints: totals?.team_points ?? null,
+      predictionPoints: totals?.prediction_points ?? null,
+      totalPoints: totals?.total_points ?? null,
+    },
   };
 }
