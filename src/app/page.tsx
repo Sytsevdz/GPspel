@@ -6,6 +6,7 @@ import { createServerSupabaseClient } from "@/lib/supabase";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 import { getCurrentSelectableGrandPrix } from "@/lib/team-selection-data";
 import { getLatestCurrentOrScoredGrandPrix } from "@/lib/latest-grand-prix";
+import { GlobalStandingsPanel } from "./dashboard/global-standings-panel";
 
 type LeagueMembershipRow = {
   league_id: string;
@@ -110,6 +111,7 @@ export default async function HomePage() {
   const latestGrandPrix = await getLatestCurrentOrScoredGrandPrix(supabase, scoredActiveGrandPrixIds, nowIso);
   const isLatestGrandPrixFinished = latestGrandPrix ? latestGrandPrix.status === "finished" : false;
   const latestGrandPrixStatusLabel = isLatestGrandPrixFinished ? "Afgelopen" : "Bezig";
+  const isLatestGrandPrixDeadlinePassed = latestGrandPrix ? latestGrandPrix.deadline <= nowIso : false;
 
   const userLatestScore = latestGrandPrix
     ? (
@@ -246,44 +248,11 @@ export default async function HomePage() {
 
         <article className="dashboard-card dashboard-home-card dashboard-home-card--standings">
           <h2>Algemeen klassement</h2>
-          {globalStandings.length === 0 ? (
-            <p className="league-list-empty">Er zijn nog geen spelers om te tonen.</p>
-          ) : (
-            <div className="standings-table-wrapper dashboard-compact-table">
-              <table className="standings-table dashboard-standings-table" aria-label="Algemeen klassement">
-                <thead>
-                  <tr>
-                    <th scope="col" className="standings-position-column">Positie</th>
-                    <th scope="col">Speler</th>
-                    <th scope="col" className="standings-score-column standings-points-column">Punten</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {globalStandings.map((entry, index) => {
-                    const position = index + 1;
-                    const topRankClass =
-                      position === 1
-                        ? " standings-row-p1"
-                        : position === 2
-                          ? " standings-row-p2"
-                          : position === 3
-                            ? " standings-row-p3"
-                            : "";
-
-                    return (
-                      <tr key={entry.userId} className={topRankClass.trim()}>
-                        <td className="standings-position-cell">
-                          <span className="standings-position-pill">{position}</span>
-                        </td>
-                        <td className="standings-name-cell" title={entry.spelerNaam}>{entry.spelerNaam}</td>
-                        <td className="standings-score-cell standings-points-cell">{entry.totaalPunten}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <GlobalStandingsPanel
+            grandPrix={latestGrandPrix ? { id: latestGrandPrix.id, name: latestGrandPrix.name } : null}
+            deadlinePassed={isLatestGrandPrixDeadlinePassed}
+            standings={globalStandings}
+          />
         </article>
 
         <article className="dashboard-card dashboard-home-card">
