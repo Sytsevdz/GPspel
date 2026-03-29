@@ -169,16 +169,27 @@ export async function publishGrandPrixFinalScores(
     };
   }
 
-  const { error } = await requireAdminAndGrandPrix(grandPrixId);
+  const adminCheck = await requireAdminAndGrandPrix(grandPrixId);
 
-  if (error) {
+  if (adminCheck.error || !adminCheck.supabase) {
     return {
       status: "error",
-      message: error,
+      message: adminCheck.error ?? "Er ging iets mis bij het publiceren",
     };
   }
 
   await calculateGrandPrixRaceScores(grandPrixId);
+  const { error: statusUpdateError } = await adminCheck.supabase
+    .from("grand_prix")
+    .update({ status: "finished" })
+    .eq("id", grandPrixId);
+
+  if (statusUpdateError) {
+    return {
+      status: "error",
+      message: "Racepunten zijn gepubliceerd, maar status bijwerken naar afgerond mislukte.",
+    };
+  }
 
   revalidatePath(`/admin/grand-prix/${grandPrixId}`);
   revalidatePath(`/admin/grand-prix/${grandPrixId}/result`);

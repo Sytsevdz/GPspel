@@ -1,6 +1,7 @@
 "use server";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { isGrandPrixCancelled, resolveGrandPrixWorkflowStatus, type GrandPrixStatus } from "@/lib/grand-prix-status";
 
 type PodiumEntry = {
   id: string;
@@ -71,9 +72,9 @@ export async function getPlayerGrandPrixView(
 
   const { data: grandPrix } = await supabase
     .from("grand_prix")
-    .select("deadline")
+    .select("deadline, status")
     .eq("id", safeGrandPrixId)
-    .maybeSingle<{ deadline: string }>();
+    .maybeSingle<{ deadline: string; status: GrandPrixStatus }>();
 
   if (!grandPrix) {
     return {
@@ -82,7 +83,19 @@ export async function getPlayerGrandPrixView(
     };
   }
 
-  if (grandPrix.deadline > new Date().toISOString()) {
+  const workflowStatus = resolveGrandPrixWorkflowStatus({
+    status: grandPrix.status,
+    deadline: grandPrix.deadline,
+  });
+
+  if (isGrandPrixCancelled(workflowStatus)) {
+    return {
+      status: "error",
+      message: "Deze Grand Prix is geannuleerd.",
+    };
+  }
+
+  if (workflowStatus === "upcoming") {
     return {
       status: "error",
       message: "Deze keuzes worden zichtbaar zodra de kwalificatiedeadline is verstreken.",

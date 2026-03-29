@@ -2,12 +2,13 @@ import {
   calculateDriverStandingsFromSeasonResults,
   compareDriverStandings,
 } from "@/lib/driver-pricing";
+import { resolveGrandPrixWorkflowStatus, type GrandPrixStatus, type GrandPrixWorkflowStatus } from "@/lib/grand-prix-status";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 export type SelectableGrandPrix = {
   id: string;
   name: string;
-  status: "upcoming" | "open" | "locked" | "finished" | "cancelled";
+  status: GrandPrixWorkflowStatus;
   qualification_start: string;
   deadline: string;
 };
@@ -15,7 +16,15 @@ export type SelectableGrandPrix = {
 export type GrandPrixTimelineItem = {
   id: string;
   name: string;
-  status: "upcoming" | "open" | "locked" | "finished" | "cancelled";
+  status: GrandPrixWorkflowStatus;
+  qualification_start: string;
+  deadline: string;
+};
+
+type GrandPrixTimelineDbRow = {
+  id: string;
+  name: string;
+  status: GrandPrixStatus;
   qualification_start: string;
   deadline: string;
 };
@@ -154,11 +163,12 @@ async function enrichDriversWithSeasonScores(
 export async function getGrandPrixTimeline(
   supabase: ReturnType<typeof createServerSupabaseClient>,
 ): Promise<GrandPrixTimelineItem[]> {
+  const nowIso = new Date().toISOString();
   const { data, error } = await supabase
     .from("grand_prix")
     .select("id, name, status, qualification_start, deadline")
     .order("qualification_start", { ascending: true })
-    .returns<GrandPrixTimelineItem[]>();
+    .returns<GrandPrixTimelineDbRow[]>();
 
   if (error) {
     throw new Error(error.message);
@@ -168,7 +178,14 @@ export async function getGrandPrixTimeline(
     throw new Error("Geen Grand Prix-weekenden gevonden");
   }
 
-  return data;
+  return data.map((grandPrix) => ({
+    ...grandPrix,
+    status: resolveGrandPrixWorkflowStatus({
+      status: grandPrix.status,
+      deadline: grandPrix.deadline,
+      nowIso,
+    }),
+  }));
 }
 
 export async function getCurrentSelectableGrandPrix(
@@ -203,7 +220,7 @@ export async function getGrandPrixAndDriversById(
     .from("grand_prix")
     .select("id, name, status, qualification_start, deadline")
     .eq("id", grandPrixId)
-    .maybeSingle<GrandPrixTimelineItem>();
+    .maybeSingle<GrandPrixTimelineDbRow>();
 
   if (grandPrixError) {
     throw new Error(grandPrixError.message);
@@ -213,12 +230,20 @@ export async function getGrandPrixAndDriversById(
     throw new Error("Grand Prix niet gevonden");
   }
 
+  const resolvedGrandPrix: GrandPrixTimelineItem = {
+    ...grandPrix,
+    status: resolveGrandPrixWorkflowStatus({
+      status: grandPrix.status,
+      deadline: grandPrix.deadline,
+    }),
+  };
+
   const ownGrandPrixDrivers = await loadDriverPrices(supabase, grandPrix.id);
 
   if (ownGrandPrixDrivers.length > 0) {
     return {
-      grandPrix,
-      drivers: await enrichDriversWithSeasonScores(supabase, grandPrix, ownGrandPrixDrivers),
+      grandPrix: resolvedGrandPrix,
+      drivers: await enrichDriversWithSeasonScores(supabase, resolvedGrandPrix, ownGrandPrixDrivers),
       usesFallbackPrices: false,
     };
   }
@@ -239,15 +264,15 @@ export async function getGrandPrixAndDriversById(
 
     if (fallbackDrivers.length > 0) {
       return {
-        grandPrix,
-        drivers: await enrichDriversWithSeasonScores(supabase, grandPrix, fallbackDrivers),
+        grandPrix: resolvedGrandPrix,
+        drivers: await enrichDriversWithSeasonScores(supabase, resolvedGrandPrix, fallbackDrivers),
         usesFallbackPrices: true,
       };
     }
   }
 
   return {
-    grandPrix,
+    grandPrix: resolvedGrandPrix,
     drivers: [],
     usesFallbackPrices: false,
   };

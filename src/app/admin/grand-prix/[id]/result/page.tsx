@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { getGrandPrixStatusLabel, isGrandPrixCancelled, type GrandPrixStatus } from "@/lib/grand-prix-status";
+import {
+  getGrandPrixStatusLabel,
+  isGrandPrixCancelled,
+  resolveGrandPrixWorkflowStatus,
+  type GrandPrixStatus,
+} from "@/lib/grand-prix-status";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 import { PublishScoreActions } from "./publish-score-actions";
@@ -51,9 +56,9 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
 
   const { data: grandPrix } = await supabase
     .from("grand_prix")
-    .select("id, name, status")
+    .select("id, name, status, deadline")
     .eq("id", params.id)
-    .maybeSingle<{ id: string; name: string; status: GrandPrixStatus }>();
+    .maybeSingle<{ id: string; name: string; status: GrandPrixStatus; deadline: string }>();
 
   if (!grandPrix) {
     return (
@@ -69,7 +74,11 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
     );
   }
 
-  const isCancelled = isGrandPrixCancelled(grandPrix.status);
+  const workflowStatus = resolveGrandPrixWorkflowStatus({
+    status: grandPrix.status,
+    deadline: grandPrix.deadline,
+  });
+  const isCancelled = isGrandPrixCancelled(workflowStatus);
 
   const { data: drivers } = await supabase
     .from("drivers")
@@ -126,7 +135,7 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
               Grand Prix: <strong>{grandPrix.name}</strong>
             </p>
             <p>
-              Status: {getGrandPrixStatusLabel(grandPrix.status)}
+              Status: {getGrandPrixStatusLabel(workflowStatus)}
               {isCancelled ? <span className="gp-status-badge">Geannuleerd</span> : null}
             </p>
           </div>

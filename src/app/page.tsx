@@ -45,10 +45,6 @@ type ScoreRow = {
   total_points: number | null;
 };
 
-type PublishedRaceScoreRow = {
-  id: string;
-};
-
 export default async function HomePage() {
   const supabase = createServerSupabaseClient();
   const nowIso = new Date().toISOString();
@@ -112,20 +108,7 @@ export default async function HomePage() {
   const scoredActiveGrandPrixIds = [...new Set((allScoreRows ?? []).map((row) => row.grand_prix_id))]
     .filter((grandPrixId) => activeGrandPrixIds.has(grandPrixId));
   const latestGrandPrix = await getLatestCurrentOrScoredGrandPrix(supabase, scoredActiveGrandPrixIds, nowIso);
-  const hasPublishedRaceScores = latestGrandPrix
-    ? (
-        await supabase
-          .from("grand_prix_scores")
-          .select("id")
-          .eq("grand_prix_id", latestGrandPrix.id)
-          .or("team_race_points.gt.0,race_prediction_points.gt.0")
-          .limit(1)
-          .maybeSingle<PublishedRaceScoreRow>()
-      ).data !== null
-    : false;
-  const isLatestGrandPrixFinished = latestGrandPrix
-    ? latestGrandPrix.status === "finished" || hasPublishedRaceScores
-    : false;
+  const isLatestGrandPrixFinished = latestGrandPrix ? latestGrandPrix.status === "finished" : false;
   const latestGrandPrixStatusLabel = isLatestGrandPrixFinished ? "Afgelopen" : "Bezig";
 
   const userLatestScore = latestGrandPrix
