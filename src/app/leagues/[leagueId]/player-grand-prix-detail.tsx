@@ -34,6 +34,12 @@ type PlayerGrandPrixDetailProps = {
   grandPrixName: string;
   deadlinePassed: boolean;
   members: Member[];
+  loadPlayerView?: (args: {
+    leagueId: string;
+    grandPrixId: string;
+    member: Member;
+  }) => Promise<PlayerGrandPrixViewResult>;
+  showSectionShell?: boolean;
   sectionTitle?: string;
   helperText?: string;
   membersRenderer?: (args: {
@@ -164,6 +170,8 @@ export function PlayerGrandPrixDetail({
   grandPrixName,
   deadlinePassed,
   members,
+  loadPlayerView,
+  showSectionShell = true,
   sectionTitle = "Spelers in deze GP",
   helperText,
   membersRenderer,
@@ -239,7 +247,9 @@ export function PlayerGrandPrixDetail({
     setErrorMessage("");
 
     startTransition(async () => {
-      const result = await getPlayerGrandPrixView(leagueId, grandPrixId, member.userId, member.displayName);
+      const result = loadPlayerView
+        ? await loadPlayerView({ leagueId, grandPrixId, member })
+        : await getPlayerGrandPrixView(leagueId, grandPrixId, member.userId, member.displayName);
 
       if (result.status === "error") {
         setErrorMessage(result.message);
@@ -250,40 +260,46 @@ export function PlayerGrandPrixDetail({
     });
   };
 
-  return (
-    <section className="league-section">
-      <div className="league-detail-header">
-        <h2>{sectionTitle}</h2>
-      </div>
-      <p className="league-member-helper">
-        {helperText ??
-          (deadlinePassed
-            ? "Klik op een speler om het opgeslagen team en de voorspellingen voor deze Grand Prix te bekijken."
-            : "Na de kwalificatiedeadline kun je hier de keuzes van andere spelers bekijken.")}
-      </p>
+  const renderedMembers = membersRenderer ? (
+    membersRenderer({
+      members,
+      deadlinePassed,
+      openMemberDetails,
+    })
+  ) : (
+    <ul className="league-member-list" aria-label="Spelers">
+      {members.map((member) => (
+        <li key={member.userId}>
+          <button
+            type="button"
+            className="league-member-trigger"
+            onClick={() => openMemberDetails(member)}
+            disabled={!deadlinePassed}
+          >
+            {member.displayName}
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
 
-      {membersRenderer ? (
-        membersRenderer({
-          members,
-          deadlinePassed,
-          openMemberDetails,
-        })
-      ) : (
-        <ul className="league-member-list" aria-label="Spelers">
-          {members.map((member) => (
-            <li key={member.userId}>
-              <button
-                type="button"
-                className="league-member-trigger"
-                onClick={() => openMemberDetails(member)}
-                disabled={!deadlinePassed}
-              >
-                {member.displayName}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+  return (
+    <section className={showSectionShell ? "league-section" : undefined}>
+      {showSectionShell ? (
+        <>
+          <div className="league-detail-header">
+            <h2>{sectionTitle}</h2>
+          </div>
+          <p className="league-member-helper">
+            {helperText ??
+              (deadlinePassed
+                ? "Klik op een speler om het opgeslagen team en de voorspellingen voor deze Grand Prix te bekijken."
+                : "Na de kwalificatiedeadline kun je hier de keuzes van andere spelers bekijken.")}
+          </p>
+        </>
+      ) : null}
+
+      {renderedMembers}
 
       {isModalOpen ? (
         <div

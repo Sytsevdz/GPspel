@@ -44,52 +44,12 @@ export type PlayerGrandPrixViewResult =
 
 const GENERIC_ERROR_MESSAGE = "De gegevens van deze speler konden niet worden geladen.";
 
-export async function getPlayerGrandPrixView(
-  leagueId: string,
-  grandPrixId: string,
-  playerId: string,
-  playerName: string,
+async function loadPlayerGrandPrixViewData(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  safeGrandPrixId: string,
+  safePlayerId: string,
+  safePlayerName: string,
 ): Promise<PlayerGrandPrixViewResult> {
-  const safeLeagueId = leagueId.trim();
-  const safeGrandPrixId = grandPrixId.trim();
-  const safePlayerId = playerId.trim();
-  const safePlayerName = playerName.trim() || "Speler";
-
-  if (!safeLeagueId || !safeGrandPrixId || !safePlayerId) {
-    return {
-      status: "error",
-      message: GENERIC_ERROR_MESSAGE,
-    };
-  }
-
-  const supabase = createServerSupabaseClient();
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return {
-      status: "error",
-      message: "Log opnieuw in om spelergegevens te bekijken.",
-    };
-  }
-
-  const { data: leagueMembership } = await supabase
-    .from("league_members")
-    .select("id")
-    .eq("league_id", safeLeagueId)
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (!leagueMembership) {
-    return {
-      status: "error",
-      message: "Je hebt geen toegang tot deze competitie.",
-    };
-  }
-
   const { data: grandPrix } = await supabase
     .from("grand_prix")
     .select("deadline, status")
@@ -119,20 +79,6 @@ export async function getPlayerGrandPrixView(
     return {
       status: "error",
       message: "Deze keuzes worden zichtbaar zodra de kwalificatiedeadline is verstreken.",
-    };
-  }
-
-  const { data: selectedPlayerMembership } = await supabase
-    .from("league_members")
-    .select("id")
-    .eq("league_id", safeLeagueId)
-    .eq("user_id", safePlayerId)
-    .maybeSingle();
-
-  if (!selectedPlayerMembership) {
-    return {
-      status: "error",
-      message: GENERIC_ERROR_MESSAGE,
     };
   }
 
@@ -283,4 +229,99 @@ export async function getPlayerGrandPrixView(
       totalPoints: totals?.total_points ?? null,
     },
   };
+}
+
+export async function getPlayerGrandPrixView(
+  leagueId: string,
+  grandPrixId: string,
+  playerId: string,
+  playerName: string,
+): Promise<PlayerGrandPrixViewResult> {
+  const safeLeagueId = leagueId.trim();
+  const safeGrandPrixId = grandPrixId.trim();
+  const safePlayerId = playerId.trim();
+  const safePlayerName = playerName.trim() || "Speler";
+
+  if (!safeLeagueId || !safeGrandPrixId || !safePlayerId) {
+    return {
+      status: "error",
+      message: GENERIC_ERROR_MESSAGE,
+    };
+  }
+
+  const supabase = createServerSupabaseClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return {
+      status: "error",
+      message: "Log opnieuw in om spelergegevens te bekijken.",
+    };
+  }
+
+  const { data: leagueMembership } = await supabase
+    .from("league_members")
+    .select("id")
+    .eq("league_id", safeLeagueId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!leagueMembership) {
+    return {
+      status: "error",
+      message: "Je hebt geen toegang tot deze competitie.",
+    };
+  }
+
+  const { data: selectedPlayerMembership } = await supabase
+    .from("league_members")
+    .select("id")
+    .eq("league_id", safeLeagueId)
+    .eq("user_id", safePlayerId)
+    .maybeSingle();
+
+  if (!selectedPlayerMembership) {
+    return {
+      status: "error",
+      message: GENERIC_ERROR_MESSAGE,
+    };
+  }
+
+  return loadPlayerGrandPrixViewData(supabase, safeGrandPrixId, safePlayerId, safePlayerName);
+}
+
+export async function getGlobalPlayerGrandPrixView(
+  grandPrixId: string,
+  playerId: string,
+  playerName: string,
+): Promise<PlayerGrandPrixViewResult> {
+  const safeGrandPrixId = grandPrixId.trim();
+  const safePlayerId = playerId.trim();
+  const safePlayerName = playerName.trim() || "Speler";
+
+  if (!safeGrandPrixId || !safePlayerId) {
+    return {
+      status: "error",
+      message: GENERIC_ERROR_MESSAGE,
+    };
+  }
+
+  const supabase = createServerSupabaseClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return {
+      status: "error",
+      message: "Log opnieuw in om spelergegevens te bekijken.",
+    };
+  }
+
+  return loadPlayerGrandPrixViewData(supabase, safeGrandPrixId, safePlayerId, safePlayerName);
 }
