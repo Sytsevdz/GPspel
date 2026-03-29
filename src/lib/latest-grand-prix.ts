@@ -1,10 +1,18 @@
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { resolveGrandPrixWorkflowStatus, type GrandPrixStatus, type GrandPrixWorkflowStatus } from "@/lib/grand-prix-status";
 
 export type LatestGrandPrixCandidate = {
   id: string;
   name: string;
   deadline: string;
-  status: "upcoming" | "open" | "locked" | "finished";
+  status: GrandPrixWorkflowStatus;
+};
+
+type LatestGrandPrixDbCandidate = {
+  id: string;
+  name: string;
+  deadline: string;
+  status: GrandPrixStatus;
 };
 
 export async function getLatestCurrentOrScoredGrandPrix(
@@ -12,6 +20,15 @@ export async function getLatestCurrentOrScoredGrandPrix(
   scoredGrandPrixIds: string[],
   nowIso: string = new Date().toISOString(),
 ): Promise<LatestGrandPrixCandidate | null> {
+  const resolveCandidate = (candidate: LatestGrandPrixDbCandidate): LatestGrandPrixCandidate => ({
+    ...candidate,
+    status: resolveGrandPrixWorkflowStatus({
+      status: candidate.status,
+      deadline: candidate.deadline,
+      nowIso,
+    }),
+  });
+
   const { data: currentOrRecentGrandPrix } = await supabase
     .from("grand_prix")
     .select("id, name, deadline, status")
@@ -19,10 +36,10 @@ export async function getLatestCurrentOrScoredGrandPrix(
     .lte("deadline", nowIso)
     .order("deadline", { ascending: false })
     .limit(1)
-    .maybeSingle<LatestGrandPrixCandidate>();
+    .maybeSingle<LatestGrandPrixDbCandidate>();
 
   if (currentOrRecentGrandPrix) {
-    return currentOrRecentGrandPrix;
+    return resolveCandidate(currentOrRecentGrandPrix);
   }
 
   if (scoredGrandPrixIds.length === 0) {
@@ -36,7 +53,7 @@ export async function getLatestCurrentOrScoredGrandPrix(
     .neq("status", "cancelled")
     .order("deadline", { ascending: false })
     .limit(1)
-    .maybeSingle<LatestGrandPrixCandidate>();
+    .maybeSingle<LatestGrandPrixDbCandidate>();
 
-  return fallbackScoredGrandPrix;
+  return fallbackScoredGrandPrix ? resolveCandidate(fallbackScoredGrandPrix) : null;
 }

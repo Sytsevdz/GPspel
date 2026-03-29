@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { formatUtcIsoInAmsterdam } from "@/lib/datetime";
-import { getGrandPrixStatusLabel, type GrandPrixStatus } from "@/lib/grand-prix-status";
+import { getGrandPrixStatusLabel, resolveGrandPrixWorkflowStatus, type GrandPrixStatus } from "@/lib/grand-prix-status";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 type AdminPageProps = {
@@ -63,13 +63,19 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         {searchParams.message ? <p className="form-message success">{searchParams.message}</p> : null}
 
         <ul className="league-list" aria-label="Grand Prix lijst">
-          {(grandPrixRows ?? []).map((grandPrix) => (
+          {(grandPrixRows ?? []).map((grandPrix) => {
+            const workflowStatus = resolveGrandPrixWorkflowStatus({
+              status: grandPrix.status,
+              deadline: grandPrix.deadline,
+            });
+
+            return (
             <li key={grandPrix.id} className="league-list-item">
               <div>
                 <h2>{grandPrix.name}</h2>
                 <p>
-                  Status: {getGrandPrixStatusLabel(grandPrix.status)}
-                  {grandPrix.status === "cancelled" ? <span className="gp-status-badge">Geannuleerd</span> : null}
+                  Status: {getGrandPrixStatusLabel(workflowStatus)}
+                  {workflowStatus === "cancelled" ? <span className="gp-status-badge">Geannuleerd</span> : null}
                 </p>
                 <p>Kwalificatie start: {formatUtcIsoInAmsterdam(grandPrix.qualification_start)}</p>
                 <p>Deadline: {formatUtcIsoInAmsterdam(grandPrix.deadline)}</p>
@@ -78,7 +84,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 <Link href={`/admin/grand-prix/${grandPrix.id}`}>Beheer GP</Link>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       </section>
     </main>

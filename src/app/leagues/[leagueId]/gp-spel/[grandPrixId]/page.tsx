@@ -185,9 +185,8 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
     const hasPublishedPredictionQualiPoints = userScore?.quali_prediction_points !== null;
     const hasPublishedPredictionRacePoints = userScore?.race_prediction_points !== null;
 
-    const deadlineTimestamp = new Date(gpData.grandPrix.deadline).getTime();
     const isCancelled = isGrandPrixCancelled(gpData.grandPrix.status);
-    const isReadOnly = isCancelled || deadlineTimestamp <= Date.now();
+    const isReadOnly = isCancelled || gpData.grandPrix.status === "locked" || gpData.grandPrix.status === "finished";
 
     return (
       <main className="leagues-page">

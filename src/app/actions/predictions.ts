@@ -89,17 +89,17 @@ export async function savePrediction(
     };
   }
 
-  if (teamSelectionData.grandPrix.deadline <= new Date().toISOString()) {
-    return {
-      status: "error",
-      message: "De deadline van deze Grand Prix is verstreken.",
-    };
-  }
-
   if (isGrandPrixCancelled(teamSelectionData.grandPrix.status)) {
     return {
       status: "error",
       message: "Deze Grand Prix is geannuleerd. Voorspellingen zijn niet beschikbaar.",
+    };
+  }
+
+  if (teamSelectionData.grandPrix.status === "locked" || teamSelectionData.grandPrix.status === "finished") {
+    return {
+      status: "error",
+      message: "De deadline van deze Grand Prix is verstreken.",
     };
   }
 

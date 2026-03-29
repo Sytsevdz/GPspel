@@ -10,7 +10,12 @@ import { ResetPricesSubmitButton } from "@/app/admin/reset-prices-submit-button"
 import { PublishScoreActions } from "@/app/admin/grand-prix/[id]/result/publish-score-actions";
 import { DeadlineForm } from "@/app/admin/grand-prix/[id]/deadline/deadline-form";
 import { formatUtcIsoInAmsterdam, toAmsterdamDateTimeLocalValue } from "@/lib/datetime";
-import { getGrandPrixStatusLabel, isGrandPrixCancelled, type GrandPrixStatus } from "@/lib/grand-prix-status";
+import {
+  getGrandPrixStatusLabel,
+  isGrandPrixCancelled,
+  resolveGrandPrixWorkflowStatus,
+  type GrandPrixStatus,
+} from "@/lib/grand-prix-status";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 type GrandPrixManagementPageProps = {
@@ -181,7 +186,14 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
       redirect(`/admin/grand-prix/${params.id}?error=Je+hebt+geen+toegang+tot+deze+actie`);
     }
 
-    const { error } = await actionSupabase.from("grand_prix").update({ status: "upcoming" }).eq("id", grandPrixId);
+    const reactivatedStatus =
+      managedGrandPrix.status === "finished"
+        ? "finished"
+        : resolveGrandPrixWorkflowStatus({
+            status: "upcoming",
+            deadline: managedGrandPrix.deadline,
+          });
+    const { error } = await actionSupabase.from("grand_prix").update({ status: reactivatedStatus }).eq("id", grandPrixId);
 
     if (error) {
       redirect(`/admin/grand-prix/${params.id}?error=Er+ging+iets+mis+bij+het+activeren+van+deze+Grand+Prix`);
@@ -232,7 +244,11 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     redirect(`/admin/grand-prix/${params.id}?message=Grand+Prix+geannuleerd`);
   }
 
-  const isCancelled = isGrandPrixCancelled(managedGrandPrix.status);
+  const workflowStatus = resolveGrandPrixWorkflowStatus({
+    status: managedGrandPrix.status,
+    deadline: managedGrandPrix.deadline,
+  });
+  const isCancelled = isGrandPrixCancelled(workflowStatus);
 
   return (
     <main className="leagues-page">
@@ -244,7 +260,7 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
               <strong>{managedGrandPrix.name}</strong>
             </p>
             <p>
-              Status: {getGrandPrixStatusLabel(managedGrandPrix.status)}
+              Status: {getGrandPrixStatusLabel(workflowStatus)}
               {isCancelled ? <span className="gp-status-badge">Geannuleerd</span> : null}
             </p>
             <p>Deadline: {formatUtcIsoInAmsterdam(managedGrandPrix.deadline)}</p>

@@ -95,7 +95,6 @@ export async function saveTeamSelection(
     };
   }
 
-  const deadlineTimestamp = new Date(teamSelectionData.grandPrix.deadline).getTime();
   if (isGrandPrixCancelled(teamSelectionData.grandPrix.status)) {
     return {
       status: "error",
@@ -103,7 +102,7 @@ export async function saveTeamSelection(
     };
   }
 
-  if (deadlineTimestamp <= Date.now()) {
+  if (teamSelectionData.grandPrix.status === "locked" || teamSelectionData.grandPrix.status === "finished") {
     return {
       status: "error",
       message: "De deadline van deze Grand Prix is verstreken.",
