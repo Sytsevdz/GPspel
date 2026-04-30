@@ -43,9 +43,9 @@ async function requireAdminAndGrandPrix(grandPrixId: string) {
 
   const { data: grandPrix } = await supabase
     .from("grand_prix")
-    .select("id, status")
+    .select("id, status, is_sprint_weekend")
     .eq("id", grandPrixId)
-    .maybeSingle<{ id: string; status: GrandPrixStatus }>();
+    .maybeSingle<{ id: string; status: GrandPrixStatus; is_sprint_weekend: boolean }>();
 
   if (!grandPrix) {
     return { supabase: null, error: "Er ging iets mis bij het opslaan" };
@@ -326,13 +326,7 @@ export async function saveGrandPrixResult(
     .map((value) => value.trim())
     .filter(Boolean);
 
-  if (
-    !grandPrixId ||
-    qualificationOrder.length === 0 ||
-    sprintQualificationOrder.length === 0 ||
-    sprintRaceOrder.length === 0 ||
-    raceOrder.length === 0
-  ) {
+  if (!grandPrixId || qualificationOrder.length === 0 || raceOrder.length === 0) {
     return {
       status: "error",
       message: "Er ging iets mis bij het opslaan",
@@ -353,15 +347,17 @@ export async function saveGrandPrixResult(
   const activeDriverIds = (drivers ?? []).map((driver) => driver.id);
   const activeDriverSet = new Set(activeDriverIds);
 
+  const isSprintWeekend = adminCheck.supabase ? (await adminCheck.supabase.from("grand_prix").select("is_sprint_weekend").eq("id", grandPrixId).maybeSingle<{is_sprint_weekend:boolean}>()).data?.is_sprint_weekend === true : false;
   if (
     qualificationOrder.length !== activeDriverIds.length ||
-    sprintQualificationOrder.length !== activeDriverIds.length ||
-    sprintRaceOrder.length !== activeDriverIds.length ||
     raceOrder.length !== activeDriverIds.length ||
     new Set(qualificationOrder).size !== activeDriverIds.length ||
-    new Set(sprintQualificationOrder).size !== activeDriverIds.length ||
-    new Set(sprintRaceOrder).size !== activeDriverIds.length ||
-    new Set(raceOrder).size !== activeDriverIds.length
+    new Set(raceOrder).size !== activeDriverIds.length ||
+    (isSprintWeekend &&
+      (sprintQualificationOrder.length !== activeDriverIds.length ||
+        sprintRaceOrder.length !== activeDriverIds.length ||
+        new Set(sprintQualificationOrder).size !== activeDriverIds.length ||
+        new Set(sprintRaceOrder).size !== activeDriverIds.length))
   ) {
     return {
       status: "error",
@@ -387,8 +383,8 @@ export async function saveGrandPrixResult(
     grand_prix_id: grandPrixId,
     driver_id: driverId,
     quali_position: qualiPositionByDriverId.get(driverId)!,
-    sprint_quali_position: sprintQualiPositionByDriverId.get(driverId)!,
-    sprint_race_position: sprintRacePositionByDriverId.get(driverId)!,
+    sprint_quali_position: isSprintWeekend ? (sprintQualiPositionByDriverId.get(driverId) ?? null) : null,
+    sprint_race_position: isSprintWeekend ? (sprintRacePositionByDriverId.get(driverId) ?? null) : null,
     race_position: racePositionByDriverId.get(driverId)!,
   }));
 

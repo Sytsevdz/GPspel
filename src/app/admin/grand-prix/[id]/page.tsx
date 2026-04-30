@@ -32,6 +32,7 @@ type GrandPrixRow = {
   id: string;
   name: string;
   status: GrandPrixStatus;
+  is_sprint_weekend: boolean;
   deadline: string;
   qualification_start: string;
 };
@@ -65,7 +66,7 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
 
   const { data: grandPrix } = await supabase
     .from("grand_prix")
-    .select("id, name, status, deadline, qualification_start")
+    .select("id, name, status, is_sprint_weekend, deadline, qualification_start")
     .eq("id", params.id)
     .maybeSingle<GrandPrixRow>();
 
@@ -244,6 +245,29 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     redirect(`/admin/grand-prix/${params.id}?message=Grand+Prix+geannuleerd`);
   }
 
+  async function updateSprintWeekend(formData: FormData) {
+    "use server";
+    const grandPrixId = String(formData.get("grand_prix_id") ?? "").trim();
+    const isSprintWeekend = String(formData.get("is_sprint_weekend") ?? "").trim() === "true";
+    if (!grandPrixId) {
+      redirect(`/admin/grand-prix/${params.id}?error=Er+ging+iets+mis+bij+het+bijwerken+van+het+weekendtype`);
+    }
+    const actionSupabase = createServerSupabaseClient();
+    const { data: { user: actionUser }, error: actionUserError } = await actionSupabase.auth.getUser();
+    if (actionUserError || !actionUser) {
+      redirect(`/admin/grand-prix/${params.id}?error=Je+hebt+geen+toegang+tot+deze+actie`);
+    }
+    const { data: actionProfile } = await actionSupabase.from("profiles").select("role").eq("id", actionUser.id).maybeSingle<{ role: string | null }>();
+    if (actionProfile?.role !== "admin") {
+      redirect(`/admin/grand-prix/${params.id}?error=Je+hebt+geen+toegang+tot+deze+actie`);
+    }
+    const { error } = await actionSupabase.from("grand_prix").update({ is_sprint_weekend: isSprintWeekend }).eq("id", grandPrixId);
+    if (error) {
+      redirect(`/admin/grand-prix/${params.id}?error=Er+ging+iets+mis+bij+het+bijwerken+van+het+weekendtype`);
+    }
+    redirect(`/admin/grand-prix/${params.id}?message=Weekendtype+bijgewerkt`);
+  }
+
   const workflowStatus = resolveGrandPrixWorkflowStatus({
     status: managedGrandPrix.status,
     deadline: managedGrandPrix.deadline,
@@ -281,6 +305,17 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
             initialDeadline={toAmsterdamDateTimeLocalValue(managedGrandPrix.deadline)}
             initialQualificationStart={toAmsterdamDateTimeLocalValue(managedGrandPrix.qualification_start)}
           />
+          <form action={updateSprintWeekend}>
+            <input type="hidden" name="grand_prix_id" value={managedGrandPrix.id} />
+            <label className="predictions-field">
+              <span>Weekendtype</span>
+              <select name="is_sprint_weekend" defaultValue={managedGrandPrix.is_sprint_weekend ? "true" : "false"}>
+                <option value="false">Normaal weekend</option>
+                <option value="true">Sprint weekend</option>
+              </select>
+            </label>
+            <button type="submit">Weekendtype opslaan</button>
+          </form>
           <div className="admin-action-stack">
             {isCancelled ? (
               <form action={reactivateGrandPrix}>

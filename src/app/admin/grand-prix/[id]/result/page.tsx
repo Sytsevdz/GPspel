@@ -58,9 +58,9 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
 
   const { data: grandPrix } = await supabase
     .from("grand_prix")
-    .select("id, name, status, deadline")
+    .select("id, name, status, deadline, is_sprint_weekend")
     .eq("id", params.id)
-    .maybeSingle<{ id: string; name: string; status: GrandPrixStatus; deadline: string }>();
+    .maybeSingle<{ id: string; name: string; status: GrandPrixStatus; deadline: string; is_sprint_weekend: boolean }>();
 
   if (!grandPrix) {
     return (
@@ -155,6 +155,7 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
         ) : (
           <ResultForm
             grandPrixId={grandPrix.id}
+            isSprintWeekend={grandPrix.is_sprint_weekend}
             drivers={drivers.map((driver) => ({
               id: driver.id,
               name: driver.name,
