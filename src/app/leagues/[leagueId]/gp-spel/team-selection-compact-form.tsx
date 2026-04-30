@@ -270,8 +270,8 @@ export function TeamSelectionCompactForm({
               { label: "Sprint race", value: hasPublishedSprintRacePoints ? (slotScore?.sprintRacePoints ?? null) : null },
               { label: "Kwali", value: hasPublishedQualiPoints ? (slotScore?.qualiPoints ?? null) : null },
               { label: "Race", value: hasPublishedRacePoints ? (slotScore?.racePoints ?? null) : null },
-              { label: "Totaal", value: slotTotalPoints },
-            ].filter((row) => row.value !== null && row.value !== 0);
+              { label: "Totaal", value: hasPublishedScore ? slotTotalPoints : null },
+            ].filter((row) => row.value !== null);
             const shouldRenderPointRows = hasPublishedScore && pointRows.length > 0;
 
             return (

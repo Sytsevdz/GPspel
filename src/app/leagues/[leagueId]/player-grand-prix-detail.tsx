@@ -227,6 +227,22 @@ export function PlayerGrandPrixDetail({
     );
   }, [snapshot?.teamScoreDetails]);
 
+  const hasPublishedSprintQualiTeamScores = useMemo(() => {
+    return (snapshot?.teamScoreDetails ?? []).some((detail) => detail.teamSprintQualiPoints !== null);
+  }, [snapshot?.teamScoreDetails]);
+
+  const hasPublishedSprintRaceTeamScores = useMemo(() => {
+    return (snapshot?.teamScoreDetails ?? []).some((detail) => detail.teamSprintRacePoints !== null);
+  }, [snapshot?.teamScoreDetails]);
+
+  const hasPublishedQualiTeamScores = useMemo(() => {
+    return (snapshot?.teamScoreDetails ?? []).some((detail) => detail.teamQualiPoints !== null);
+  }, [snapshot?.teamScoreDetails]);
+
+  const hasPublishedRaceTeamScores = useMemo(() => {
+    return (snapshot?.teamScoreDetails ?? []).some((detail) => detail.teamRacePoints !== null);
+  }, [snapshot?.teamScoreDetails]);
+
   const hasPublishedPredictionSlotScores = useMemo(() => {
     return (snapshot?.predictionSlotScores ?? []).some((detail) => detail.points !== null);
   }, [snapshot?.predictionSlotScores]);
@@ -351,12 +367,18 @@ export function PlayerGrandPrixDetail({
 
                         const driverPoints = teamScoreDetailsByDriverId.get(driver.id);
                         const pointRows = [
-                          { label: "Sprint kwali", value: driverPoints?.teamSprintQualiPoints ?? null },
-                          { label: "Sprint race", value: driverPoints?.teamSprintRacePoints ?? null },
-                          { label: "Kwali", value: driverPoints?.teamQualiPoints ?? null },
-                          { label: "Race", value: driverPoints?.teamRacePoints ?? null },
-                          { label: "Totaal", value: driverPoints?.totalPoints ?? null },
-                        ].filter((row) => row.value !== null && row.value !== 0);
+                          {
+                            label: "Sprint kwali",
+                            value: hasPublishedSprintQualiTeamScores ? (driverPoints?.teamSprintQualiPoints ?? 0) : null,
+                          },
+                          {
+                            label: "Sprint race",
+                            value: hasPublishedSprintRaceTeamScores ? (driverPoints?.teamSprintRacePoints ?? 0) : null,
+                          },
+                          { label: "Kwali", value: hasPublishedQualiTeamScores ? (driverPoints?.teamQualiPoints ?? 0) : null },
+                          { label: "Race", value: hasPublishedRaceTeamScores ? (driverPoints?.teamRacePoints ?? 0) : null },
+                          { label: "Totaal", value: hasPublishedTeamScores ? (driverPoints?.totalPoints ?? 0) : null },
+                        ].filter((row) => row.value !== null);
 
                         return (
                           <li
