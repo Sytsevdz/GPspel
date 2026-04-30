@@ -20,8 +20,10 @@ type GrandPrixResultPageProps = {
 
 type ExistingResult = {
   driver_id: string;
-  quali_position: number;
-  race_position: number;
+  quali_position: number | null;
+  sprint_quali_position: number | null;
+  sprint_race_position: number | null;
+  race_position: number | null;
 };
 
 export default async function GrandPrixResultPage({ params }: GrandPrixResultPageProps) {
@@ -102,17 +104,19 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
 
   const { data: existingResultRows } = await supabase
     .from("grand_prix_driver_results")
-    .select("driver_id, quali_position, race_position")
+    .select("driver_id, quali_position, sprint_quali_position, sprint_race_position, race_position")
     .eq("grand_prix_id", grandPrix.id)
     .returns<ExistingResult[]>();
 
   const driverIds = drivers.map((driver) => driver.id);
   const existingRows = existingResultRows ?? [];
 
-  const toOrderedIds = (positionField: "quali_position" | "race_position") => {
+  const toOrderedIds = (
+    positionField: "quali_position" | "sprint_quali_position" | "sprint_race_position" | "race_position",
+  ) => {
     const orderedExistingIds = existingRows
-      .filter((row) => Number.isInteger(row[positionField]))
-      .sort((a, b) => a[positionField] - b[positionField])
+      .filter((row) => Number.isInteger(row[positionField] ?? null))
+      .sort((a, b) => (a[positionField] ?? Number.POSITIVE_INFINITY) - (b[positionField] ?? Number.POSITIVE_INFINITY))
       .map((row) => row.driver_id)
       .filter((driverId) => driverIds.includes(driverId));
 
@@ -122,6 +126,8 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
 
   const initialValues = {
     qualificationOrder: toOrderedIds("quali_position"),
+    sprintQualificationOrder: toOrderedIds("sprint_quali_position"),
+    sprintRaceOrder: toOrderedIds("sprint_race_position"),
     raceOrder: toOrderedIds("race_position"),
   };
 
