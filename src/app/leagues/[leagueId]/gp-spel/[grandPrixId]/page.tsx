@@ -43,6 +43,10 @@ type UserGrandPrixScoreRow = {
   total_points: number | null;
   quali_prediction_points: number | null;
   race_prediction_points: number | null;
+  team_sprint_quali_points: number | null;
+  team_sprint_race_points: number | null;
+  team_quali_points: number | null;
+  team_race_points: number | null;
 };
 
 type UserGrandPrixScoreDetailRow = {
@@ -128,7 +132,7 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
           .maybeSingle<ExistingPrediction>(),
         supabase
           .from("grand_prix_scores")
-          .select("team_points, prediction_points, total_points, quali_prediction_points, race_prediction_points")
+          .select("team_points, prediction_points, total_points, quali_prediction_points, race_prediction_points, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points")
           .eq("user_id", user.id)
           .eq("grand_prix_id", gpData.grandPrix.id)
           .maybeSingle<UserGrandPrixScoreRow>(),
@@ -184,10 +188,10 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
         },
       ]),
     );
-    const hasPublishedSprintQualiTeamPoints = scoreDetails.some((detail) => detail.team_sprint_quali_points !== null);
-    const hasPublishedSprintRaceTeamPoints = scoreDetails.some((detail) => detail.team_sprint_race_points !== null);
-    const hasPublishedQualiTeamPoints = scoreDetails.some((detail) => detail.team_quali_points !== null);
-    const hasPublishedRaceTeamPoints = scoreDetails.some((detail) => detail.team_race_points !== null);
+    const hasPublishedSprintQualiTeamPoints = userScore?.team_sprint_quali_points !== null;
+    const hasPublishedSprintRaceTeamPoints = userScore?.team_sprint_race_points !== null;
+    const hasPublishedQualiTeamPoints = userScore?.team_quali_points !== null;
+    const hasPublishedRaceTeamPoints = userScore?.team_race_points !== null;
     const hasPublishedPredictionQualiPoints = userScore?.quali_prediction_points !== null;
     const hasPublishedPredictionRacePoints = userScore?.race_prediction_points !== null;
 

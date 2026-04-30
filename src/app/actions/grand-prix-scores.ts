@@ -46,10 +46,10 @@ type GrandPrixPredictionScoreDetailRow = {
 };
 
 type ScoreComponentValues = {
-  teamQualiPoints: number;
-  teamSprintQualiPoints: number;
-  teamSprintRacePoints: number;
-  teamRacePoints: number;
+  teamQualiPoints: number | null;
+  teamSprintQualiPoints: number | null;
+  teamSprintRacePoints: number | null;
+  teamRacePoints: number | null;
   qualiPredictionPoints: number;
   sprintQualiPredictionPoints: number;
   sprintRacePredictionPoints: number;
@@ -172,10 +172,10 @@ const buildTopThreeByPosition = (
     .slice(0, 3);
 
 const buildTeamPoints = (components: ScoreComponentValues) =>
-  components.teamQualiPoints +
-  components.teamSprintQualiPoints +
-  components.teamSprintRacePoints +
-  components.teamRacePoints;
+  (components.teamQualiPoints ?? 0) +
+  (components.teamSprintQualiPoints ?? 0) +
+  (components.teamSprintRacePoints ?? 0) +
+  (components.teamRacePoints ?? 0);
 
 const buildTotalPoints = (components: ScoreComponentValues) => buildTeamPoints(components) + buildPredictionPoints(components);
 
@@ -204,8 +204,8 @@ const buildSprintTeamComponents = ({
 }) => {
   if (!isSprintWeekend) {
     return {
-      teamSprintQualiPoints: 0,
-      teamSprintRacePoints: 0,
+      teamSprintQualiPoints: null,
+      teamSprintRacePoints: null,
     };
   }
 
@@ -297,10 +297,10 @@ const loadExistingScores = async (grandPrixId: string) => {
 
   (data ?? []).forEach((row) => {
     componentByUserId.set(row.user_id, {
-      teamQualiPoints: row.team_quali_points ?? 0,
-      teamSprintQualiPoints: row.team_sprint_quali_points ?? 0,
-      teamSprintRacePoints: row.team_sprint_race_points ?? 0,
-      teamRacePoints: row.team_race_points ?? 0,
+      teamQualiPoints: row.team_quali_points,
+      teamSprintQualiPoints: row.team_sprint_quali_points,
+      teamSprintRacePoints: row.team_sprint_race_points,
+      teamRacePoints: row.team_race_points,
       qualiPredictionPoints: row.quali_prediction_points ?? 0,
       sprintQualiPredictionPoints: row.sprint_quali_prediction_points ?? 0,
       sprintRacePredictionPoints: row.sprint_race_prediction_points ?? 0,
@@ -405,16 +405,16 @@ const upsertGrandPrixScoreDetailRows = async ({
     (selection.team_selection_drivers ?? []).map((selectedDriver) => {
       const existing = existingDetailByUserAndDriver.get(`${selection.user_id}:${selectedDriver.driver_id}`);
       const teamQualiPoints = preserveExistingQualiPoints
-        ? (existing?.team_quali_points ?? 0)
+        ? (existing?.team_quali_points ?? null)
         : (qualiPointsByDriverId.get(selectedDriver.driver_id) ?? 0);
       const teamSprintQualiPoints = preserveExistingSprintQualiPoints
-        ? (existing?.team_sprint_quali_points ?? 0)
+        ? (existing?.team_sprint_quali_points ?? null)
         : (sprintQualiPointsByDriverId.get(selectedDriver.driver_id) ?? 0);
       const teamSprintRacePoints = preserveExistingSprintRacePoints
-        ? (existing?.team_sprint_race_points ?? 0)
+        ? (existing?.team_sprint_race_points ?? null)
         : (sprintRacePointsByDriverId.get(selectedDriver.driver_id) ?? 0);
       const teamRacePoints = preserveExistingRacePoints
-        ? (existing?.team_race_points ?? 0)
+        ? (existing?.team_race_points ?? null)
         : (racePointsByDriverId.get(selectedDriver.driver_id) ?? 0);
 
       return {
@@ -425,7 +425,7 @@ const upsertGrandPrixScoreDetailRows = async ({
         team_sprint_quali_points: teamSprintQualiPoints,
         team_sprint_race_points: teamSprintRacePoints,
         team_race_points: teamRacePoints,
-        total_points: teamQualiPoints + teamSprintQualiPoints + teamSprintRacePoints + teamRacePoints,
+        total_points: (teamQualiPoints ?? 0) + (teamSprintQualiPoints ?? 0) + (teamSprintRacePoints ?? 0) + (teamRacePoints ?? 0),
       };
     }),
   );
@@ -527,7 +527,7 @@ export async function calculateGrandPrixQualificationScores(grandPrixId: string)
       teamQualiPoints,
       teamSprintQualiPoints: existing?.teamSprintQualiPoints ?? sprintTeamComponents.teamSprintQualiPoints,
       teamSprintRacePoints: existing?.teamSprintRacePoints ?? sprintTeamComponents.teamSprintRacePoints,
-      teamRacePoints: existing?.teamRacePoints ?? 0,
+      teamRacePoints: existing?.teamRacePoints ?? null,
       qualiPredictionPoints: existing?.qualiPredictionPoints ?? 0,
       sprintQualiPredictionPoints:
         existing?.sprintQualiPredictionPoints ?? sprintPredictionComponents.sprintQualiPredictionPoints,
@@ -553,10 +553,10 @@ export async function calculateGrandPrixQualificationScores(grandPrixId: string)
     const existing = componentByUserId.get(prediction.user_id);
 
     componentByUserId.set(prediction.user_id, {
-      teamQualiPoints: existing?.teamQualiPoints ?? 0,
+      teamQualiPoints: existing?.teamQualiPoints ?? null,
       teamSprintQualiPoints: existing?.teamSprintQualiPoints ?? sprintTeamComponents.teamSprintQualiPoints,
       teamSprintRacePoints: existing?.teamSprintRacePoints ?? sprintTeamComponents.teamSprintRacePoints,
-      teamRacePoints: existing?.teamRacePoints ?? 0,
+      teamRacePoints: existing?.teamRacePoints ?? null,
       qualiPredictionPoints,
       sprintQualiPredictionPoints: existing?.sprintQualiPredictionPoints ?? sprintComponents.sprintQualiPredictionPoints,
       sprintRacePredictionPoints: existing?.sprintRacePredictionPoints ?? sprintComponents.sprintRacePredictionPoints,
@@ -648,7 +648,7 @@ export async function calculateGrandPrixRaceScores(grandPrixId: string) {
     });
     const sprintPredictionComponents = buildSprintPredictionComponents(grandPrix.is_sprint_weekend);
     componentByUserId.set(selection.user_id, {
-      teamQualiPoints: existing?.teamQualiPoints ?? 0,
+      teamQualiPoints: existing?.teamQualiPoints ?? null,
       teamSprintQualiPoints: existing?.teamSprintQualiPoints ?? sprintTeamComponents.teamSprintQualiPoints,
       teamSprintRacePoints: existing?.teamSprintRacePoints ?? sprintTeamComponents.teamSprintRacePoints,
       teamRacePoints,
@@ -682,10 +682,10 @@ export async function calculateGrandPrixRaceScores(grandPrixId: string) {
     const existing = componentByUserId.get(prediction.user_id);
 
     componentByUserId.set(prediction.user_id, {
-      teamQualiPoints: existing?.teamQualiPoints ?? 0,
+      teamQualiPoints: existing?.teamQualiPoints ?? null,
       teamSprintQualiPoints: existing?.teamSprintQualiPoints ?? sprintTeamComponents.teamSprintQualiPoints,
       teamSprintRacePoints: existing?.teamSprintRacePoints ?? sprintTeamComponents.teamSprintRacePoints,
-      teamRacePoints: existing?.teamRacePoints ?? 0,
+      teamRacePoints: existing?.teamRacePoints ?? null,
       qualiPredictionPoints: existing?.qualiPredictionPoints ?? qualiPredictionPoints,
       sprintQualiPredictionPoints: existing?.sprintQualiPredictionPoints ?? sprintComponents.sprintQualiPredictionPoints,
       sprintRacePredictionPoints: existing?.sprintRacePredictionPoints ?? sprintComponents.sprintRacePredictionPoints,
@@ -765,10 +765,10 @@ export async function calculateGrandPrixSprintQualificationScores(grandPrixId: s
     });
     const existing = componentByUserId.get(selection.user_id);
     componentByUserId.set(selection.user_id, {
-      teamQualiPoints: existing?.teamQualiPoints ?? 0,
+      teamQualiPoints: existing?.teamQualiPoints ?? null,
       teamSprintQualiPoints: sprintTeamComponents.teamSprintQualiPoints,
-      teamSprintRacePoints: existing?.teamSprintRacePoints ?? 0,
-      teamRacePoints: existing?.teamRacePoints ?? 0,
+      teamSprintRacePoints: existing?.teamSprintRacePoints ?? null,
+      teamRacePoints: existing?.teamRacePoints ?? null,
       qualiPredictionPoints: existing?.qualiPredictionPoints ?? 0,
       sprintQualiPredictionPoints: existing?.sprintQualiPredictionPoints ?? 0,
       sprintRacePredictionPoints: existing?.sprintRacePredictionPoints ?? 0,
@@ -829,10 +829,10 @@ export async function calculateGrandPrixSprintRaceScores(grandPrixId: string) {
     });
     const existing = componentByUserId.get(selection.user_id);
     componentByUserId.set(selection.user_id, {
-      teamQualiPoints: existing?.teamQualiPoints ?? 0,
-      teamSprintQualiPoints: existing?.teamSprintQualiPoints ?? 0,
+      teamQualiPoints: existing?.teamQualiPoints ?? null,
+      teamSprintQualiPoints: existing?.teamSprintQualiPoints ?? null,
       teamSprintRacePoints: sprintTeamComponents.teamSprintRacePoints,
-      teamRacePoints: existing?.teamRacePoints ?? 0,
+      teamRacePoints: existing?.teamRacePoints ?? null,
       qualiPredictionPoints: existing?.qualiPredictionPoints ?? 0,
       sprintQualiPredictionPoints: existing?.sprintQualiPredictionPoints ?? 0,
       sprintRacePredictionPoints: existing?.sprintRacePredictionPoints ?? 0,

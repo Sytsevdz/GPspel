@@ -194,6 +194,11 @@ export default async function HomePage() {
                         const constructorTeam = detail.drivers?.constructor_team ?? "Onbekend team";
                         const team = resolveTeamSelectionTeam(constructorTeam);
 
+                        const pointRows = [
+                          { label: "Kwalificatie", value: detail.team_quali_points },
+                          { label: "Race", value: detail.team_race_points },
+                        ].filter((row) => row.value !== null);
+
                         return (
                           <li key={detail.driver_id} className="dashboard-result-driver-card">
                             <Image
@@ -205,14 +210,12 @@ export default async function HomePage() {
                             />
                             <p className="dashboard-result-driver-name">{driverName}</p>
                             <dl className="dashboard-result-driver-points">
-                              <div>
-                                <dt>Kwalificatie</dt>
-                                <dd>{detail.team_quali_points ?? 0}</dd>
-                              </div>
-                              <div>
-                                <dt>Race</dt>
-                                <dd>{detail.team_race_points ?? 0}</dd>
-                              </div>
+                              {pointRows.map((row) => (
+                                <div key={`${detail.driver_id}-${row.label}`}>
+                                  <dt>{row.label}</dt>
+                                  <dd>{row.value}</dd>
+                                </div>
+                              ))}
                               <div>
                                 <dt>Totaal</dt>
                                 <dd>{detail.total_points ?? 0}</dd>
