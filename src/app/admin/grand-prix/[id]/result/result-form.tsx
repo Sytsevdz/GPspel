@@ -22,6 +22,7 @@ type ResultField = keyof ResultValues;
 
 type ResultFormProps = {
   grandPrixId: string;
+  isSprintWeekend: boolean;
   drivers: DriverOption[];
   initialValues: ResultValues;
 };
@@ -115,7 +116,7 @@ function ReorderList({
   );
 }
 
-export function ResultForm({ grandPrixId, drivers, initialValues }: ResultFormProps) {
+export function ResultForm({ grandPrixId, isSprintWeekend, drivers, initialValues }: ResultFormProps) {
   const [state, formAction] = useFormState(saveGrandPrixResult, INITIAL_STATE);
   const [values, setValues] = useState<ResultValues>(initialValues);
   const [pasteValues, setPasteValues] = useState<Record<ResultField, string>>({
@@ -143,13 +144,10 @@ export function ResultForm({ grandPrixId, drivers, initialValues }: ResultFormPr
     if (values.raceOrder.length !== drivers.length || new Set(values.raceOrder).size !== drivers.length) {
       errors.push("Binnen race moet elke actieve coureur precies één positie hebben");
     }
-    if (
-      values.sprintQualificationOrder.length !== drivers.length ||
-      new Set(values.sprintQualificationOrder).size !== drivers.length
-    ) {
+    if (isSprintWeekend && (values.sprintQualificationOrder.length !== drivers.length || new Set(values.sprintQualificationOrder).size !== drivers.length)) {
       errors.push("Binnen sprint kwalificatie moet elke actieve coureur precies één positie hebben");
     }
-    if (values.sprintRaceOrder.length !== drivers.length || new Set(values.sprintRaceOrder).size !== drivers.length) {
+    if (isSprintWeekend && (values.sprintRaceOrder.length !== drivers.length || new Set(values.sprintRaceOrder).size !== drivers.length)) {
       errors.push("Binnen sprint race moet elke actieve coureur precies één positie hebben");
     }
 
@@ -244,8 +242,8 @@ export function ResultForm({ grandPrixId, drivers, initialValues }: ResultFormPr
     <form action={formAction} className="predictions-form">
       <input type="hidden" name="grand_prix_id" value={grandPrixId} />
       <input type="hidden" name="qualification_order" value={values.qualificationOrder.join(",")} />
-      <input type="hidden" name="sprint_qualification_order" value={values.sprintQualificationOrder.join(",")} />
-      <input type="hidden" name="sprint_race_order" value={values.sprintRaceOrder.join(",")} />
+      <input type="hidden" name="sprint_qualification_order" value={isSprintWeekend ? values.sprintQualificationOrder.join(",") : ""} />
+      <input type="hidden" name="sprint_race_order" value={isSprintWeekend ? values.sprintRaceOrder.join(",") : ""} />
       <input type="hidden" name="race_order" value={values.raceOrder.join(",")} />
 
       <ReorderList
@@ -266,7 +264,7 @@ export function ResultForm({ grandPrixId, drivers, initialValues }: ResultFormPr
         onMove={(from, to) => moveInList("qualificationOrder", from, to)}
       />
 
-      <ReorderList
+      {isSprintWeekend ? <ReorderList
         title="Sprint kwalificatie"
         pasteLabel="Plak sprint kwalificatievolgorde"
         pasteButtonLabel="Verwerk sprint kwalificatie"
@@ -282,9 +280,9 @@ export function ResultForm({ grandPrixId, drivers, initialValues }: ResultFormPr
         }
         onImport={() => importOrder("sprintQualificationOrder")}
         onMove={(from, to) => moveInList("sprintQualificationOrder", from, to)}
-      />
+      /> : null}
 
-      <ReorderList
+      {isSprintWeekend ? <ReorderList
         title="Sprint race"
         pasteLabel="Plak sprint racevolgorde"
         pasteButtonLabel="Verwerk sprint race"
@@ -300,7 +298,7 @@ export function ResultForm({ grandPrixId, drivers, initialValues }: ResultFormPr
         }
         onImport={() => importOrder("sprintRaceOrder")}
         onMove={(from, to) => moveInList("sprintRaceOrder", from, to)}
-      />
+      /> : null}
 
       <ReorderList
         title="Race"
@@ -338,4 +336,3 @@ export function ResultForm({ grandPrixId, drivers, initialValues }: ResultFormPr
     </form>
   );
 }
-

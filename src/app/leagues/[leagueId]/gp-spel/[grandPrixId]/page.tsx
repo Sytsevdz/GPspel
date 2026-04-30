@@ -265,6 +265,7 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
                   publishedDriverScores={publishedDriverScores}
                   hasPublishedSprintQualiPoints={hasPublishedSprintQualiTeamPoints}
                   hasPublishedSprintRacePoints={hasPublishedSprintRaceTeamPoints}
+                  isSprintWeekend={gpData.grandPrix.is_sprint_weekend}
                   hasPublishedQualiPoints={hasPublishedQualiTeamPoints}
                   hasPublishedRacePoints={hasPublishedRaceTeamPoints}
                   savingDisabled={false}

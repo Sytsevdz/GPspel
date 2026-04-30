@@ -8,6 +8,7 @@ import { createServerSupabaseClient } from "@/lib/supabase";
 export type SelectableGrandPrix = {
   id: string;
   name: string;
+  is_sprint_weekend: boolean;
   status: GrandPrixWorkflowStatus;
   qualification_start: string;
   deadline: string;
@@ -16,6 +17,7 @@ export type SelectableGrandPrix = {
 export type GrandPrixTimelineItem = {
   id: string;
   name: string;
+  is_sprint_weekend: boolean;
   status: GrandPrixWorkflowStatus;
   qualification_start: string;
   deadline: string;
@@ -24,6 +26,7 @@ export type GrandPrixTimelineItem = {
 type GrandPrixTimelineDbRow = {
   id: string;
   name: string;
+  is_sprint_weekend: boolean;
   status: GrandPrixStatus;
   qualification_start: string;
   deadline: string;
@@ -166,7 +169,7 @@ export async function getGrandPrixTimeline(
   const nowIso = new Date().toISOString();
   const { data, error } = await supabase
     .from("grand_prix")
-    .select("id, name, status, qualification_start, deadline")
+    .select("id, name, is_sprint_weekend, status, qualification_start, deadline")
     .order("qualification_start", { ascending: true })
     .returns<GrandPrixTimelineDbRow[]>();
 
@@ -218,7 +221,7 @@ export async function getGrandPrixAndDriversById(
 ): Promise<TeamSelectionDataResult> {
   const { data: grandPrix, error: grandPrixError } = await supabase
     .from("grand_prix")
-    .select("id, name, status, qualification_start, deadline")
+    .select("id, name, is_sprint_weekend, status, qualification_start, deadline")
     .eq("id", grandPrixId)
     .maybeSingle<GrandPrixTimelineDbRow>();
 

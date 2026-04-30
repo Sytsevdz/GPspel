@@ -40,6 +40,7 @@ type TeamSelectionCompactFormProps = {
   hasPublishedRacePoints?: boolean;
   hasPublishedSprintQualiPoints?: boolean;
   hasPublishedSprintRacePoints?: boolean;
+  isSprintWeekend?: boolean;
   savingDisabled?: boolean;
   readOnly?: boolean;
   showFallbackNotice?: boolean;
@@ -69,6 +70,7 @@ export function TeamSelectionCompactForm({
   hasPublishedRacePoints = false,
   hasPublishedSprintQualiPoints = false,
   hasPublishedSprintRacePoints = false,
+  isSprintWeekend = false,
   savingDisabled = false,
   readOnly = false,
   showFallbackNotice = false,
@@ -266,8 +268,14 @@ export function TeamSelectionCompactForm({
                 (slotScore?.qualiPoints ?? 0) +
                 (slotScore?.racePoints ?? 0));
             const pointRows = [
-              { label: "Sprint kwali", value: hasPublishedSprintQualiPoints ? (slotScore?.sprintQualiPoints ?? null) : null },
-              { label: "Sprint race", value: hasPublishedSprintRacePoints ? (slotScore?.sprintRacePoints ?? null) : null },
+              {
+                label: "Sprint kwali",
+                value: isSprintWeekend && hasPublishedSprintQualiPoints ? (slotScore?.sprintQualiPoints ?? null) : null,
+              },
+              {
+                label: "Sprint race",
+                value: isSprintWeekend && hasPublishedSprintRacePoints ? (slotScore?.sprintRacePoints ?? null) : null,
+              },
               { label: "Kwali", value: hasPublishedQualiPoints ? (slotScore?.qualiPoints ?? null) : null },
               { label: "Race", value: hasPublishedRacePoints ? (slotScore?.racePoints ?? null) : null },
               { label: "Totaal", value: hasPublishedScore ? slotTotalPoints : null },
