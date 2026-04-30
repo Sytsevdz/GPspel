@@ -22,6 +22,13 @@ export async function savePrediction(
   const leagueId = String(formData.get("league_id") ?? "").trim();
   const grandPrixId = String(formData.get("grand_prix_id") ?? "").trim();
 
+  const sprintQualiP1 = String(formData.get("sprint_quali_p1") ?? "").trim();
+  const sprintQualiP2 = String(formData.get("sprint_quali_p2") ?? "").trim();
+  const sprintQualiP3 = String(formData.get("sprint_quali_p3") ?? "").trim();
+  const sprintRaceP1 = String(formData.get("sprint_race_p1") ?? "").trim();
+  const sprintRaceP2 = String(formData.get("sprint_race_p2") ?? "").trim();
+  const sprintRaceP3 = String(formData.get("sprint_race_p3") ?? "").trim();
+
   const qualiP1 = String(formData.get("quali_p1") ?? "").trim();
   const qualiP2 = String(formData.get("quali_p2") ?? "").trim();
   const qualiP3 = String(formData.get("quali_p3") ?? "").trim();
@@ -103,8 +110,25 @@ export async function savePrediction(
     };
   }
 
+
+  const isSprintWeekend = teamSelectionData.grandPrix.is_sprint_weekend;
+
+  if (isSprintWeekend) {
+    if (!sprintQualiP1 || !sprintQualiP2 || !sprintQualiP3 || !sprintRaceP1 || !sprintRaceP2 || !sprintRaceP3) {
+      return { status: "error", message: "Vul ook sprint kwalificatie en sprint race in." };
+    }
+
+    if (new Set([sprintQualiP1, sprintQualiP2, sprintQualiP3]).size !== 3) {
+      return { status: "error", message: "Je mag binnen sprint kwalificatie geen coureur dubbel kiezen" };
+    }
+
+    if (new Set([sprintRaceP1, sprintRaceP2, sprintRaceP3]).size !== 3) {
+      return { status: "error", message: "Je mag binnen sprint race geen coureur dubbel kiezen" };
+    }
+  }
+
   const allowedDriverIds = new Set(teamSelectionData.drivers.map((driver) => driver.id));
-  const selectedIds = [qualiP1, qualiP2, qualiP3, raceP1, raceP2, raceP3];
+  const selectedIds = [qualiP1, qualiP2, qualiP3, raceP1, raceP2, raceP3, sprintQualiP1, sprintQualiP2, sprintQualiP3, sprintRaceP1, sprintRaceP2, sprintRaceP3].filter(Boolean);
 
   if (selectedIds.some((driverId) => !allowedDriverIds.has(driverId))) {
     return {
@@ -123,6 +147,12 @@ export async function savePrediction(
       race_p1: raceP1,
       race_p2: raceP2,
       race_p3: raceP3,
+      sprint_quali_p1: isSprintWeekend ? sprintQualiP1 : null,
+      sprint_quali_p2: isSprintWeekend ? sprintQualiP2 : null,
+      sprint_quali_p3: isSprintWeekend ? sprintQualiP3 : null,
+      sprint_race_p1: isSprintWeekend ? sprintRaceP1 : null,
+      sprint_race_p2: isSprintWeekend ? sprintRaceP2 : null,
+      sprint_race_p3: isSprintWeekend ? sprintRaceP3 : null,
     },
     { onConflict: "user_id,grand_prix_id" },
   );

@@ -34,12 +34,18 @@ type PredictionRow = {
   race_p1: string;
   race_p2: string;
   race_p3: string;
+  sprint_quali_p1: string | null;
+  sprint_quali_p2: string | null;
+  sprint_quali_p3: string | null;
+  sprint_race_p1: string | null;
+  sprint_race_p2: string | null;
+  sprint_race_p3: string | null;
 };
 
 type GrandPrixPredictionScoreDetailRow = {
   grand_prix_id: string;
   user_id: string;
-  prediction_type: "quali" | "race";
+  prediction_type: "sprint_quali" | "sprint_race" | "quali" | "race";
   slot_position: 1 | 2 | 3;
   predicted_driver_id: string;
   points: number;
@@ -163,7 +169,7 @@ const calculateTopThreePredictionPoints = (predictedTopThree: string[], actualTo
 
 const buildTopThreeByPosition = (
   rows: GrandPrixDriverResultRow[],
-  positionKey: "quali_position" | "race_position",
+  positionKey: "sprint_quali_position" | "sprint_race_position" | "quali_position" | "race_position",
 ) =>
   rows
     .filter((row) => (row[positionKey] ?? 0) >= 1 && (row[positionKey] ?? 0) <= 3)
@@ -185,11 +191,23 @@ const buildPredictionPoints = (components: ScoreComponentValues) =>
   components.sprintRacePredictionPoints +
   components.racePredictionPoints;
 
-const buildSprintPredictionComponents = (_isSprintWeekend: boolean) => ({
-  // Sprint publication is not active yet; keep explicit sprint components in place.
-  sprintQualiPredictionPoints: 0,
-  sprintRacePredictionPoints: 0,
-});
+const buildSprintPredictionComponents = ({
+  isSprintWeekend,
+  prediction,
+  officialSprintQualiTopThree,
+  officialSprintRaceTopThree,
+}: {
+  isSprintWeekend: boolean;
+  prediction?: PredictionRow;
+  officialSprintQualiTopThree?: string[];
+  officialSprintRaceTopThree?: string[];
+}) => {
+  if (!isSprintWeekend || !prediction) return { sprintQualiPredictionPoints: 0, sprintRacePredictionPoints: 0 };
+  return {
+    sprintQualiPredictionPoints: calculateTopThreePredictionPoints([prediction.sprint_quali_p1 ?? "", prediction.sprint_quali_p2 ?? "", prediction.sprint_quali_p3 ?? ""], officialSprintQualiTopThree ?? []),
+    sprintRacePredictionPoints: calculateTopThreePredictionPoints([prediction.sprint_race_p1 ?? "", prediction.sprint_race_p2 ?? "", prediction.sprint_race_p3 ?? ""], officialSprintRaceTopThree ?? []),
+  };
+};
 
 const buildSprintTeamComponents = ({
   isSprintWeekend,
@@ -242,7 +260,7 @@ const loadPredictions = async (grandPrixId: string) => {
   const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
     .from("predictions")
-    .select("user_id, quali_p1, quali_p2, quali_p3, race_p1, race_p2, race_p3")
+    .select("user_id, quali_p1, quali_p2, quali_p3, race_p1, race_p2, race_p3, sprint_quali_p1, sprint_quali_p2, sprint_quali_p3, sprint_race_p1, sprint_race_p2, sprint_race_p3")
     .eq("grand_prix_id", grandPrixId);
 
   if (error) {
@@ -452,7 +470,7 @@ const upsertGrandPrixPredictionScoreDetailRows = async ({
 }: {
   grandPrixId: string;
   rows: GrandPrixPredictionScoreDetailRow[];
-  predictionType: "quali" | "race";
+  predictionType: "sprint_quali" | "sprint_race" | "quali" | "race";
 }) => {
   const supabase = createServerSupabaseClient();
 
@@ -496,6 +514,8 @@ export async function calculateGrandPrixQualificationScores(grandPrixId: string)
     loadExistingScores(normalizedGrandPrixId),
   ]);
 
+  const officialSprintQualiTopThree = buildTopThreeByPosition(driverResults, "sprint_quali_position");
+  const officialSprintRaceTopThree = buildTopThreeByPosition(driverResults, "sprint_race_position");
   const officialQualiTopThree = buildTopThreeByPosition(driverResults, "quali_position");
   const qualiPointsByDriverId = new Map<string, number>();
   const sprintQualiPointsByDriverId = new Map<string, number>();
@@ -522,7 +542,7 @@ export async function calculateGrandPrixQualificationScores(grandPrixId: string)
       sprintQualiPointsByDriverId,
       sprintRacePointsByDriverId,
     });
-    const sprintPredictionComponents = buildSprintPredictionComponents(grandPrix.is_sprint_weekend);
+    const sprintPredictionComponents = buildSprintPredictionComponents({ isSprintWeekend: grandPrix.is_sprint_weekend });
     componentByUserId.set(selection.user_id, {
       teamQualiPoints,
       teamSprintQualiPoints: existing?.teamSprintQualiPoints ?? sprintTeamComponents.teamSprintQualiPoints,
@@ -543,7 +563,7 @@ export async function calculateGrandPrixQualificationScores(grandPrixId: string)
       officialQualiTopThree,
     );
 
-    const sprintComponents = buildSprintPredictionComponents(grandPrix.is_sprint_weekend);
+    const sprintComponents = buildSprintPredictionComponents({ isSprintWeekend: grandPrix.is_sprint_weekend, prediction, officialSprintQualiTopThree, officialSprintRaceTopThree });
     const sprintTeamComponents = buildSprintTeamComponents({
       isSprintWeekend: grandPrix.is_sprint_weekend,
       selectedDriverIds: [],
@@ -618,6 +638,8 @@ export async function calculateGrandPrixRaceScores(grandPrixId: string) {
     loadExistingScores(normalizedGrandPrixId),
   ]);
 
+  const officialSprintQualiTopThree = buildTopThreeByPosition(driverResults, "sprint_quali_position");
+  const officialSprintRaceTopThree = buildTopThreeByPosition(driverResults, "sprint_race_position");
   const officialQualiTopThree = buildTopThreeByPosition(driverResults, "quali_position");
   const officialRaceTopThree = buildTopThreeByPosition(driverResults, "race_position");
 
@@ -646,7 +668,7 @@ export async function calculateGrandPrixRaceScores(grandPrixId: string) {
       sprintQualiPointsByDriverId,
       sprintRacePointsByDriverId,
     });
-    const sprintPredictionComponents = buildSprintPredictionComponents(grandPrix.is_sprint_weekend);
+    const sprintPredictionComponents = buildSprintPredictionComponents({ isSprintWeekend: grandPrix.is_sprint_weekend });
     componentByUserId.set(selection.user_id, {
       teamQualiPoints: existing?.teamQualiPoints ?? null,
       teamSprintQualiPoints: existing?.teamSprintQualiPoints ?? sprintTeamComponents.teamSprintQualiPoints,
@@ -672,7 +694,7 @@ export async function calculateGrandPrixRaceScores(grandPrixId: string) {
       officialRaceTopThree,
     );
 
-    const sprintComponents = buildSprintPredictionComponents(grandPrix.is_sprint_weekend);
+    const sprintComponents = buildSprintPredictionComponents({ isSprintWeekend: grandPrix.is_sprint_weekend, prediction, officialSprintQualiTopThree, officialSprintRaceTopThree });
     const sprintTeamComponents = buildSprintTeamComponents({
       isSprintWeekend: grandPrix.is_sprint_weekend,
       selectedDriverIds: [],

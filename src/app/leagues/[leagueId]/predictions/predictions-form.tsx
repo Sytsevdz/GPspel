@@ -17,6 +17,12 @@ type DriverOption = {
 };
 
 type PredictionValues = {
+  sprintQualiP1: string;
+  sprintQualiP2: string;
+  sprintQualiP3: string;
+  sprintRaceP1: string;
+  sprintRaceP2: string;
+  sprintRaceP3: string;
   qualiP1: string;
   qualiP2: string;
   qualiP3: string;
@@ -31,10 +37,19 @@ type PredictionsFormProps = {
   drivers: DriverOption[];
   initialValues: PredictionValues;
   publishedPoints?: {
+    sprintQuali: number | null;
+    sprintRace: number | null;
     quali: number | null;
     race: number | null;
   };
+  isSprintWeekend?: boolean;
   publishedSlotPoints?: {
+    sprintQualiP1: number | null;
+    sprintQualiP2: number | null;
+    sprintQualiP3: number | null;
+    sprintRaceP1: number | null;
+    sprintRaceP2: number | null;
+    sprintRaceP3: number | null;
     qualiP1: number | null;
     qualiP2: number | null;
     qualiP3: number | null;
@@ -58,7 +73,7 @@ type PodiumSlotConfig = {
 };
 
 type PodiumSectionConfig = {
-  id: "quali" | "race";
+  id: "sprintQuali" | "sprintRace" | "quali" | "race";
   title: string;
   slots: PodiumSlotConfig[];
 };
@@ -66,6 +81,24 @@ type PodiumSectionConfig = {
 const INITIAL_STATE: PredictionsActionState = { status: "idle" };
 
 const PODIUM_SECTIONS: PodiumSectionConfig[] = [
+  {
+    id: "sprintQuali",
+    title: "Sprint kwalificatie",
+    slots: [
+      { field: "sprintQualiP2", inputName: "sprint_quali_p2", label: "Sprint kwalificatie P2", position: "P2", rankLabel: "Tweede plek", heightClassName: "podium-step-p2", slotClassName: "podium-slot--p2" },
+      { field: "sprintQualiP1", inputName: "sprint_quali_p1", label: "Sprint kwalificatie P1", position: "P1", rankLabel: "Pole position", heightClassName: "podium-step-p1", slotClassName: "podium-slot--p1" },
+      { field: "sprintQualiP3", inputName: "sprint_quali_p3", label: "Sprint kwalificatie P3", position: "P3", rankLabel: "Derde plek", heightClassName: "podium-step-p3", slotClassName: "podium-slot--p3" },
+    ],
+  },
+  {
+    id: "sprintRace",
+    title: "Sprint race",
+    slots: [
+      { field: "sprintRaceP2", inputName: "sprint_race_p2", label: "Sprint race P2", position: "P2", rankLabel: "Tweede plek", heightClassName: "podium-step-p2", slotClassName: "podium-slot--p2" },
+      { field: "sprintRaceP1", inputName: "sprint_race_p1", label: "Sprint race P1", position: "P1", rankLabel: "Winnaar", heightClassName: "podium-step-p1", slotClassName: "podium-slot--p1" },
+      { field: "sprintRaceP3", inputName: "sprint_race_p3", label: "Sprint race P3", position: "P3", rankLabel: "Derde plek", heightClassName: "podium-step-p3", slotClassName: "podium-slot--p3" },
+    ],
+  },
   {
     id: "quali",
     title: "Kwalificatie",
@@ -144,8 +177,12 @@ function SaveButton({ disabled }: { disabled: boolean }) {
   );
 }
 
-const getSectionSelections = (values: PredictionValues, sectionId: PodiumSectionConfig["id"]) =>
-  sectionId === "quali" ? [values.qualiP1, values.qualiP2, values.qualiP3] : [values.raceP1, values.raceP2, values.raceP3];
+const getSectionSelections = (values: PredictionValues, sectionId: PodiumSectionConfig["id"]) => {
+  if (sectionId === "sprintQuali") return [values.sprintQualiP1, values.sprintQualiP2, values.sprintQualiP3];
+  if (sectionId === "sprintRace") return [values.sprintRaceP1, values.sprintRaceP2, values.sprintRaceP3];
+  if (sectionId === "quali") return [values.qualiP1, values.qualiP2, values.qualiP3];
+  return [values.raceP1, values.raceP2, values.raceP3];
+};
 
 export function PredictionsForm({
   leagueId,
@@ -155,6 +192,7 @@ export function PredictionsForm({
   publishedPoints,
   publishedSlotPoints,
   readOnly = false,
+  isSprintWeekend = false,
 }: PredictionsFormProps) {
   const [state, formAction] = useFormState(savePrediction, INITIAL_STATE);
   const [values, setValues] = useState<PredictionValues>(initialValues);
@@ -197,8 +235,17 @@ export function PredictionsForm({
 
   const validationErrors = useMemo(() => {
     const errors: string[] = [];
+    const sprintQualificationSelections = [values.sprintQualiP1, values.sprintQualiP2, values.sprintQualiP3];
+    const sprintRaceSelections = [values.sprintRaceP1, values.sprintRaceP2, values.sprintRaceP3];
     const qualificationSelections = [values.qualiP1, values.qualiP2, values.qualiP3];
     const raceSelections = [values.raceP1, values.raceP2, values.raceP3];
+
+    if (isSprintWeekend) {
+      const filledSprintQualificationSelections = sprintQualificationSelections.filter(Boolean);
+      if (new Set(filledSprintQualificationSelections).size !== filledSprintQualificationSelections.length) errors.push("Je mag binnen sprint kwalificatie geen coureur dubbel kiezen");
+      const filledSprintRaceSelections = sprintRaceSelections.filter(Boolean);
+      if (new Set(filledSprintRaceSelections).size !== filledSprintRaceSelections.length) errors.push("Je mag binnen sprint race geen coureur dubbel kiezen");
+    }
 
     const filledQualificationSelections = qualificationSelections.filter(Boolean);
     if (new Set(filledQualificationSelections).size !== filledQualificationSelections.length) {
@@ -211,7 +258,7 @@ export function PredictionsForm({
     }
 
     return errors;
-  }, [values]);
+  }, [isSprintWeekend, values]);
 
   const hasAllSelections = Object.values(values).every(Boolean);
   const canSave = hasAllSelections && validationErrors.length === 0 && !readOnly;
@@ -251,7 +298,7 @@ export function PredictionsForm({
       <input type="hidden" name="league_id" value={leagueId} />
       <input type="hidden" name="grand_prix_id" value={grandPrixId} />
 
-      {PODIUM_SECTIONS.map((section) => (
+      {PODIUM_SECTIONS.filter((section) => isSprintWeekend || (section.id !== "sprintQuali" && section.id !== "sprintRace")).map((section) => (
         <section key={section.id} className="predictions-section">
           <div className="predictions-section-header">
             <h2>{section.title}</h2>

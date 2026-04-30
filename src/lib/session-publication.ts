@@ -4,5 +4,5 @@ export function isSessionPublished<T extends GrandPrixScore>(
   userScore: T | null | undefined,
   field: keyof T,
 ): boolean {
-  return userScore != null && userScore[field] !== null;
+  return userScore != null && userScore[field] != null;
 }
