@@ -1,6 +1,7 @@
 "use server";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { isSessionPublished } from "@/lib/session-publication";
 import { isGrandPrixCancelled, resolveGrandPrixWorkflowStatus, type GrandPrixStatus } from "@/lib/grand-prix-status";
 
 type PodiumEntry = {
@@ -245,10 +246,10 @@ async function loadPlayerGrandPrixViewData(
       totalPoints: totals?.total_points ?? null,
     },
     publication: {
-      sprintQualiPublished: totals?.team_sprint_quali_points !== null,
-      sprintRacePublished: totals?.team_sprint_race_points !== null,
-      qualiPublished: totals?.team_quali_points !== null,
-      racePublished: totals?.team_race_points !== null,
+      sprintQualiPublished: isSessionPublished(totals, "team_sprint_quali_points"),
+      sprintRacePublished: isSessionPublished(totals, "team_sprint_race_points"),
+      qualiPublished: isSessionPublished(totals, "team_quali_points"),
+      racePublished: isSessionPublished(totals, "team_race_points"),
     },
   };
 }

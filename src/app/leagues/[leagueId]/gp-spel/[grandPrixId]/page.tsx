@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { getGrandPrixStatusLabel, isGrandPrixCancelled } from "@/lib/grand-prix-status";
+import { isSessionPublished } from "@/lib/session-publication";
 import {
   getGrandPrixAndDriversById,
   getGrandPrixNavigation,
@@ -188,12 +189,12 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
         },
       ]),
     );
-    const hasPublishedSprintQualiTeamPoints = userScore?.team_sprint_quali_points !== null;
-    const hasPublishedSprintRaceTeamPoints = userScore?.team_sprint_race_points !== null;
-    const hasPublishedQualiTeamPoints = userScore?.team_quali_points !== null;
-    const hasPublishedRaceTeamPoints = userScore?.team_race_points !== null;
-    const hasPublishedPredictionQualiPoints = userScore?.quali_prediction_points !== null;
-    const hasPublishedPredictionRacePoints = userScore?.race_prediction_points !== null;
+    const hasPublishedSprintQualiTeamPoints = isSessionPublished(userScore, "team_sprint_quali_points");
+    const hasPublishedSprintRaceTeamPoints = isSessionPublished(userScore, "team_sprint_race_points");
+    const hasPublishedQualiTeamPoints = isSessionPublished(userScore, "team_quali_points");
+    const hasPublishedRaceTeamPoints = isSessionPublished(userScore, "team_race_points");
+    const hasPublishedPredictionQualiPoints = isSessionPublished(userScore, "quali_prediction_points");
+    const hasPublishedPredictionRacePoints = isSessionPublished(userScore, "race_prediction_points");
 
     const isCancelled = isGrandPrixCancelled(gpData.grandPrix.status);
     const isReadOnly = isCancelled || gpData.grandPrix.status === "locked" || gpData.grandPrix.status === "finished";
