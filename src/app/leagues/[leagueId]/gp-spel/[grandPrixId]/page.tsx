@@ -30,6 +30,12 @@ type ExistingTeamSelection = {
 };
 
 type ExistingPrediction = {
+  sprint_quali_p1: string | null;
+  sprint_quali_p2: string | null;
+  sprint_quali_p3: string | null;
+  sprint_race_p1: string | null;
+  sprint_race_p2: string | null;
+  sprint_race_p3: string | null;
   quali_p1: string;
   quali_p2: string;
   quali_p3: string;
@@ -42,6 +48,8 @@ type UserGrandPrixScoreRow = {
   team_points: number | null;
   prediction_points: number | null;
   total_points: number | null;
+  sprint_quali_prediction_points: number | null;
+  sprint_race_prediction_points: number | null;
   quali_prediction_points: number | null;
   race_prediction_points: number | null;
   team_sprint_quali_points: number | null;
@@ -64,12 +72,18 @@ type UserGrandPrixScoreDetailRow = {
 };
 
 type UserGrandPrixPredictionScoreDetailRow = {
-  prediction_type: "quali" | "race";
+  prediction_type: "sprint_quali" | "sprint_race" | "quali" | "race";
   slot_position: 1 | 2 | 3;
   points: number;
 };
 
 type PredictionSlotPoints = {
+  sprintQualiP1: number | null;
+  sprintQualiP2: number | null;
+  sprintQualiP3: number | null;
+  sprintRaceP1: number | null;
+  sprintRaceP2: number | null;
+  sprintRaceP3: number | null;
   qualiP1: number | null;
   qualiP2: number | null;
   qualiP3: number | null;
@@ -127,13 +141,13 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
           .maybeSingle<ExistingTeamSelection>(),
         supabase
           .from("predictions")
-          .select("quali_p1, quali_p2, quali_p3, race_p1, race_p2, race_p3")
+          .select("sprint_quali_p1, sprint_quali_p2, sprint_quali_p3, sprint_race_p1, sprint_race_p2, sprint_race_p3, quali_p1, quali_p2, quali_p3, race_p1, race_p2, race_p3")
           .eq("user_id", user.id)
           .eq("grand_prix_id", gpData.grandPrix.id)
           .maybeSingle<ExistingPrediction>(),
         supabase
           .from("grand_prix_scores")
-          .select("team_points, prediction_points, total_points, quali_prediction_points, race_prediction_points, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points")
+          .select("team_points, prediction_points, total_points, sprint_quali_prediction_points, sprint_race_prediction_points, quali_prediction_points, race_prediction_points, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points")
           .eq("user_id", user.id)
           .eq("grand_prix_id", gpData.grandPrix.id)
           .maybeSingle<UserGrandPrixScoreRow>(),
@@ -156,6 +170,12 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
       existingTeamSelection?.team_selection_drivers.map((teamSelectionDriver) => teamSelectionDriver.driver_id) ?? [];
 
     const initialPredictionValues = {
+      sprintQualiP1: existingPrediction?.sprint_quali_p1 ?? "",
+      sprintQualiP2: existingPrediction?.sprint_quali_p2 ?? "",
+      sprintQualiP3: existingPrediction?.sprint_quali_p3 ?? "",
+      sprintRaceP1: existingPrediction?.sprint_race_p1 ?? "",
+      sprintRaceP2: existingPrediction?.sprint_race_p2 ?? "",
+      sprintRaceP3: existingPrediction?.sprint_race_p3 ?? "",
       qualiP1: existingPrediction?.quali_p1 ?? "",
       qualiP2: existingPrediction?.quali_p2 ?? "",
       qualiP3: existingPrediction?.quali_p3 ?? "",
@@ -164,6 +184,12 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
       raceP3: existingPrediction?.race_p3 ?? "",
     };
     const slotPredictionPointsByField: PredictionSlotPoints = {
+      sprintQualiP1: null,
+      sprintQualiP2: null,
+      sprintQualiP3: null,
+      sprintRaceP1: null,
+      sprintRaceP2: null,
+      sprintRaceP3: null,
       qualiP1: null,
       qualiP2: null,
       qualiP3: null,
@@ -172,7 +198,7 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
       raceP3: null,
     };
     (predictionScoreDetails ?? []).forEach((detail) => {
-      const sectionPrefix = detail.prediction_type === "quali" ? "quali" : "race";
+      const sectionPrefix = detail.prediction_type === "sprint_quali" ? "sprintQuali" : detail.prediction_type === "sprint_race" ? "sprintRace" : detail.prediction_type === "quali" ? "quali" : "race";
       const field = `${sectionPrefix}P${detail.slot_position}` as keyof PredictionSlotPoints;
       slotPredictionPointsByField[field] = detail.points;
     });
@@ -193,6 +219,8 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
     const hasPublishedSprintRaceTeamPoints = isSessionPublished(userScore, "team_sprint_race_points");
     const hasPublishedQualiTeamPoints = isSessionPublished(userScore, "team_quali_points");
     const hasPublishedRaceTeamPoints = isSessionPublished(userScore, "team_race_points");
+    const hasPublishedPredictionSprintQualiPoints = isSessionPublished(userScore, "sprint_quali_prediction_points");
+    const hasPublishedPredictionSprintRacePoints = isSessionPublished(userScore, "sprint_race_prediction_points");
     const hasPublishedPredictionQualiPoints = isSessionPublished(userScore, "quali_prediction_points");
     const hasPublishedPredictionRacePoints = isSessionPublished(userScore, "race_prediction_points");
 
@@ -287,9 +315,12 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
                   drivers={gpData.drivers}
                   initialValues={initialPredictionValues}
                   publishedPoints={{
+                    sprintQuali: hasPublishedPredictionSprintQualiPoints ? (userScore?.sprint_quali_prediction_points ?? 0) : null,
+                    sprintRace: hasPublishedPredictionSprintRacePoints ? (userScore?.sprint_race_prediction_points ?? 0) : null,
                     quali: hasPublishedPredictionQualiPoints ? (userScore?.quali_prediction_points ?? 0) : null,
                     race: hasPublishedPredictionRacePoints ? (userScore?.race_prediction_points ?? 0) : null,
                   }}
+                  isSprintWeekend={gpData.grandPrix.is_sprint_weekend}
                   publishedSlotPoints={slotPredictionPointsByField}
                   readOnly={isReadOnly}
                 />
