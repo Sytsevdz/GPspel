@@ -187,6 +187,8 @@ export function PlayerGrandPrixDetail({
       (snapshot?.teamScoreDetails ?? []).map((detail) => [
         detail.driverId,
         {
+          teamSprintQualiPoints: detail.teamSprintQualiPoints,
+          teamSprintRacePoints: detail.teamSprintRacePoints,
           teamQualiPoints: detail.teamQualiPoints,
           teamRacePoints: detail.teamRacePoints,
           totalPoints: detail.totalPoints,
@@ -216,8 +218,29 @@ export function PlayerGrandPrixDetail({
 
   const hasPublishedTeamScores = useMemo(() => {
     return (snapshot?.teamScoreDetails ?? []).some(
-      (detail) => detail.teamQualiPoints !== null || detail.teamRacePoints !== null || detail.totalPoints !== null,
+      (detail) =>
+        detail.teamSprintQualiPoints !== null ||
+        detail.teamSprintRacePoints !== null ||
+        detail.teamQualiPoints !== null ||
+        detail.teamRacePoints !== null ||
+        detail.totalPoints !== null,
     );
+  }, [snapshot?.teamScoreDetails]);
+
+  const hasPublishedSprintQualiTeamScores = useMemo(() => {
+    return (snapshot?.teamScoreDetails ?? []).some((detail) => detail.teamSprintQualiPoints !== null);
+  }, [snapshot?.teamScoreDetails]);
+
+  const hasPublishedSprintRaceTeamScores = useMemo(() => {
+    return (snapshot?.teamScoreDetails ?? []).some((detail) => detail.teamSprintRacePoints !== null);
+  }, [snapshot?.teamScoreDetails]);
+
+  const hasPublishedQualiTeamScores = useMemo(() => {
+    return (snapshot?.teamScoreDetails ?? []).some((detail) => detail.teamQualiPoints !== null);
+  }, [snapshot?.teamScoreDetails]);
+
+  const hasPublishedRaceTeamScores = useMemo(() => {
+    return (snapshot?.teamScoreDetails ?? []).some((detail) => detail.teamRacePoints !== null);
   }, [snapshot?.teamScoreDetails]);
 
   const hasPublishedPredictionSlotScores = useMemo(() => {
@@ -342,6 +365,21 @@ export function PlayerGrandPrixDetail({
                         const imageSize = getTeamSideImageSize("selectedCard");
                         const teamColors = getConstructorTeamColors(driver.constructorTeam);
 
+                        const driverPoints = teamScoreDetailsByDriverId.get(driver.id);
+                        const pointRows = [
+                          {
+                            label: "Sprint kwali",
+                            value: hasPublishedSprintQualiTeamScores ? (driverPoints?.teamSprintQualiPoints ?? 0) : null,
+                          },
+                          {
+                            label: "Sprint race",
+                            value: hasPublishedSprintRaceTeamScores ? (driverPoints?.teamSprintRacePoints ?? 0) : null,
+                          },
+                          { label: "Kwali", value: hasPublishedQualiTeamScores ? (driverPoints?.teamQualiPoints ?? 0) : null },
+                          { label: "Race", value: hasPublishedRaceTeamScores ? (driverPoints?.teamRacePoints ?? 0) : null },
+                          { label: "Totaal", value: hasPublishedTeamScores ? (driverPoints?.totalPoints ?? 0) : null },
+                        ].filter((row) => row.value !== null);
+
                         return (
                           <li
                             key={driver.id}
@@ -371,18 +409,12 @@ export function PlayerGrandPrixDetail({
                               </p>
                               {hasPublishedTeamScores ? (
                                 <dl className="player-detail-driver-points">
-                                  <div>
-                                    <dt>Kwalificatie</dt>
-                                    <dd>{formatPublishedPoints(teamScoreDetailsByDriverId.get(driver.id)?.teamQualiPoints ?? null)}</dd>
-                                  </div>
-                                  <div>
-                                    <dt>Race</dt>
-                                    <dd>{formatPublishedPoints(teamScoreDetailsByDriverId.get(driver.id)?.teamRacePoints ?? null)}</dd>
-                                  </div>
-                                  <div>
-                                    <dt>Totaal</dt>
-                                    <dd>{formatPublishedPoints(teamScoreDetailsByDriverId.get(driver.id)?.totalPoints ?? null)}</dd>
-                                  </div>
+                                  {pointRows.map((row) => (
+                                    <div key={`${driver.id}-${row.label}`}>
+                                      <dt>{row.label}</dt>
+                                      <dd>{formatPublishedPoints(row.value)}</dd>
+                                    </div>
+                                  ))}
                                 </dl>
                               ) : null}
                             </div>

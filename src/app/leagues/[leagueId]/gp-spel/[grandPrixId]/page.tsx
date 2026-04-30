@@ -47,6 +47,8 @@ type UserGrandPrixScoreRow = {
 
 type UserGrandPrixScoreDetailRow = {
   driver_id: string;
+  team_sprint_quali_points: number | null;
+  team_sprint_race_points: number | null;
   team_quali_points: number | null;
   team_race_points: number | null;
   total_points: number | null;
@@ -132,7 +134,7 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
           .maybeSingle<UserGrandPrixScoreRow>(),
         supabase
           .from("grand_prix_score_details")
-          .select("driver_id, team_quali_points, team_race_points, total_points, drivers(name, constructor_team)")
+          .select("driver_id, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points, total_points, drivers(name, constructor_team)")
           .eq("user_id", user.id)
           .eq("grand_prix_id", gpData.grandPrix.id)
           .order("total_points", { ascending: false })
@@ -174,12 +176,16 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
       scoreDetails.map((detail) => [
         detail.driver_id,
         {
+          sprintQualiPoints: detail.team_sprint_quali_points,
+          sprintRacePoints: detail.team_sprint_race_points,
           qualiPoints: detail.team_quali_points,
           racePoints: detail.team_race_points,
           totalPoints: detail.total_points,
         },
       ]),
     );
+    const hasPublishedSprintQualiTeamPoints = scoreDetails.some((detail) => detail.team_sprint_quali_points !== null);
+    const hasPublishedSprintRaceTeamPoints = scoreDetails.some((detail) => detail.team_sprint_race_points !== null);
     const hasPublishedQualiTeamPoints = scoreDetails.some((detail) => detail.team_quali_points !== null);
     const hasPublishedRaceTeamPoints = scoreDetails.some((detail) => detail.team_race_points !== null);
     const hasPublishedPredictionQualiPoints = userScore?.quali_prediction_points !== null;
@@ -252,6 +258,8 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
                   drivers={gpData.drivers}
                   initialSelectedDriverIds={initialSelectedDriverIds}
                   publishedDriverScores={publishedDriverScores}
+                  hasPublishedSprintQualiPoints={hasPublishedSprintQualiTeamPoints}
+                  hasPublishedSprintRacePoints={hasPublishedSprintRaceTeamPoints}
                   hasPublishedQualiPoints={hasPublishedQualiTeamPoints}
                   hasPublishedRacePoints={hasPublishedRaceTeamPoints}
                   savingDisabled={false}

@@ -11,6 +11,8 @@ type PodiumEntry = {
 
 type TeamScoreDetail = {
   driverId: string;
+  teamSprintQualiPoints: number | null;
+  teamSprintRacePoints: number | null;
   teamQualiPoints: number | null;
   teamRacePoints: number | null;
   totalPoints: number | null;
@@ -115,12 +117,14 @@ async function loadPlayerGrandPrixViewData(
       }>(),
     supabase
       .from("grand_prix_score_details")
-      .select("driver_id, team_quali_points, team_race_points, total_points")
+      .select("driver_id, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points, total_points")
       .eq("user_id", safePlayerId)
       .eq("grand_prix_id", safeGrandPrixId)
       .returns<
         Array<{
           driver_id: string;
+          team_sprint_quali_points: number | null;
+          team_sprint_race_points: number | null;
           team_quali_points: number | null;
           team_race_points: number | null;
           total_points: number | null;
@@ -214,6 +218,8 @@ async function loadPlayerGrandPrixViewData(
     racePodium,
     teamScoreDetails: (teamScoreDetails ?? []).map((detail) => ({
       driverId: detail.driver_id,
+      teamSprintQualiPoints: detail.team_sprint_quali_points,
+      teamSprintRacePoints: detail.team_sprint_race_points,
       teamQualiPoints: detail.team_quali_points,
       teamRacePoints: detail.team_race_points,
       totalPoints: detail.total_points,

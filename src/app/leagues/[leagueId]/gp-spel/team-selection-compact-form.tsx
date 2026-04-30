@@ -29,6 +29,8 @@ type TeamSelectionCompactFormProps = {
   publishedDriverScores?: Record<
     string,
     {
+      sprintQualiPoints: number | null;
+      sprintRacePoints: number | null;
       qualiPoints: number | null;
       racePoints: number | null;
       totalPoints: number | null;
@@ -36,6 +38,8 @@ type TeamSelectionCompactFormProps = {
   >;
   hasPublishedQualiPoints?: boolean;
   hasPublishedRacePoints?: boolean;
+  hasPublishedSprintQualiPoints?: boolean;
+  hasPublishedSprintRacePoints?: boolean;
   savingDisabled?: boolean;
   readOnly?: boolean;
   showFallbackNotice?: boolean;
@@ -63,6 +67,8 @@ export function TeamSelectionCompactForm({
   publishedDriverScores = {},
   hasPublishedQualiPoints = false,
   hasPublishedRacePoints = false,
+  hasPublishedSprintQualiPoints = false,
+  hasPublishedSprintRacePoints = false,
   savingDisabled = false,
   readOnly = false,
   showFallbackNotice = false,
@@ -246,9 +252,27 @@ export function TeamSelectionCompactForm({
             const slotTeam = slotDriver ? resolveTeamSelectionTeam(slotDriver.constructorTeam) : null;
             const slotImageSize = getTeamSideImageSize("slot");
             const slotScore = slotDriver ? publishedDriverScores[slotDriver.id] : null;
-            const hasPublishedScore = Boolean(slotScore && (hasPublishedQualiPoints || hasPublishedRacePoints));
+            const hasPublishedScore = Boolean(
+              slotScore &&
+                (hasPublishedSprintQualiPoints ||
+                  hasPublishedSprintRacePoints ||
+                  hasPublishedQualiPoints ||
+                  hasPublishedRacePoints),
+            );
             const slotTotalPoints =
-              slotScore?.totalPoints ?? ((slotScore?.qualiPoints ?? 0) + (slotScore?.racePoints ?? 0));
+              slotScore?.totalPoints ??
+              ((slotScore?.sprintQualiPoints ?? 0) +
+                (slotScore?.sprintRacePoints ?? 0) +
+                (slotScore?.qualiPoints ?? 0) +
+                (slotScore?.racePoints ?? 0));
+            const pointRows = [
+              { label: "Sprint kwali", value: hasPublishedSprintQualiPoints ? (slotScore?.sprintQualiPoints ?? null) : null },
+              { label: "Sprint race", value: hasPublishedSprintRacePoints ? (slotScore?.sprintRacePoints ?? null) : null },
+              { label: "Kwali", value: hasPublishedQualiPoints ? (slotScore?.qualiPoints ?? null) : null },
+              { label: "Race", value: hasPublishedRacePoints ? (slotScore?.racePoints ?? null) : null },
+              { label: "Totaal", value: hasPublishedScore ? slotTotalPoints : null },
+            ].filter((row) => row.value !== null);
+            const shouldRenderPointRows = hasPublishedScore && pointRows.length > 0;
 
             return (
               <button
@@ -274,24 +298,14 @@ export function TeamSelectionCompactForm({
                       <span className="gp-team-slot-team-name">{slotDriver.constructorTeam}</span>
                       <span>{formatPrice(slotDriver.price)}</span>
                     </p>
-                    {hasPublishedScore ? (
+                    {shouldRenderPointRows ? (
                       <dl className="gp-team-slot-points">
-                        {hasPublishedQualiPoints ? (
-                          <div>
-                            <dt>Kwali</dt>
-                            <dd>{slotScore?.qualiPoints ?? 0}</dd>
+                        {pointRows.map((row) => (
+                          <div key={`${slotDriver.id}-${row.label}`}>
+                            <dt>{row.label}</dt>
+                            <dd>{row.value}</dd>
                           </div>
-                        ) : null}
-                        {hasPublishedRacePoints ? (
-                          <div>
-                            <dt>Race</dt>
-                            <dd>{slotScore?.racePoints ?? 0}</dd>
-                          </div>
-                        ) : null}
-                        <div>
-                          <dt>Totaal</dt>
-                          <dd>{slotTotalPoints}</dd>
-                        </div>
+                        ))}
                       </dl>
                     ) : null}
                   </>
