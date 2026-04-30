@@ -45,23 +45,23 @@ export function PublishScoreActions({ grandPrixId, disabled = false }: { grandPr
       {disabled ? <p className="league-list-empty">Deze GP is geannuleerd. Publicatie van scores is uitgeschakeld.</p> : null}
 
       <div className="admin-action-stack">
-        <form action={qualificationAction}>
-          <input type="hidden" name="grand_prix_id" value={grandPrixId} />
-          <PublishButton label="Kwalificatie publiceren" pendingLabel="Publiceren..." disabled={disabled} />
-        </form>
-        <ActionFeedback {...qualificationState} />
-
         <form action={sprintQualificationAction}>
           <input type="hidden" name="grand_prix_id" value={grandPrixId} />
-          <PublishButton label="Sprintkwalificatie publiceren" pendingLabel="Publiceren..." disabled={disabled} />
+          <PublishButton label="Sprint kwalificatie publiceren" pendingLabel="Publiceren..." disabled={disabled} />
         </form>
         <ActionFeedback {...sprintQualificationState} />
 
         <form action={sprintRaceAction}>
           <input type="hidden" name="grand_prix_id" value={grandPrixId} />
-          <PublishButton label="Sprintrace publiceren" pendingLabel="Publiceren..." disabled={disabled} />
+          <PublishButton label="Sprint race publiceren" pendingLabel="Publiceren..." disabled={disabled} />
         </form>
         <ActionFeedback {...sprintRaceState} />
+
+        <form action={qualificationAction}>
+          <input type="hidden" name="grand_prix_id" value={grandPrixId} />
+          <PublishButton label="Kwalificatie publiceren" pendingLabel="Publiceren..." disabled={disabled} />
+        </form>
+        <ActionFeedback {...qualificationState} />
 
         <form action={finalAction}>
           <input type="hidden" name="grand_prix_id" value={grandPrixId} />
