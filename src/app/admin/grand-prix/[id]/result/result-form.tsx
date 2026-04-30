@@ -13,6 +13,8 @@ type DriverOption = {
 
 type ResultValues = {
   qualificationOrder: string[];
+  sprintQualificationOrder: string[];
+  sprintRaceOrder: string[];
   raceOrder: string[];
 };
 
@@ -118,10 +120,14 @@ export function ResultForm({ grandPrixId, drivers, initialValues }: ResultFormPr
   const [values, setValues] = useState<ResultValues>(initialValues);
   const [pasteValues, setPasteValues] = useState<Record<ResultField, string>>({
     qualificationOrder: "",
+    sprintQualificationOrder: "",
+    sprintRaceOrder: "",
     raceOrder: "",
   });
   const [pasteErrors, setPasteErrors] = useState<Record<ResultField, string | null>>({
     qualificationOrder: null,
+    sprintQualificationOrder: null,
+    sprintRaceOrder: null,
     raceOrder: null,
   });
 
@@ -136,6 +142,15 @@ export function ResultForm({ grandPrixId, drivers, initialValues }: ResultFormPr
 
     if (values.raceOrder.length !== drivers.length || new Set(values.raceOrder).size !== drivers.length) {
       errors.push("Binnen race moet elke actieve coureur precies één positie hebben");
+    }
+    if (
+      values.sprintQualificationOrder.length !== drivers.length ||
+      new Set(values.sprintQualificationOrder).size !== drivers.length
+    ) {
+      errors.push("Binnen sprint kwalificatie moet elke actieve coureur precies één positie hebben");
+    }
+    if (values.sprintRaceOrder.length !== drivers.length || new Set(values.sprintRaceOrder).size !== drivers.length) {
+      errors.push("Binnen sprint race moet elke actieve coureur precies één positie hebben");
     }
 
     return errors;
@@ -229,6 +244,8 @@ export function ResultForm({ grandPrixId, drivers, initialValues }: ResultFormPr
     <form action={formAction} className="predictions-form">
       <input type="hidden" name="grand_prix_id" value={grandPrixId} />
       <input type="hidden" name="qualification_order" value={values.qualificationOrder.join(",")} />
+      <input type="hidden" name="sprint_qualification_order" value={values.sprintQualificationOrder.join(",")} />
+      <input type="hidden" name="sprint_race_order" value={values.sprintRaceOrder.join(",")} />
       <input type="hidden" name="race_order" value={values.raceOrder.join(",")} />
 
       <ReorderList
@@ -247,6 +264,42 @@ export function ResultForm({ grandPrixId, drivers, initialValues }: ResultFormPr
         }
         onImport={() => importOrder("qualificationOrder")}
         onMove={(from, to) => moveInList("qualificationOrder", from, to)}
+      />
+
+      <ReorderList
+        title="Sprint kwalificatie"
+        pasteLabel="Plak sprint kwalificatievolgorde"
+        pasteButtonLabel="Verwerk sprint kwalificatie"
+        order={values.sprintQualificationOrder}
+        driversById={driversById}
+        pasteValue={pasteValues.sprintQualificationOrder}
+        pasteError={pasteErrors.sprintQualificationOrder}
+        onPasteChange={(value) =>
+          setPasteValues((current) => ({
+            ...current,
+            sprintQualificationOrder: value,
+          }))
+        }
+        onImport={() => importOrder("sprintQualificationOrder")}
+        onMove={(from, to) => moveInList("sprintQualificationOrder", from, to)}
+      />
+
+      <ReorderList
+        title="Sprint race"
+        pasteLabel="Plak sprint racevolgorde"
+        pasteButtonLabel="Verwerk sprint race"
+        order={values.sprintRaceOrder}
+        driversById={driversById}
+        pasteValue={pasteValues.sprintRaceOrder}
+        pasteError={pasteErrors.sprintRaceOrder}
+        onPasteChange={(value) =>
+          setPasteValues((current) => ({
+            ...current,
+            sprintRaceOrder: value,
+          }))
+        }
+        onImport={() => importOrder("sprintRaceOrder")}
+        onMove={(from, to) => moveInList("sprintRaceOrder", from, to)}
       />
 
       <ReorderList
@@ -285,3 +338,4 @@ export function ResultForm({ grandPrixId, drivers, initialValues }: ResultFormPr
     </form>
   );
 }
+

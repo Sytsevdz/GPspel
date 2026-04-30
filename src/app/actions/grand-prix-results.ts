@@ -313,12 +313,26 @@ export async function saveGrandPrixResult(
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean);
+  const sprintQualificationOrder = String(formData.get("sprint_qualification_order") ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const sprintRaceOrder = String(formData.get("sprint_race_order") ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
   const raceOrder = String(formData.get("race_order") ?? "")
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean);
 
-  if (!grandPrixId || qualificationOrder.length === 0 || raceOrder.length === 0) {
+  if (
+    !grandPrixId ||
+    qualificationOrder.length === 0 ||
+    sprintQualificationOrder.length === 0 ||
+    sprintRaceOrder.length === 0 ||
+    raceOrder.length === 0
+  ) {
     return {
       status: "error",
       message: "Er ging iets mis bij het opslaan",
@@ -341,17 +355,21 @@ export async function saveGrandPrixResult(
 
   if (
     qualificationOrder.length !== activeDriverIds.length ||
+    sprintQualificationOrder.length !== activeDriverIds.length ||
+    sprintRaceOrder.length !== activeDriverIds.length ||
     raceOrder.length !== activeDriverIds.length ||
     new Set(qualificationOrder).size !== activeDriverIds.length ||
+    new Set(sprintQualificationOrder).size !== activeDriverIds.length ||
+    new Set(sprintRaceOrder).size !== activeDriverIds.length ||
     new Set(raceOrder).size !== activeDriverIds.length
   ) {
     return {
       status: "error",
-      message: "Elke actieve coureur moet precies één positie hebben in kwalificatie en race",
+      message: "Elke actieve coureur moet precies één positie hebben in kwalificatie, sprint kwalificatie, sprint race en race",
     };
   }
 
-  const selectedDriverIds = [...qualificationOrder, ...raceOrder];
+  const selectedDriverIds = [...qualificationOrder, ...sprintQualificationOrder, ...sprintRaceOrder, ...raceOrder];
 
   if (selectedDriverIds.some((driverId) => !activeDriverSet.has(driverId))) {
     return {
@@ -361,12 +379,16 @@ export async function saveGrandPrixResult(
   }
 
   const qualiPositionByDriverId = new Map(qualificationOrder.map((driverId, index) => [driverId, index + 1]));
+  const sprintQualiPositionByDriverId = new Map(sprintQualificationOrder.map((driverId, index) => [driverId, index + 1]));
+  const sprintRacePositionByDriverId = new Map(sprintRaceOrder.map((driverId, index) => [driverId, index + 1]));
   const racePositionByDriverId = new Map(raceOrder.map((driverId, index) => [driverId, index + 1]));
 
   const rows = activeDriverIds.map((driverId) => ({
     grand_prix_id: grandPrixId,
     driver_id: driverId,
     quali_position: qualiPositionByDriverId.get(driverId)!,
+    sprint_quali_position: sprintQualiPositionByDriverId.get(driverId)!,
+    sprint_race_position: sprintRacePositionByDriverId.get(driverId)!,
     race_position: racePositionByDriverId.get(driverId)!,
   }));
 

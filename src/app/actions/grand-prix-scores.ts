@@ -378,6 +378,7 @@ const upsertGrandPrixScoreDetailRows = async ({
   preserveExistingQualiPoints,
   preserveExistingSprintQualiPoints,
   preserveExistingSprintRacePoints,
+  preserveExistingRacePoints,
 }: {
   grandPrixId: string;
   teamSelections: TeamSelectionRow[];
@@ -388,9 +389,15 @@ const upsertGrandPrixScoreDetailRows = async ({
   preserveExistingQualiPoints: boolean;
   preserveExistingSprintQualiPoints: boolean;
   preserveExistingSprintRacePoints: boolean;
+  preserveExistingRacePoints: boolean;
 }) => {
   const supabase = createServerSupabaseClient();
-  const existingDetailByUserAndDriver = preserveExistingQualiPoints
+  const shouldLoadExistingDetails =
+    preserveExistingQualiPoints ||
+    preserveExistingSprintQualiPoints ||
+    preserveExistingSprintRacePoints ||
+    preserveExistingRacePoints;
+  const existingDetailByUserAndDriver = shouldLoadExistingDetails
     ? await loadExistingScoreDetails(grandPrixId)
     : new Map<string, GrandPrixScoreDetailRow>();
 
@@ -406,7 +413,9 @@ const upsertGrandPrixScoreDetailRows = async ({
       const teamSprintRacePoints = preserveExistingSprintRacePoints
         ? (existing?.team_sprint_race_points ?? 0)
         : (sprintRacePointsByDriverId.get(selectedDriver.driver_id) ?? 0);
-      const teamRacePoints = racePointsByDriverId.get(selectedDriver.driver_id) ?? 0;
+      const teamRacePoints = preserveExistingRacePoints
+        ? (existing?.team_race_points ?? 0)
+        : (racePointsByDriverId.get(selectedDriver.driver_id) ?? 0);
 
       return {
         grand_prix_id: grandPrixId,
@@ -586,6 +595,7 @@ export async function calculateGrandPrixQualificationScores(grandPrixId: string)
       preserveExistingQualiPoints: false,
       preserveExistingSprintQualiPoints: true,
       preserveExistingSprintRacePoints: true,
+      preserveExistingRacePoints: true,
     }),
   ]);
 
@@ -714,6 +724,7 @@ export async function calculateGrandPrixRaceScores(grandPrixId: string) {
       preserveExistingQualiPoints: true,
       preserveExistingSprintQualiPoints: true,
       preserveExistingSprintRacePoints: true,
+      preserveExistingRacePoints: false,
     }),
   ]);
 
@@ -777,6 +788,7 @@ export async function calculateGrandPrixSprintQualificationScores(grandPrixId: s
       preserveExistingQualiPoints: true,
       preserveExistingSprintQualiPoints: false,
       preserveExistingSprintRacePoints: true,
+      preserveExistingRacePoints: true,
     }),
   ]);
 
@@ -840,6 +852,7 @@ export async function calculateGrandPrixSprintRaceScores(grandPrixId: string) {
       preserveExistingQualiPoints: true,
       preserveExistingSprintQualiPoints: true,
       preserveExistingSprintRacePoints: false,
+      preserveExistingRacePoints: true,
     }),
   ]);
 
