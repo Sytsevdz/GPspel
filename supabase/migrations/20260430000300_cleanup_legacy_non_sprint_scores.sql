@@ -1,3 +1,7 @@
+-- Ensure sprint-weekend flag exists before using it in cleanup predicates.
+alter table public.grand_prix
+  add column if not exists is_sprint_weekend boolean not null default false;
+
 -- Cleanup legacy non-sprint GP score rows.
 -- Older rows used 0 for sprint-related score fields even when no sprint results existed.
 -- NULL now represents "not published", so we clear those legacy zeros only for
