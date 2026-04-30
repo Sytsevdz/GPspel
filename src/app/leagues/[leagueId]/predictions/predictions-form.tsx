@@ -260,7 +260,24 @@ export function PredictionsForm({
     return errors;
   }, [isSprintWeekend, values]);
 
-  const hasAllSelections = Object.values(values).every(Boolean);
+  const requiredFields: PredictionField[] = isSprintWeekend
+    ? [
+        "sprintQualiP1",
+        "sprintQualiP2",
+        "sprintQualiP3",
+        "sprintRaceP1",
+        "sprintRaceP2",
+        "sprintRaceP3",
+        "qualiP1",
+        "qualiP2",
+        "qualiP3",
+        "raceP1",
+        "raceP2",
+        "raceP3",
+      ]
+    : ["qualiP1", "qualiP2", "qualiP3", "raceP1", "raceP2", "raceP3"];
+
+  const hasAllSelections = requiredFields.every((field) => Boolean(values[field]));
   const canSave = hasAllSelections && validationErrors.length === 0 && !readOnly;
 
   const activeSelection = useMemo(() => {
