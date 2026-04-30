@@ -227,21 +227,13 @@ export function PlayerGrandPrixDetail({
     );
   }, [snapshot?.teamScoreDetails]);
 
-  const hasPublishedSprintQualiTeamScores = useMemo(() => {
-    return (snapshot?.teamScoreDetails ?? []).some((detail) => detail.teamSprintQualiPoints !== null);
-  }, [snapshot?.teamScoreDetails]);
+  const hasPublishedSprintQualiTeamScores = snapshot?.publication.sprintQualiPublished ?? false;
 
-  const hasPublishedSprintRaceTeamScores = useMemo(() => {
-    return (snapshot?.teamScoreDetails ?? []).some((detail) => detail.teamSprintRacePoints !== null);
-  }, [snapshot?.teamScoreDetails]);
+  const hasPublishedSprintRaceTeamScores = snapshot?.publication.sprintRacePublished ?? false;
 
-  const hasPublishedQualiTeamScores = useMemo(() => {
-    return (snapshot?.teamScoreDetails ?? []).some((detail) => detail.teamQualiPoints !== null);
-  }, [snapshot?.teamScoreDetails]);
+  const hasPublishedQualiTeamScores = snapshot?.publication.qualiPublished ?? false;
 
-  const hasPublishedRaceTeamScores = useMemo(() => {
-    return (snapshot?.teamScoreDetails ?? []).some((detail) => detail.teamRacePoints !== null);
-  }, [snapshot?.teamScoreDetails]);
+  const hasPublishedRaceTeamScores = snapshot?.publication.racePublished ?? false;
 
   const hasPublishedPredictionSlotScores = useMemo(() => {
     return (snapshot?.predictionSlotScores ?? []).some((detail) => detail.points !== null);

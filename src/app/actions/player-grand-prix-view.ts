@@ -38,6 +38,12 @@ export type PlayerGrandPrixViewResult =
         predictionPoints: number | null;
         totalPoints: number | null;
       };
+      publication: {
+        sprintQualiPublished: boolean;
+        sprintRacePublished: boolean;
+        qualiPublished: boolean;
+        racePublished: boolean;
+      };
     }
   | {
       status: "error";
@@ -144,13 +150,17 @@ async function loadPlayerGrandPrixViewData(
       >(),
     supabase
       .from("grand_prix_scores")
-      .select("team_points, prediction_points, total_points")
+      .select("team_points, prediction_points, total_points, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points")
       .eq("user_id", safePlayerId)
       .eq("grand_prix_id", safeGrandPrixId)
       .maybeSingle<{
         team_points: number | null;
         prediction_points: number | null;
         total_points: number | null;
+        team_sprint_quali_points: number | null;
+        team_sprint_race_points: number | null;
+        team_quali_points: number | null;
+        team_race_points: number | null;
       }>(),
   ]);
 
@@ -233,6 +243,12 @@ async function loadPlayerGrandPrixViewData(
       teamPoints: totals?.team_points ?? null,
       predictionPoints: totals?.prediction_points ?? null,
       totalPoints: totals?.total_points ?? null,
+    },
+    publication: {
+      sprintQualiPublished: totals?.team_sprint_quali_points !== null,
+      sprintRacePublished: totals?.team_sprint_race_points !== null,
+      qualiPublished: totals?.team_quali_points !== null,
+      racePublished: totals?.team_race_points !== null,
     },
   };
 }
