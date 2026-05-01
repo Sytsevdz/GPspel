@@ -441,7 +441,7 @@ export function PlayerGrandPrixDetail({
                     <h3>Voorspellingen</h3>
                     <p>Kwalificatie en race staan los van elkaar weergegeven.</p>
                   </div>
-                  {snapshot.sprintQualificationPodium || snapshot.sprintRacePodium || snapshot.qualificationPodium || snapshot.racePodium ? (
+                  {snapshot.hasPredictions ? (
                     <>
                       <PodiumReadOnly
                         title="Sprint kwalificatie"
@@ -475,7 +475,7 @@ export function PlayerGrandPrixDetail({
                   ) : (
                     <p className="league-list-empty">Geen voorspellingen opgeslagen</p>
                   )}
-                  {(snapshot.sprintQualificationPodium || snapshot.sprintRacePodium || snapshot.qualificationPodium || snapshot.racePodium) &&
+                  {(snapshot.hasPredictions) &&
                   !hasPublishedPredictionSlotScores ? (
                     <p className="league-list-empty">Voorspellingspunten zijn nog niet gepubliceerd.</p>
                   ) : null}

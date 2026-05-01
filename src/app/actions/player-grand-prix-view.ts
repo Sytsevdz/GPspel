@@ -34,6 +34,7 @@ export type PlayerGrandPrixViewResult =
       sprintQualificationPodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null;
       sprintRacePodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null;
       racePodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null;
+      hasPredictions: boolean;
       teamScoreDetails: TeamScoreDetail[];
       predictionSlotScores: PredictionSlotScore[];
       totals: {
@@ -123,12 +124,12 @@ async function loadPlayerGrandPrixViewData(
         sprint_race_p1: string | null;
         sprint_race_p2: string | null;
         sprint_race_p3: string | null;
-        quali_p1: string;
-        quali_p2: string;
-        quali_p3: string;
-        race_p1: string;
-        race_p2: string;
-        race_p3: string;
+        quali_p1: string | null;
+        quali_p2: string | null;
+        quali_p3: string | null;
+        race_p1: string | null;
+        race_p2: string | null;
+        race_p3: string | null;
       }>(),
     supabase
       .from("grand_prix_score_details")
@@ -189,21 +190,39 @@ async function loadPlayerGrandPrixViewData(
   let sprintRacePodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null = null;
   let racePodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null = null;
 
+  const hasAnyPredictionSection = Boolean(
+    prediction &&
+      (
+        prediction.sprint_quali_p1 ||
+        prediction.sprint_quali_p2 ||
+        prediction.sprint_quali_p3 ||
+        prediction.sprint_race_p1 ||
+        prediction.sprint_race_p2 ||
+        prediction.sprint_race_p3 ||
+        prediction.quali_p1 ||
+        prediction.quali_p2 ||
+        prediction.quali_p3 ||
+        prediction.race_p1 ||
+        prediction.race_p2 ||
+        prediction.race_p3
+      ),
+  );
+
   if (prediction) {
     const predictionDriverIds = [
-      prediction.sprint_quali_p1 ?? "",
-      prediction.sprint_quali_p2 ?? "",
-      prediction.sprint_quali_p3 ?? "",
-      prediction.sprint_race_p1 ?? "",
-      prediction.sprint_race_p2 ?? "",
-      prediction.sprint_race_p3 ?? "",
+      prediction.sprint_quali_p1,
+      prediction.sprint_quali_p2,
+      prediction.sprint_quali_p3,
+      prediction.sprint_race_p1,
+      prediction.sprint_race_p2,
+      prediction.sprint_race_p3,
       prediction.quali_p1,
       prediction.quali_p2,
       prediction.quali_p3,
       prediction.race_p1,
       prediction.race_p2,
       prediction.race_p3,
-    ];
+    ].filter((driverId): driverId is string => Boolean(driverId));
 
     const uniqueDriverIds = Array.from(new Set(predictionDriverIds));
 
@@ -220,37 +239,18 @@ async function loadPlayerGrandPrixViewData(
       ]),
     );
 
-    const sprintQualifyEntries = [prediction.sprint_quali_p1, prediction.sprint_quali_p2, prediction.sprint_quali_p3]
-      .map((driverId) => (driverId ? driversById.get(driverId) : null))
-      .filter((entry): entry is PodiumEntry => Boolean(entry));
+    const buildPodium = (ids: Array<string | null>) => {
+      const mapped = ids
+        .map((driverId) => (driverId ? driversById.get(driverId) : null))
+        .filter((entry): entry is PodiumEntry => Boolean(entry));
 
-    const sprintRaceEntries = [prediction.sprint_race_p1, prediction.sprint_race_p2, prediction.sprint_race_p3]
-      .map((driverId) => (driverId ? driversById.get(driverId) : null))
-      .filter((entry): entry is PodiumEntry => Boolean(entry));
+      return mapped.length === 3 ? ([mapped[0], mapped[1], mapped[2]] as [PodiumEntry, PodiumEntry, PodiumEntry]) : null;
+    };
 
-    const qualifyEntries = [prediction.quali_p1, prediction.quali_p2, prediction.quali_p3]
-      .map((driverId) => driversById.get(driverId))
-      .filter((entry): entry is PodiumEntry => Boolean(entry));
-
-    const raceEntries = [prediction.race_p1, prediction.race_p2, prediction.race_p3]
-      .map((driverId) => driversById.get(driverId))
-      .filter((entry): entry is PodiumEntry => Boolean(entry));
-
-    if (sprintQualifyEntries.length === 3) {
-      sprintQualificationPodium = [sprintQualifyEntries[0], sprintQualifyEntries[1], sprintQualifyEntries[2]];
-    }
-
-    if (sprintRaceEntries.length === 3) {
-      sprintRacePodium = [sprintRaceEntries[0], sprintRaceEntries[1], sprintRaceEntries[2]];
-    }
-
-    if (qualifyEntries.length === 3) {
-      qualificationPodium = [qualifyEntries[0], qualifyEntries[1], qualifyEntries[2]];
-    }
-
-    if (raceEntries.length === 3) {
-      racePodium = [raceEntries[0], raceEntries[1], raceEntries[2]];
-    }
+    sprintQualificationPodium = buildPodium([prediction.sprint_quali_p1, prediction.sprint_quali_p2, prediction.sprint_quali_p3]);
+    sprintRacePodium = buildPodium([prediction.sprint_race_p1, prediction.sprint_race_p2, prediction.sprint_race_p3]);
+    qualificationPodium = buildPodium([prediction.quali_p1, prediction.quali_p2, prediction.quali_p3]);
+    racePodium = buildPodium([prediction.race_p1, prediction.race_p2, prediction.race_p3]);
   }
 
   return {
@@ -261,6 +261,7 @@ async function loadPlayerGrandPrixViewData(
     sprintQualificationPodium,
     sprintRacePodium,
     racePodium,
+    hasPredictions: hasAnyPredictionSection,
     teamScoreDetails: (teamScoreDetails ?? []).map((detail) => ({
       driverId: detail.driver_id,
       teamSprintQualiPoints: detail.team_sprint_quali_points,
