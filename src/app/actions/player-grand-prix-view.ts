@@ -236,6 +236,14 @@ async function loadPlayerGrandPrixViewData(
       .map((driverId) => driversById.get(driverId))
       .filter((entry): entry is PodiumEntry => Boolean(entry));
 
+    if (sprintQualifyEntries.length === 3) {
+      sprintQualificationPodium = [sprintQualifyEntries[0], sprintQualifyEntries[1], sprintQualifyEntries[2]];
+    }
+
+    if (sprintRaceEntries.length === 3) {
+      sprintRacePodium = [sprintRaceEntries[0], sprintRaceEntries[1], sprintRaceEntries[2]];
+    }
+
     if (qualifyEntries.length === 3) {
       qualificationPodium = [qualifyEntries[0], qualifyEntries[1], qualifyEntries[2]];
     }
