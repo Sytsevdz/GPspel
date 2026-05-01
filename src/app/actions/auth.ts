@@ -133,3 +133,38 @@ export async function logout() {
   await supabase.auth.signOut();
   redirect(toRedirectUrl("/login", "message", "Je bent succesvol uitgelogd."));
 }
+
+const getPasswordResetRedirectUrl = () => {
+  const siteUrl = getSiteUrl();
+
+  if (siteUrl.includes("localhost") || siteUrl.includes("127.0.0.1")) {
+    return `${siteUrl}/nieuw-wachtwoord`;
+  }
+
+  return "https://gpspel.vercel.app/nieuw-wachtwoord";
+};
+
+export async function requestPasswordReset(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim();
+
+  if (!email) {
+    redirect(toRedirectUrl("/wachtwoord-vergeten", "error", "Vul een e-mailadres in."));
+  }
+
+  const supabase = createServerSupabaseActionClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: getPasswordResetRedirectUrl(),
+  });
+
+  if (error) {
+    redirect(toRedirectUrl("/wachtwoord-vergeten", "error", "Kon geen resetlink versturen. Probeer het opnieuw."));
+  }
+
+  redirect(
+    toRedirectUrl(
+      "/wachtwoord-vergeten",
+      "message",
+      "Als het e-mailadres bekend is, is er een resetlink verstuurd.",
+    ),
+  );
+}

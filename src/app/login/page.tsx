@@ -39,6 +39,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </form>
 
         <p className="auth-link">
+          <Link href="/wachtwoord-vergeten">Wachtwoord vergeten?</Link>
+        </p>
+
+        <p className="auth-link">
           Heb je nog geen account? <Link href="/register">Meld je aan</Link>
         </p>
       </section>
