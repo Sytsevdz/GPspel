@@ -443,20 +443,24 @@ export function PlayerGrandPrixDetail({
                   </div>
                   {snapshot.hasPredictions ? (
                     <>
-                      <PodiumReadOnly
-                        title="Sprint kwalificatie"
-                        podium={snapshot.sprintQualificationPodium}
-                        slots={QUALIFICATION_SLOTS}
-                        publishedSlotPoints={predictionSlotPoints}
-                        showPublishedSlotPoints={snapshot.publication.sprintQualiPublished}
-                      />
-                      <PodiumReadOnly
-                        title="Sprint race"
-                        podium={snapshot.sprintRacePodium}
-                        slots={RACE_SLOTS}
-                        publishedSlotPoints={predictionSlotPoints}
-                        showPublishedSlotPoints={snapshot.publication.sprintRacePublished}
-                      />
+                      {snapshot.isSprintWeekend ? (
+                        <>
+                          <PodiumReadOnly
+                            title="Sprint kwalificatie"
+                            podium={snapshot.sprintQualificationPodium}
+                            slots={QUALIFICATION_SLOTS}
+                            publishedSlotPoints={predictionSlotPoints}
+                            showPublishedSlotPoints={snapshot.publication.sprintQualiPublished}
+                          />
+                          <PodiumReadOnly
+                            title="Sprint race"
+                            podium={snapshot.sprintRacePodium}
+                            slots={RACE_SLOTS}
+                            publishedSlotPoints={predictionSlotPoints}
+                            showPublishedSlotPoints={snapshot.publication.sprintRacePublished}
+                          />
+                        </>
+                      ) : null}
                       <PodiumReadOnly
                         title="Kwalificatie"
                         podium={snapshot.qualificationPodium}

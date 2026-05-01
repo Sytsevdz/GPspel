@@ -35,6 +35,7 @@ export type PlayerGrandPrixViewResult =
       sprintRacePodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null;
       racePodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null;
       hasPredictions: boolean;
+      isSprintWeekend: boolean;
       teamScoreDetails: TeamScoreDetail[];
       predictionSlotScores: PredictionSlotScore[];
       totals: {
@@ -64,9 +65,9 @@ async function loadPlayerGrandPrixViewData(
 ): Promise<PlayerGrandPrixViewResult> {
   const { data: grandPrix } = await supabase
     .from("grand_prix")
-    .select("deadline, status")
+    .select("deadline, status, is_sprint_weekend")
     .eq("id", safeGrandPrixId)
-    .maybeSingle<{ deadline: string; status: GrandPrixStatus }>();
+    .maybeSingle<{ deadline: string; status: GrandPrixStatus; is_sprint_weekend: boolean }>();
 
   if (!grandPrix) {
     return {
@@ -262,6 +263,7 @@ async function loadPlayerGrandPrixViewData(
     sprintRacePodium,
     racePodium,
     hasPredictions: hasAnyPredictionSection,
+    isSprintWeekend: grandPrix.is_sprint_weekend,
     teamScoreDetails: (teamScoreDetails ?? []).map((detail) => ({
       driverId: detail.driver_id,
       teamSprintQualiPoints: detail.team_sprint_quali_points,
