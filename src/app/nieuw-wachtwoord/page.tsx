@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { createBrowserSupabaseClient } from "@/lib/supabase";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
 export default function NewPasswordPage() {
   const router = useRouter();
