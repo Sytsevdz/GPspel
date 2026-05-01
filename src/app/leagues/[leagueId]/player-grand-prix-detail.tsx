@@ -441,22 +441,26 @@ export function PlayerGrandPrixDetail({
                     <h3>Voorspellingen</h3>
                     <p>Kwalificatie en race staan los van elkaar weergegeven.</p>
                   </div>
-                  {snapshot.sprintQualificationPodium || snapshot.sprintRacePodium || snapshot.qualificationPodium || snapshot.racePodium ? (
+                  {snapshot.hasPredictions ? (
                     <>
-                      <PodiumReadOnly
-                        title="Sprint kwalificatie"
-                        podium={snapshot.sprintQualificationPodium}
-                        slots={QUALIFICATION_SLOTS}
-                        publishedSlotPoints={predictionSlotPoints}
-                        showPublishedSlotPoints={snapshot.publication.sprintQualiPublished}
-                      />
-                      <PodiumReadOnly
-                        title="Sprint race"
-                        podium={snapshot.sprintRacePodium}
-                        slots={RACE_SLOTS}
-                        publishedSlotPoints={predictionSlotPoints}
-                        showPublishedSlotPoints={snapshot.publication.sprintRacePublished}
-                      />
+                      {snapshot.isSprintWeekend ? (
+                        <>
+                          <PodiumReadOnly
+                            title="Sprint kwalificatie"
+                            podium={snapshot.sprintQualificationPodium}
+                            slots={QUALIFICATION_SLOTS}
+                            publishedSlotPoints={predictionSlotPoints}
+                            showPublishedSlotPoints={snapshot.publication.sprintQualiPublished}
+                          />
+                          <PodiumReadOnly
+                            title="Sprint race"
+                            podium={snapshot.sprintRacePodium}
+                            slots={RACE_SLOTS}
+                            publishedSlotPoints={predictionSlotPoints}
+                            showPublishedSlotPoints={snapshot.publication.sprintRacePublished}
+                          />
+                        </>
+                      ) : null}
                       <PodiumReadOnly
                         title="Kwalificatie"
                         podium={snapshot.qualificationPodium}
@@ -475,7 +479,7 @@ export function PlayerGrandPrixDetail({
                   ) : (
                     <p className="league-list-empty">Geen voorspellingen opgeslagen</p>
                   )}
-                  {(snapshot.sprintQualificationPodium || snapshot.sprintRacePodium || snapshot.qualificationPodium || snapshot.racePodium) &&
+                  {(snapshot.hasPredictions) &&
                   !hasPublishedPredictionSlotScores ? (
                     <p className="league-list-empty">Voorspellingspunten zijn nog niet gepubliceerd.</p>
                   ) : null}
