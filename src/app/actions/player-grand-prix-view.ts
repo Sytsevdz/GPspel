@@ -20,7 +20,7 @@ type TeamScoreDetail = {
 };
 
 type PredictionSlotScore = {
-  predictionType: "quali" | "race";
+  predictionType: "sprint_quali" | "sprint_race" | "quali" | "race";
   slotPosition: 1 | 2 | 3;
   points: number | null;
 };
@@ -31,6 +31,8 @@ export type PlayerGrandPrixViewResult =
       playerName: string;
       teamSelection: PodiumEntry[];
       qualificationPodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null;
+      sprintQualificationPodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null;
+      sprintRacePodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null;
       racePodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null;
       teamScoreDetails: TeamScoreDetail[];
       predictionSlotScores: PredictionSlotScore[];
@@ -111,10 +113,16 @@ async function loadPlayerGrandPrixViewData(
       }>(),
     supabase
       .from("predictions")
-      .select("quali_p1, quali_p2, quali_p3, race_p1, race_p2, race_p3")
+      .select("sprint_quali_p1, sprint_quali_p2, sprint_quali_p3, sprint_race_p1, sprint_race_p2, sprint_race_p3, quali_p1, quali_p2, quali_p3, race_p1, race_p2, race_p3")
       .eq("user_id", safePlayerId)
       .eq("grand_prix_id", safeGrandPrixId)
       .maybeSingle<{
+        sprint_quali_p1: string | null;
+        sprint_quali_p2: string | null;
+        sprint_quali_p3: string | null;
+        sprint_race_p1: string | null;
+        sprint_race_p2: string | null;
+        sprint_race_p3: string | null;
         quali_p1: string;
         quali_p2: string;
         quali_p3: string;
@@ -144,7 +152,7 @@ async function loadPlayerGrandPrixViewData(
       .eq("grand_prix_id", safeGrandPrixId)
       .returns<
         Array<{
-          prediction_type: "quali" | "race";
+          prediction_type: "sprint_quali" | "sprint_race" | "quali" | "race";
           slot_position: 1 | 2 | 3;
           points: number | null;
         }>
@@ -177,10 +185,18 @@ async function loadPlayerGrandPrixViewData(
     }));
 
   let qualificationPodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null = null;
+  let sprintQualificationPodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null = null;
+  let sprintRacePodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null = null;
   let racePodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null = null;
 
   if (prediction) {
     const predictionDriverIds = [
+      prediction.sprint_quali_p1 ?? "",
+      prediction.sprint_quali_p2 ?? "",
+      prediction.sprint_quali_p3 ?? "",
+      prediction.sprint_race_p1 ?? "",
+      prediction.sprint_race_p2 ?? "",
+      prediction.sprint_race_p3 ?? "",
       prediction.quali_p1,
       prediction.quali_p2,
       prediction.quali_p3,
@@ -204,6 +220,14 @@ async function loadPlayerGrandPrixViewData(
       ]),
     );
 
+    const sprintQualifyEntries = [prediction.sprint_quali_p1, prediction.sprint_quali_p2, prediction.sprint_quali_p3]
+      .map((driverId) => (driverId ? driversById.get(driverId) : null))
+      .filter((entry): entry is PodiumEntry => Boolean(entry));
+
+    const sprintRaceEntries = [prediction.sprint_race_p1, prediction.sprint_race_p2, prediction.sprint_race_p3]
+      .map((driverId) => (driverId ? driversById.get(driverId) : null))
+      .filter((entry): entry is PodiumEntry => Boolean(entry));
+
     const qualifyEntries = [prediction.quali_p1, prediction.quali_p2, prediction.quali_p3]
       .map((driverId) => driversById.get(driverId))
       .filter((entry): entry is PodiumEntry => Boolean(entry));
@@ -211,6 +235,14 @@ async function loadPlayerGrandPrixViewData(
     const raceEntries = [prediction.race_p1, prediction.race_p2, prediction.race_p3]
       .map((driverId) => driversById.get(driverId))
       .filter((entry): entry is PodiumEntry => Boolean(entry));
+
+    if (sprintQualifyEntries.length === 3) {
+      sprintQualificationPodium = [sprintQualifyEntries[0], sprintQualifyEntries[1], sprintQualifyEntries[2]];
+    }
+
+    if (sprintRaceEntries.length === 3) {
+      sprintRacePodium = [sprintRaceEntries[0], sprintRaceEntries[1], sprintRaceEntries[2]];
+    }
 
     if (qualifyEntries.length === 3) {
       qualificationPodium = [qualifyEntries[0], qualifyEntries[1], qualifyEntries[2]];
@@ -226,6 +258,8 @@ async function loadPlayerGrandPrixViewData(
     playerName: safePlayerName,
     teamSelection: teamSelectionDrivers,
     qualificationPodium,
+    sprintQualificationPodium,
+    sprintRacePodium,
     racePodium,
     teamScoreDetails: (teamScoreDetails ?? []).map((detail) => ({
       driverId: detail.driver_id,
