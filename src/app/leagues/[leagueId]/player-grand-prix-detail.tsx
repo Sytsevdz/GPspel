@@ -20,6 +20,12 @@ type DriverEntry = {
 };
 
 type PredictionSlotPoints = {
+  sprintQualiP1: number | null;
+  sprintQualiP2: number | null;
+  sprintQualiP3: number | null;
+  sprintRaceP1: number | null;
+  sprintRaceP2: number | null;
+  sprintRaceP3: number | null;
   qualiP1: number | null;
   qualiP2: number | null;
   qualiP3: number | null;
@@ -114,7 +120,8 @@ function PodiumReadOnly({
           const selectedDriver = podiumByPosition.get(slot.label);
           const selectedTeam = selectedDriver ? resolveTeamSelectionTeam(selectedDriver.constructorTeam) : null;
           const selectedCardImageSize = getTeamSideImageSize("selectedCard");
-          const sectionPrefix = title === "Kwalificatie" ? "quali" : "race";
+          const sectionPrefix =
+            title === "Sprint kwalificatie" ? "sprintQuali" : title === "Sprint race" ? "sprintRace" : title === "Kwalificatie" ? "quali" : "race";
           const slotPointsField = `${sectionPrefix}${slot.label}` as keyof PredictionSlotPoints;
           const slotPublishedPoints = publishedSlotPoints[slotPointsField];
 
@@ -199,6 +206,12 @@ export function PlayerGrandPrixDetail({
 
   const predictionSlotPoints = useMemo<PredictionSlotPoints>(() => {
     const slotPoints: PredictionSlotPoints = {
+      sprintQualiP1: null,
+      sprintQualiP2: null,
+      sprintQualiP3: null,
+      sprintRaceP1: null,
+      sprintRaceP2: null,
+      sprintRaceP3: null,
       qualiP1: null,
       qualiP2: null,
       qualiP3: null,
@@ -208,7 +221,8 @@ export function PlayerGrandPrixDetail({
     };
 
     (snapshot?.predictionSlotScores ?? []).forEach((detail) => {
-      const sectionPrefix = detail.predictionType === "quali" ? "quali" : "race";
+      const sectionPrefix =
+        detail.predictionType === "sprint_quali" ? "sprintQuali" : detail.predictionType === "sprint_race" ? "sprintRace" : detail.predictionType;
       const field = `${sectionPrefix}P${detail.slotPosition}` as keyof PredictionSlotPoints;
       slotPoints[field] = detail.points;
     });
@@ -427,8 +441,22 @@ export function PlayerGrandPrixDetail({
                     <h3>Voorspellingen</h3>
                     <p>Kwalificatie en race staan los van elkaar weergegeven.</p>
                   </div>
-                  {snapshot.qualificationPodium || snapshot.racePodium ? (
+                  {snapshot.sprintQualificationPodium || snapshot.sprintRacePodium || snapshot.qualificationPodium || snapshot.racePodium ? (
                     <>
+                      <PodiumReadOnly
+                        title="Sprint kwalificatie"
+                        podium={snapshot.sprintQualificationPodium}
+                        slots={QUALIFICATION_SLOTS}
+                        publishedSlotPoints={predictionSlotPoints}
+                        showPublishedSlotPoints={snapshot.publication.sprintQualiPublished}
+                      />
+                      <PodiumReadOnly
+                        title="Sprint race"
+                        podium={snapshot.sprintRacePodium}
+                        slots={RACE_SLOTS}
+                        publishedSlotPoints={predictionSlotPoints}
+                        showPublishedSlotPoints={snapshot.publication.sprintRacePublished}
+                      />
                       <PodiumReadOnly
                         title="Kwalificatie"
                         podium={snapshot.qualificationPodium}
@@ -447,7 +475,8 @@ export function PlayerGrandPrixDetail({
                   ) : (
                     <p className="league-list-empty">Geen voorspellingen opgeslagen</p>
                   )}
-                  {(snapshot.qualificationPodium || snapshot.racePodium) && !hasPublishedPredictionSlotScores ? (
+                  {(snapshot.sprintQualificationPodium || snapshot.sprintRacePodium || snapshot.qualificationPodium || snapshot.racePodium) &&
+                  !hasPublishedPredictionSlotScores ? (
                     <p className="league-list-empty">Voorspellingspunten zijn nog niet gepubliceerd.</p>
                   ) : null}
                 </section>
