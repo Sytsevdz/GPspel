@@ -34,7 +34,8 @@ export const updateSession = async (request: NextRequest) => {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isAuthRoute = request.nextUrl.pathname === "/login" || request.nextUrl.pathname === "/register";
+  const guestOnlyRoutes = new Set(["/login", "/register"]);
+  const isGuestOnlyRoute = guestOnlyRoutes.has(request.nextUrl.pathname);
   const isDashboardRoute = request.nextUrl.pathname.startsWith("/dashboard");
 
   if (!user && isDashboardRoute) {
@@ -43,7 +44,7 @@ export const updateSession = async (request: NextRequest) => {
     return NextResponse.redirect(url);
   }
 
-  if (user && isAuthRoute) {
+  if (user && isGuestOnlyRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);

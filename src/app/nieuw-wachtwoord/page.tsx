@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
@@ -19,39 +20,66 @@ export default function NewPasswordPage() {
   const [isRecoverySessionReady, setIsRecoverySessionReady] = useState(false);
 
   useEffect(() => {
+    let isActive = true;
+
     const handleRecovery = async () => {
+      if (!isActive) {
+        return;
+      }
+
       setError(null);
       setIsCheckingLink(true);
       setIsRecoverySessionReady(false);
 
-      const code = searchParams.get("code");
+      try {
+        const code = searchParams.get("code");
 
-      if (code) {
-        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        if (code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
 
-        if (exchangeError) {
-          setError("Deze resetlink is ongeldig of verlopen.");
+          if (exchangeError) {
+            if (!isActive) {
+              return;
+            }
+
+            setError("Deze resetlink is ongeldig of verlopen.");
+            setIsCheckingLink(false);
+            return;
+          }
+        }
+
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
+        if (!isActive) {
+          return;
+        }
+
+        if (sessionError || !session) {
+          setError(code ? "Deze resetlink is ongeldig of verlopen." : "Geen geldige resetlink gevonden. Vraag een nieuwe resetlink aan.");
           setIsCheckingLink(false);
           return;
         }
-      }
 
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (sessionError || !session) {
-        setError(code ? "Deze resetlink is ongeldig of verlopen." : "Geen geldige resetlink gevonden. Vraag een nieuwe resetlink aan.");
+        setIsRecoverySessionReady(true);
         setIsCheckingLink(false);
-        return;
-      }
+      } catch {
+        if (!isActive) {
+          return;
+        }
 
-      setIsRecoverySessionReady(true);
-      setIsCheckingLink(false);
+        setError("Er ging iets mis bij het verwerken van je resetlink. Vraag een nieuwe resetlink aan.");
+        setIsCheckingLink(false);
+      }
     };
 
     void handleRecovery();
+
+    return () => {
+      isActive = false;
+    };
   }, [searchParams, supabase]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -93,7 +121,14 @@ export default function NewPasswordPage() {
         <p>Kies een nieuw wachtwoord voor je account.</p>
 
         {isCheckingLink ? <p className="form-message">Resetlink controleren...</p> : null}
-        {!isCheckingLink && error ? <p className="form-message error">{error}</p> : null}
+        {!isCheckingLink && error ? (
+          <>
+            <p className="form-message error">{error}</p>
+            <p>
+              <Link href="/wachtwoord-vergeten">Vraag een nieuwe resetlink aan</Link>
+            </p>
+          </>
+        ) : null}
         {message ? <p className="form-message success">{message}</p> : null}
 
         {isRecoverySessionReady ? (
