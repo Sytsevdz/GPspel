@@ -1,14 +1,15 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
+const NO_SESSION_ERROR = "Deze resetlink is ongeldig of verlopen. Vraag een nieuwe resetlink aan.";
+
 export default function NewPasswordPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
 
   const [password, setPassword] = useState("");
@@ -16,110 +17,41 @@ export default function NewPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isCheckingLink, setIsCheckingLink] = useState(true);
-  const [isRecoverySessionReady, setIsRecoverySessionReady] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [hasSession, setHasSession] = useState(false);
 
   useEffect(() => {
     let isActive = true;
 
-    const handleRecovery = async () => {
+    const loadSession = async () => {
+      setIsCheckingSession(true);
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
       if (!isActive) {
         return;
       }
 
-      setError(null);
-      setIsCheckingLink(true);
-      setIsRecoverySessionReady(false);
-
-      try {
-        const code = searchParams.get("code");
-        const hash = window.location.hash ?? "";
-        const hashParams = new URLSearchParams(hash.startsWith("#") ? hash.slice(1) : hash);
-        const accessToken = hashParams.get("access_token");
-        const refreshToken = hashParams.get("refresh_token");
-        const hasHashTokens = Boolean(accessToken) && Boolean(refreshToken);
-        const hasKnownRecoveryFlow = Boolean(code) || hasHashTokens;
-        console.info("[nieuw-wachtwoord] recovery flow metadata", {
-          hasCodeParam: Boolean(code),
-          hasHashTokens,
-          hasKnownRecoveryFlow,
-        });
-
-        if (code) {
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-
-          if (exchangeError) {
-            if (!isActive) {
-              return;
-            }
-
-            setError("Deze resetlink is ongeldig of verlopen.");
-            setIsCheckingLink(false);
-            return;
-          }
-        }
-
-        if (!code && hasHashTokens && accessToken && refreshToken) {
-          const { error: setSessionError } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-
-          if (setSessionError) {
-            if (!isActive) {
-              return;
-            }
-
-            setError("Deze resetlink is ongeldig of verlopen.");
-            setIsCheckingLink(false);
-            return;
-          }
-        }
-
-        if (!hasKnownRecoveryFlow) {
-          setError("Deze resetlink is ongeldig of verlopen.");
-          setIsCheckingLink(false);
-          return;
-        }
-
-        const {
-          data: { session },
-          error: sessionError,
-        } = await supabase.auth.getSession();
-
-        if (!isActive) {
-          return;
-        }
-
-        if (sessionError || !session) {
-          setError("Deze resetlink is ongeldig of verlopen.");
-          setIsCheckingLink(false);
-          return;
-        }
-
-        const cleanedUrl = new URL(window.location.href);
-        cleanedUrl.searchParams.delete("code");
-        cleanedUrl.hash = "";
-        window.history.replaceState({}, document.title, `${cleanedUrl.pathname}${cleanedUrl.search}`);
-
-        setIsRecoverySessionReady(true);
-        setIsCheckingLink(false);
-      } catch {
-        if (!isActive) {
-          return;
-        }
-
-        setError("Deze resetlink is ongeldig of verlopen.");
-        setIsCheckingLink(false);
+      if (sessionError || !session) {
+        setError(NO_SESSION_ERROR);
+        setHasSession(false);
+        setIsCheckingSession(false);
+        return;
       }
+
+      setError(null);
+      setHasSession(true);
+      setIsCheckingSession(false);
     };
 
-    void handleRecovery();
+    void loadSession();
 
     return () => {
       isActive = false;
     };
-  }, [searchParams, supabase]);
+  }, [supabase]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -159,8 +91,8 @@ export default function NewPasswordPage() {
         <h1>Nieuw wachtwoord</h1>
         <p>Kies een nieuw wachtwoord voor je account.</p>
 
-        {isCheckingLink ? <p className="form-message">Resetlink controleren...</p> : null}
-        {!isCheckingLink && error ? (
+        {isCheckingSession ? <p className="form-message">Resetlink controleren...</p> : null}
+        {!isCheckingSession && error ? (
           <>
             <p className="form-message error">{error}</p>
             <p>
@@ -170,7 +102,7 @@ export default function NewPasswordPage() {
         ) : null}
         {message ? <p className="form-message success">{message}</p> : null}
 
-        {isRecoverySessionReady ? (
+        {hasSession ? (
           <form className="auth-form" onSubmit={onSubmit}>
             <label htmlFor="password">Nieuw wachtwoord</label>
             <input
