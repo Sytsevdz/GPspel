@@ -35,28 +35,15 @@ export default function NewPasswordPage() {
         const code = searchParams.get("code");
         const hash = window.location.hash ?? "";
         const hashParams = new URLSearchParams(hash.startsWith("#") ? hash.slice(1) : hash);
-        const hasHash = hash.length > 0;
-        const hashKeys = Array.from(hashParams.keys());
         const hasAccessTokenInHash = hashParams.has("access_token");
-        const hasRefreshTokenInHash = hashParams.has("refresh_token");
-        const hashError = hashParams.get("error");
-        const hashErrorCode = hashParams.get("error_code");
-        const searchParamKeys = Array.from(searchParams.keys());
-
-        console.info("[nieuw-wachtwoord] location diagnostics", {
-          href: window.location.href,
-          searchParamKeys,
-          hasHash,
-          hashKeys,
-          hasAccessTokenInHash,
-          hasRefreshTokenInHash,
+        const hasKnownRecoveryFlow = Boolean(code) || hasAccessTokenInHash;
+        console.info("[nieuw-wachtwoord] recovery flow metadata", {
           hasCodeParam: Boolean(code),
-          hashError,
-          hashErrorCode,
+          hasAccessTokenInHash,
+          hasKnownRecoveryFlow,
         });
 
         if (code) {
-          console.info("[nieuw-wachtwoord] exchangeCodeForSession start", { hasCodeParam: true });
           const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
 
           if (exchangeError) {
@@ -70,31 +57,8 @@ export default function NewPasswordPage() {
           }
         }
 
-        if (!code && hasAccessTokenInHash && hasRefreshTokenInHash) {
-          console.info("[nieuw-wachtwoord] recovery hash-token flow detected");
-          const accessToken = hashParams.get("access_token");
-          const refreshToken = hashParams.get("refresh_token");
-
-          if (accessToken && refreshToken) {
-            const { error: setSessionError } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
-
-            if (setSessionError) {
-              setError("Deze resetlink is ongeldig of verlopen.");
-              setIsCheckingLink(false);
-              return;
-            }
-
-            if (window.location.hash) {
-              window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.search}`);
-            }
-          }
-        }
-
-        if (!code && hashErrorCode === "otp_expired") {
-          setError("Deze resetlink is verlopen. Vraag een nieuwe resetlink aan.");
+        if (!hasKnownRecoveryFlow) {
+          setError("Deze resetlink is ongeldig of verlopen.");
           setIsCheckingLink(false);
           return;
         }
@@ -109,7 +73,7 @@ export default function NewPasswordPage() {
         }
 
         if (sessionError || !session) {
-          setError(code ? "Deze resetlink is ongeldig of verlopen." : "Geen geldige resetlink gevonden. Vraag een nieuwe resetlink aan.");
+          setError("Deze resetlink is ongeldig of verlopen.");
           setIsCheckingLink(false);
           return;
         }
@@ -121,7 +85,7 @@ export default function NewPasswordPage() {
           return;
         }
 
-        setError("Er ging iets mis bij het verwerken van je resetlink. Vraag een nieuwe resetlink aan.");
+        setError("Deze resetlink is ongeldig of verlopen.");
         setIsCheckingLink(false);
       }
     };
