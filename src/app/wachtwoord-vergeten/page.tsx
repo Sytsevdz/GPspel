@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import { getPasswordResetRedirectUrl } from "@/lib/auth/reset-password";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
 type ForgotPasswordPageProps = {
@@ -49,7 +48,8 @@ export default function ForgotPasswordPage({ searchParams }: ForgotPasswordPageP
       return;
     }
 
-    const redirectTo = getPasswordResetRedirectUrl();
+    const origin = window.location.origin || "http://localhost:3000";
+    const redirectTo = `${origin}/nieuw-wachtwoord`;
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
 
