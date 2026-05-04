@@ -35,11 +35,13 @@ export default function NewPasswordPage() {
         const code = searchParams.get("code");
         const hash = window.location.hash ?? "";
         const hashParams = new URLSearchParams(hash.startsWith("#") ? hash.slice(1) : hash);
-        const hasAccessTokenInHash = hashParams.has("access_token");
-        const hasKnownRecoveryFlow = Boolean(code) || hasAccessTokenInHash;
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+        const hasHashTokens = Boolean(accessToken) && Boolean(refreshToken);
+        const hasKnownRecoveryFlow = Boolean(code) || hasHashTokens;
         console.info("[nieuw-wachtwoord] recovery flow metadata", {
           hasCodeParam: Boolean(code),
-          hasAccessTokenInHash,
+          hasHashTokens,
           hasKnownRecoveryFlow,
         });
 
@@ -47,6 +49,23 @@ export default function NewPasswordPage() {
           const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
 
           if (exchangeError) {
+            if (!isActive) {
+              return;
+            }
+
+            setError("Deze resetlink is ongeldig of verlopen.");
+            setIsCheckingLink(false);
+            return;
+          }
+        }
+
+        if (!code && hasHashTokens && accessToken && refreshToken) {
+          const { error: setSessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (setSessionError) {
             if (!isActive) {
               return;
             }
@@ -77,6 +96,11 @@ export default function NewPasswordPage() {
           setIsCheckingLink(false);
           return;
         }
+
+        const cleanedUrl = new URL(window.location.href);
+        cleanedUrl.searchParams.delete("code");
+        cleanedUrl.hash = "";
+        window.history.replaceState({}, document.title, `${cleanedUrl.pathname}${cleanedUrl.search}`);
 
         setIsRecoverySessionReady(true);
         setIsCheckingLink(false);
