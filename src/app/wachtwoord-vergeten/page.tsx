@@ -39,6 +39,9 @@ export default function ForgotPasswordPage({ searchParams = {} }: ForgotPassword
 
   useEffect(() => {
     console.info("[wachtwoord-vergeten] component mounted");
+    console.info("[wachtwoord-vergeten] NEXT_PUBLIC_SUPABASE_URL present", {
+      hasSupabaseUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+    });
   }, []);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
