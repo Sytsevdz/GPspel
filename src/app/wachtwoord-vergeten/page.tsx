@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
@@ -37,17 +37,8 @@ export default function ForgotPasswordPage({ searchParams = {} }: ForgotPassword
     message: searchParams.message,
   });
 
-  useEffect(() => {
-    console.info("[wachtwoord-vergeten] component mounted");
-    console.info("[wachtwoord-vergeten] NEXT_PUBLIC_SUPABASE_URL present", {
-      hasSupabaseUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
-    });
-  }, []);
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    console.info("[wachtwoord-vergeten] submit started");
-
     const formData = new FormData(event.currentTarget);
     const email = String(formData.get("email") ?? "").trim();
 
@@ -57,19 +48,11 @@ export default function ForgotPasswordPage({ searchParams = {} }: ForgotPassword
     }
 
     const origin = window.location.origin || "http://localhost:3000";
-    const redirectTo = `${origin}/nieuw-wachtwoord`;
-    console.info("[wachtwoord-vergeten] redirectTo", redirectTo);
+    const redirectTo = `${origin}/auth/confirm?type=recovery&next=/nieuw-wachtwoord`;
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
 
     if (error) {
-      console.info("[wachtwoord-vergeten] Supabase error response", error);
-      console.error("[requestPasswordReset] Supabase fout", {
-        message: error.message,
-        status: error.status,
-        code: error.code,
-      });
-
       setStatus({
         error: getPasswordResetErrorMessage(error.message),
         message: undefined,
