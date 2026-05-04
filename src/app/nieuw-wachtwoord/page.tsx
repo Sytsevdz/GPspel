@@ -33,6 +33,15 @@ export default function NewPasswordPage() {
 
       try {
         const code = searchParams.get("code");
+        const hash = window.location.hash ?? "";
+        const hashParams = new URLSearchParams(hash.startsWith("#") ? hash.slice(1) : hash);
+        const hasAccessTokenInHash = hashParams.has("access_token");
+        const hasKnownRecoveryFlow = Boolean(code) || hasAccessTokenInHash;
+        console.info("[nieuw-wachtwoord] recovery flow metadata", {
+          hasCodeParam: Boolean(code),
+          hasAccessTokenInHash,
+          hasKnownRecoveryFlow,
+        });
 
         if (code) {
           const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
@@ -48,6 +57,12 @@ export default function NewPasswordPage() {
           }
         }
 
+        if (!hasKnownRecoveryFlow) {
+          setError("Deze resetlink is ongeldig of verlopen.");
+          setIsCheckingLink(false);
+          return;
+        }
+
         const {
           data: { session },
           error: sessionError,
@@ -58,7 +73,7 @@ export default function NewPasswordPage() {
         }
 
         if (sessionError || !session) {
-          setError(code ? "Deze resetlink is ongeldig of verlopen." : "Geen geldige resetlink gevonden. Vraag een nieuwe resetlink aan.");
+          setError("Deze resetlink is ongeldig of verlopen.");
           setIsCheckingLink(false);
           return;
         }
@@ -70,7 +85,7 @@ export default function NewPasswordPage() {
           return;
         }
 
-        setError("Er ging iets mis bij het verwerken van je resetlink. Vraag een nieuwe resetlink aan.");
+        setError("Deze resetlink is ongeldig of verlopen.");
         setIsCheckingLink(false);
       }
     };
