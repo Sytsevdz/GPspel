@@ -33,8 +33,30 @@ export default function NewPasswordPage() {
 
       try {
         const code = searchParams.get("code");
+        const hash = window.location.hash ?? "";
+        const hashParams = new URLSearchParams(hash.startsWith("#") ? hash.slice(1) : hash);
+        const hasHash = hash.length > 0;
+        const hashKeys = Array.from(hashParams.keys());
+        const hasAccessTokenInHash = hashParams.has("access_token");
+        const hasRefreshTokenInHash = hashParams.has("refresh_token");
+        const hashError = hashParams.get("error");
+        const hashErrorCode = hashParams.get("error_code");
+        const searchParamKeys = Array.from(searchParams.keys());
+
+        console.info("[nieuw-wachtwoord] location diagnostics", {
+          href: window.location.href,
+          searchParamKeys,
+          hasHash,
+          hashKeys,
+          hasAccessTokenInHash,
+          hasRefreshTokenInHash,
+          hasCodeParam: Boolean(code),
+          hashError,
+          hashErrorCode,
+        });
 
         if (code) {
+          console.info("[nieuw-wachtwoord] exchangeCodeForSession start", { hasCodeParam: true });
           const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
 
           if (exchangeError) {
@@ -46,6 +68,35 @@ export default function NewPasswordPage() {
             setIsCheckingLink(false);
             return;
           }
+        }
+
+        if (!code && hasAccessTokenInHash && hasRefreshTokenInHash) {
+          console.info("[nieuw-wachtwoord] recovery hash-token flow detected");
+          const accessToken = hashParams.get("access_token");
+          const refreshToken = hashParams.get("refresh_token");
+
+          if (accessToken && refreshToken) {
+            const { error: setSessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+
+            if (setSessionError) {
+              setError("Deze resetlink is ongeldig of verlopen.");
+              setIsCheckingLink(false);
+              return;
+            }
+
+            if (window.location.hash) {
+              window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.search}`);
+            }
+          }
+        }
+
+        if (!code && hashErrorCode === "otp_expired") {
+          setError("Deze resetlink is verlopen. Vraag een nieuwe resetlink aan.");
+          setIsCheckingLink(false);
+          return;
         }
 
         const {
