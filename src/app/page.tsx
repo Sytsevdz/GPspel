@@ -6,6 +6,7 @@ import { createServerSupabaseClient } from "@/lib/supabase";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 import { getCurrentSelectableGrandPrix } from "@/lib/team-selection-data";
 import { getLatestCurrentOrScoredGrandPrix } from "@/lib/latest-grand-prix";
+import { isSessionPublished } from "@/lib/session-publication";
 import { GlobalStandingsPanel } from "./dashboard/global-standings-panel";
 
 type LeagueMembershipRow = {
@@ -22,10 +23,20 @@ type UserGrandPrixScoreRow = {
   team_points: number | null;
   prediction_points: number | null;
   total_points: number | null;
+  team_sprint_quali_points: number | null;
+  team_sprint_race_points: number | null;
+  team_quali_points: number | null;
+  team_race_points: number | null;
+  sprint_quali_prediction_points: number | null;
+  sprint_race_prediction_points: number | null;
+  quali_prediction_points: number | null;
+  race_prediction_points: number | null;
 };
 
 type GrandPrixScoreDetailRow = {
   driver_id: string;
+  team_sprint_quali_points: number | null;
+  team_sprint_race_points: number | null;
   team_quali_points: number | null;
   team_race_points: number | null;
   total_points: number | null;
@@ -117,7 +128,7 @@ export default async function HomePage() {
     ? (
         await supabase
           .from("grand_prix_scores")
-          .select("team_points, prediction_points, total_points")
+          .select("team_points, prediction_points, total_points, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points, sprint_quali_prediction_points, sprint_race_prediction_points, quali_prediction_points, race_prediction_points")
           .eq("grand_prix_id", latestGrandPrix.id)
           .eq("user_id", user.id)
           .maybeSingle<UserGrandPrixScoreRow>()
@@ -128,7 +139,7 @@ export default async function HomePage() {
     ? (
         await supabase
           .from("grand_prix_score_details")
-          .select("driver_id, team_quali_points, team_race_points, total_points, drivers(name, constructor_team)")
+          .select("driver_id, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points, total_points, drivers(name, constructor_team)")
           .eq("grand_prix_id", latestGrandPrix.id)
           .eq("user_id", user.id)
           .order("total_points", { ascending: false })
@@ -137,6 +148,15 @@ export default async function HomePage() {
     : [];
 
   const totalPointsByUserId = new Map<string, number>();
+  const isSprintWeekend = latestGrandPrix?.is_sprint_weekend ?? false;
+  const hasPublishedSprintQualiTeamPoints = isSessionPublished(userLatestScore, "team_sprint_quali_points");
+  const hasPublishedSprintRaceTeamPoints = isSessionPublished(userLatestScore, "team_sprint_race_points");
+  const hasPublishedQualiTeamPoints = isSessionPublished(userLatestScore, "team_quali_points");
+  const hasPublishedRaceTeamPoints = isSessionPublished(userLatestScore, "team_race_points");
+  const hasPublishedSprintQualiPredictionPoints = isSessionPublished(userLatestScore, "sprint_quali_prediction_points");
+  const hasPublishedSprintRacePredictionPoints = isSessionPublished(userLatestScore, "sprint_race_prediction_points");
+  const hasPublishedQualiPredictionPoints = isSessionPublished(userLatestScore, "quali_prediction_points");
+  const hasPublishedRacePredictionPoints = isSessionPublished(userLatestScore, "race_prediction_points");
 
   (allScoreRows ?? [])
     .filter((scoreRow) => activeGrandPrixIds.has(scoreRow.grand_prix_id))
@@ -195,9 +215,15 @@ export default async function HomePage() {
                         const team = resolveTeamSelectionTeam(constructorTeam);
 
                         const pointRows = [
-                          { label: "Kwalificatie", value: detail.team_quali_points },
-                          { label: "Race", value: detail.team_race_points },
-                        ].filter((row) => row.value !== null);
+                          ...(isSprintWeekend && hasPublishedSprintQualiTeamPoints
+                            ? [{ label: "Sprint kwali", value: detail.team_sprint_quali_points ?? 0 }]
+                            : []),
+                          ...(isSprintWeekend && hasPublishedSprintRaceTeamPoints
+                            ? [{ label: "Sprint race", value: detail.team_sprint_race_points ?? 0 }]
+                            : []),
+                          ...(hasPublishedQualiTeamPoints ? [{ label: "Kwalificatie", value: detail.team_quali_points ?? 0 }] : []),
+                          ...(hasPublishedRaceTeamPoints ? [{ label: "Race", value: detail.team_race_points ?? 0 }] : []),
+                        ];
 
                         return (
                           <li key={detail.driver_id} className="dashboard-result-driver-card">
@@ -232,6 +258,30 @@ export default async function HomePage() {
                       <dt>Team punten</dt>
                       <dd>{userLatestScore.team_points ?? 0}</dd>
                     </div>
+                    {isSprintWeekend && hasPublishedSprintQualiPredictionPoints ? (
+                      <div className="dashboard-result-stat">
+                        <dt>Voorspelling sprint kwali</dt>
+                        <dd>{userLatestScore.sprint_quali_prediction_points ?? 0}</dd>
+                      </div>
+                    ) : null}
+                    {isSprintWeekend && hasPublishedSprintRacePredictionPoints ? (
+                      <div className="dashboard-result-stat">
+                        <dt>Voorspelling sprint race</dt>
+                        <dd>{userLatestScore.sprint_race_prediction_points ?? 0}</dd>
+                      </div>
+                    ) : null}
+                    {hasPublishedQualiPredictionPoints ? (
+                      <div className="dashboard-result-stat">
+                        <dt>Voorspelling kwalificatie</dt>
+                        <dd>{userLatestScore.quali_prediction_points ?? 0}</dd>
+                      </div>
+                    ) : null}
+                    {hasPublishedRacePredictionPoints ? (
+                      <div className="dashboard-result-stat">
+                        <dt>Voorspelling race</dt>
+                        <dd>{userLatestScore.race_prediction_points ?? 0}</dd>
+                      </div>
+                    ) : null}
                     <div className="dashboard-result-stat">
                       <dt>Voorspelling punten</dt>
                       <dd>{userLatestScore.prediction_points ?? 0}</dd>

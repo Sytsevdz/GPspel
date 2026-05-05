@@ -6,6 +6,7 @@ export type LatestGrandPrixCandidate = {
   name: string;
   deadline: string;
   status: GrandPrixWorkflowStatus;
+  is_sprint_weekend: boolean;
 };
 
 type LatestGrandPrixDbCandidate = {
@@ -13,6 +14,7 @@ type LatestGrandPrixDbCandidate = {
   name: string;
   deadline: string;
   status: GrandPrixStatus;
+  is_sprint_weekend: boolean;
 };
 
 export async function getLatestCurrentOrScoredGrandPrix(
@@ -31,7 +33,7 @@ export async function getLatestCurrentOrScoredGrandPrix(
 
   const { data: currentOrRecentGrandPrix } = await supabase
     .from("grand_prix")
-    .select("id, name, deadline, status")
+    .select("id, name, deadline, status, is_sprint_weekend")
     .neq("status", "cancelled")
     .lte("deadline", nowIso)
     .order("deadline", { ascending: false })
@@ -48,7 +50,7 @@ export async function getLatestCurrentOrScoredGrandPrix(
 
   const { data: fallbackScoredGrandPrix } = await supabase
     .from("grand_prix")
-    .select("id, name, deadline, status")
+    .select("id, name, deadline, status, is_sprint_weekend")
     .in("id", scoredGrandPrixIds)
     .neq("status", "cancelled")
     .order("deadline", { ascending: false })
