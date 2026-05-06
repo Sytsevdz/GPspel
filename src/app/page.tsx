@@ -4,6 +4,7 @@ import Image from "next/image";
 import { formatUtcIsoInAmsterdamShort } from "@/lib/datetime";
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
+import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { getCurrentSelectableGrandPrix } from "@/lib/team-selection-data";
 import { getLatestCurrentOrScoredGrandPrix } from "@/lib/latest-grand-prix";
 import { isSessionPublished } from "@/lib/session-publication";
@@ -213,6 +214,7 @@ export default async function HomePage() {
                         const driverName = detail.drivers?.name ?? "Onbekende coureur";
                         const constructorTeam = detail.drivers?.constructor_team ?? "Onbekend team";
                         const team = resolveTeamSelectionTeam(constructorTeam);
+                        const selectedCardImageSize = getTeamSideImageSize("selectedCard");
 
                         const pointRows = [
                           ...(isSprintWeekend && hasPublishedSprintQualiTeamPoints
@@ -230,9 +232,9 @@ export default async function HomePage() {
                             <Image
                               src={team.image}
                               alt={`${constructorTeam} wagen`}
-                              width={140}
-                              height={56}
-                              className="dashboard-result-driver-image"
+                              width={selectedCardImageSize.width}
+                              height={selectedCardImageSize.height}
+                              className={selectedCardImageSize.className}
                             />
                             <p className="dashboard-result-driver-name">{driverName}</p>
                             <dl className="dashboard-result-driver-points">

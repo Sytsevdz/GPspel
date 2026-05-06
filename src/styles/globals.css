@@ -530,11 +530,6 @@ a {
   background: rgba(9, 11, 18, 0.58);
 }
 
-.dashboard-result-driver-image {
-  width: 100%;
-  height: auto;
-}
-
 .dashboard-result-driver-name {
   margin: 0;
   font-weight: 700;
