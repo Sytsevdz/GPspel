@@ -5,6 +5,7 @@ import { useMemo, useState, useTransition, type ReactNode } from "react";
 
 import { getPlayerGrandPrixView, type PlayerGrandPrixViewResult } from "@/app/actions/player-grand-prix-view";
 import { DriverScoreCard } from "@/app/driver-score-card";
+import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 
 type Member = {
@@ -96,6 +97,8 @@ function PodiumReadOnly({
   publishedSlotPoints: PredictionSlotPoints;
   showPublishedSlotPoints: boolean;
 }) {
+  const selectedCardImageSize = getTeamSideImageSize("selectedCard");
+
   const podiumByPosition = useMemo(() => {
     if (!podium) {
       return new Map<string, DriverEntry>();
