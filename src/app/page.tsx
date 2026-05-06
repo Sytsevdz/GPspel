@@ -8,6 +8,7 @@ import { getCurrentSelectableGrandPrix } from "@/lib/team-selection-data";
 import { getLatestCurrentOrScoredGrandPrix } from "@/lib/latest-grand-prix";
 import { isSessionPublished } from "@/lib/session-publication";
 import { GlobalStandingsPanel } from "./dashboard/global-standings-panel";
+import { DriverScoreCard } from "./driver-score-card";
 
 type LeagueMembershipRow = {
   league_id: string;
@@ -213,7 +214,6 @@ export default async function HomePage() {
                         const driverName = detail.drivers?.name ?? "Onbekende coureur";
                         const constructorTeam = detail.drivers?.constructor_team ?? "Onbekend team";
                         const team = resolveTeamSelectionTeam(constructorTeam);
-
                         const pointRows = [
                           ...(isSprintWeekend && hasPublishedSprintQualiTeamPoints
                             ? [{ label: "Sprint kwali", value: detail.team_sprint_quali_points ?? 0 }]
@@ -226,28 +226,17 @@ export default async function HomePage() {
                         ];
 
                         return (
-                          <li key={detail.driver_id} className="dashboard-result-driver-card">
-                            <Image
-                              src={team.image}
-                              alt={`${constructorTeam} wagen`}
-                              width={140}
-                              height={56}
-                              className="dashboard-result-driver-image"
-                            />
-                            <p className="dashboard-result-driver-name">{driverName}</p>
-                            <dl className="dashboard-result-driver-points">
-                              {pointRows.map((row) => (
-                                <div key={`${detail.driver_id}-${row.label}`}>
-                                  <dt>{row.label}</dt>
-                                  <dd>{row.value}</dd>
-                                </div>
-                              ))}
-                              <div>
-                                <dt>Totaal</dt>
-                                <dd>{detail.total_points ?? 0}</dd>
-                              </div>
-                            </dl>
-                          </li>
+                          <DriverScoreCard
+                            key={detail.driver_id}
+                            teamImage={team.image}
+                            teamName={team.name}
+                            driverName={driverName}
+                            constructorTeam={constructorTeam}
+                            rows={[
+                              ...pointRows,
+                              { label: "Totaal", value: detail.total_points ?? 0 },
+                            ]}
+                          />
                         );
                       })}
                     </ul>

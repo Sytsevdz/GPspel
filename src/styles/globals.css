@@ -517,51 +517,66 @@ a {
 .dashboard-result-driver-grid {
   list-style: none;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.55rem;
 }
 
-.dashboard-result-driver-card {
+.driver-score-card {
+  width: 100%;
+  box-sizing: border-box;
   display: grid;
   gap: 0.35rem;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 10px;
-  padding: 0.55rem;
+  padding: 0.5rem;
   background: rgba(9, 11, 18, 0.58);
 }
 
-.dashboard-result-driver-image {
+.driver-score-card-image-wrap {
   width: 100%;
-  height: auto;
+  display: flex;
+  justify-content: center;
 }
 
-.dashboard-result-driver-name {
-  margin: 0;
-  font-weight: 700;
-  font-size: 0.9rem;
-  line-height: 1.25;
-}
-
-.dashboard-result-driver-points {
+.driver-score-card-copy {
   display: grid;
   gap: 0.2rem;
 }
 
-.dashboard-result-driver-points div {
+.driver-score-card-name {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.25;
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+
+.driver-score-card-name span {
+  color: #c5c5c5;
+}
+
+.driver-score-card-points {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.driver-score-card-points div {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 0.8rem;
 }
 
-.dashboard-result-driver-points dt {
+.driver-score-card-points dt {
   color: #c5c5c5;
   font-size: 0.74rem;
 }
 
-.dashboard-result-driver-points dd {
+.driver-score-card-points dd {
   margin: 0;
   font-weight: 700;
+  font-size: 0.84rem;
 }
 
 .dashboard-result-stat {
@@ -1112,8 +1127,8 @@ a {
 }
 
 .team-side-image--selected-card {
-  max-width: 200px;
-  max-height: 84px;
+  max-width: 220px;
+  max-height: 88px;
 }
 
 .race-car-svg {
@@ -2448,4 +2463,19 @@ button.podium-slot:hover {
   display: grid;
   gap: 0.42rem;
   padding-left: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .dashboard-result-driver-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .driver-score-card {
+    padding: 0.55rem;
+  }
+
+  .team-side-image--selected-card {
+    max-width: 260px;
+    max-height: 104px;
+  }
 }

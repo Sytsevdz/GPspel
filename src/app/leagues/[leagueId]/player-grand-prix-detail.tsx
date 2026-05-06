@@ -1,10 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState, useTransition, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useState, useTransition, type ReactNode } from "react";
 
 import { getPlayerGrandPrixView, type PlayerGrandPrixViewResult } from "@/app/actions/player-grand-prix-view";
-import { getConstructorTeamColors } from "@/lib/team-colors";
+import { DriverScoreCard } from "@/app/driver-score-card";
 import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 
@@ -97,6 +97,8 @@ function PodiumReadOnly({
   publishedSlotPoints: PredictionSlotPoints;
   showPublishedSlotPoints: boolean;
 }) {
+  const selectedCardImageSize = getTeamSideImageSize("selectedCard");
+
   const podiumByPosition = useMemo(() => {
     if (!podium) {
       return new Map<string, DriverEntry>();
@@ -119,7 +121,6 @@ function PodiumReadOnly({
         {slots.map((slot) => {
           const selectedDriver = podiumByPosition.get(slot.label);
           const selectedTeam = selectedDriver ? resolveTeamSelectionTeam(selectedDriver.constructorTeam) : null;
-          const selectedCardImageSize = getTeamSideImageSize("selectedCard");
           const sectionPrefix =
             title === "Sprint kwalificatie" ? "sprintQuali" : title === "Sprint race" ? "sprintRace" : title === "Kwalificatie" ? "quali" : "race";
           const slotPointsField = `${sectionPrefix}${slot.label}` as keyof PredictionSlotPoints;
@@ -368,9 +369,6 @@ export function PlayerGrandPrixDetail({
                     <ul className="selected-driver-cars compact-selected-driver-cars" aria-label="Geselecteerde coureurs met teamwagens">
                       {snapshot.teamSelection.map((driver) => {
                         const team = resolveTeamSelectionTeam(driver.constructorTeam);
-                        const imageSize = getTeamSideImageSize("selectedCard");
-                        const teamColors = getConstructorTeamColors(driver.constructorTeam);
-
                         const driverPoints = teamScoreDetailsByDriverId.get(driver.id);
                         const pointRows = [
                           {
@@ -387,44 +385,18 @@ export function PlayerGrandPrixDetail({
                         ].filter((row) => row.value !== null);
 
                         return (
-                          <li
+                          <DriverScoreCard
                             key={driver.id}
                             className="player-detail-driver-card"
-                            style={
-                              {
-                                "--team-accent": teamColors.accent,
-                                "--team-accent-secondary": teamColors.accentSecondary,
-                                "--team-bg-from": teamColors.backgroundFrom,
-                                "--team-bg-to": teamColors.backgroundTo,
-                              } as CSSProperties
-                            }
-                          >
-                            <div className="selected-driver-car">
-                              <Image
-                                src={team.image}
-                                alt={`${team.name} wagen`}
-                                width={imageSize.width}
-                                height={imageSize.height}
-                                className={imageSize.className}
-                              />
-                            </div>
-                            <div className="player-detail-driver-copy">
-                              <p>
-                                <strong>{driver.name}</strong>
-                                <span>{driver.constructorTeam}</span>
-                              </p>
-                              {hasPublishedTeamScores ? (
-                                <dl className="player-detail-driver-points">
-                                  {pointRows.map((row) => (
-                                    <div key={`${driver.id}-${row.label}`}>
-                                      <dt>{row.label}</dt>
-                                      <dd>{formatPublishedPoints(row.value)}</dd>
-                                    </div>
-                                  ))}
-                                </dl>
-                              ) : null}
-                            </div>
-                          </li>
+                            teamImage={team.image}
+                            teamName={team.name}
+                            driverName={driver.name}
+                            constructorTeam={driver.constructorTeam}
+                            rows={pointRows.map((row) => ({
+                              label: row.label,
+                              value: formatPublishedPoints(row.value),
+                            }))}
+                          />
                         );
                       })}
                     </ul>
