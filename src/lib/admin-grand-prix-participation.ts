@@ -65,7 +65,9 @@ export function buildGrandPrixParticipationOverview(params: {
   teamSelections: TeamSelectionRow[];
   predictions: PredictionRow[];
   isSprintWeekend: boolean;
+  includedUserIds?: string[];
 }) {
+  const includedUserIdsSet = params.includedUserIds ? new Set(params.includedUserIds) : null;
   const teamSelectionMap = new Map<string, TeamSelectionRow>();
   for (const selection of params.teamSelections) {
     teamSelectionMap.set(selection.user_id, selection);
@@ -78,6 +80,7 @@ export function buildGrandPrixParticipationOverview(params: {
 
   const rows: GrandPrixParticipationRow[] = params.profiles
     .filter((profile) => profile.role !== "admin")
+    .filter((profile) => (includedUserIdsSet ? includedUserIdsSet.has(profile.id) : true))
     .map((profile) => {
       const teamSelection = teamSelectionMap.get(profile.id);
       const prediction = predictionMap.get(profile.id);
