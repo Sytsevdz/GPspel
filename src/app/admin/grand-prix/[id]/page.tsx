@@ -9,6 +9,7 @@ import { ConfirmReactivateSubmitButton } from "@/app/admin/confirm-reactivate-su
 import { ResetPricesSubmitButton } from "@/app/admin/reset-prices-submit-button";
 import { PublishScoreActions } from "@/app/admin/grand-prix/[id]/result/publish-score-actions";
 import { DeadlineForm } from "@/app/admin/grand-prix/[id]/deadline/deadline-form";
+import { LeagueParticipationFilter } from "@/app/admin/grand-prix/[id]/league-participation-filter";
 import { formatUtcIsoInAmsterdam, toAmsterdamDateTimeLocalValue } from "@/lib/datetime";
 import { buildGrandPrixParticipationOverview } from "@/lib/admin-grand-prix-participation";
 import {
@@ -26,6 +27,7 @@ type GrandPrixManagementPageProps = {
   searchParams: {
     message?: string;
     error?: string;
+    league?: string;
   };
 };
 
@@ -275,8 +277,10 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
   });
   const isCancelled = isGrandPrixCancelled(workflowStatus);
 
-  const [{ data: profiles }, { data: teamSelections }, { data: predictions }] = await Promise.all([
+  const [{ data: profiles }, { data: leagues }, { data: leagueMemberships }, { data: teamSelections }, { data: predictions }] = await Promise.all([
     supabase.from("profiles").select("id, display_name, role").returns<Array<{ id: string; display_name: string | null; role: string | null }>>(),
+    supabase.from("leagues").select("id, name").order("name", { ascending: true }).returns<Array<{ id: string; name: string }>>(),
+    supabase.from("league_members").select("league_id, user_id").returns<Array<{ league_id: string; user_id: string }>>(),
     supabase
       .from("team_selections")
       .select("user_id, team_selection_drivers(driver_id)")
@@ -307,11 +311,24 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
       >(),
   ]);
 
+  const selectedLeagueId = typeof searchParams.league === "string" ? searchParams.league : "all";
+  const availableLeagues = leagues ?? [];
+  const selectedLeagueExists = selectedLeagueId === "all" || availableLeagues.some((league) => league.id === selectedLeagueId);
+  const effectiveSelectedLeagueId = selectedLeagueExists ? selectedLeagueId : "all";
+
+  const filteredUserIds =
+    effectiveSelectedLeagueId === "all"
+      ? undefined
+      : (leagueMemberships ?? [])
+          .filter((membership) => membership.league_id === effectiveSelectedLeagueId)
+          .map((membership) => membership.user_id);
+
   const participationOverview = buildGrandPrixParticipationOverview({
     profiles: profiles ?? [],
     teamSelections: teamSelections ?? [],
     predictions: predictions ?? [],
     isSprintWeekend: managedGrandPrix.is_sprint_weekend,
+    includedUserIds: filteredUserIds,
   });
 
   return (
@@ -405,6 +422,7 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
 
         <section className="predictions-section">
           <h2>C. Deelname-overzicht</h2>
+          <LeagueParticipationFilter selectedLeagueId={effectiveSelectedLeagueId} leagues={availableLeagues} />
           <p>
             Inzendingen per speler (zonder team- of voorspellingdetails).
             Teams: {participationOverview.submittedTeamsCount}/{participationOverview.totalPlayers} · Voorspellingen: {" "}
