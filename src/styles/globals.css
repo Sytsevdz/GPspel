@@ -2479,3 +2479,19 @@ button.podium-slot:hover {
     max-height: 104px;
   }
 }
+
+.admin-participation-table-wrapper {
+  border-color: #313131;
+  background: rgba(13, 13, 13, 0.92);
+}
+
+.admin-participation-table {
+  min-width: 320px;
+}
+
+.admin-participation-table th:nth-child(2),
+.admin-participation-table th:nth-child(3),
+.admin-participation-table td:nth-child(2),
+.admin-participation-table td:nth-child(3) {
+  white-space: nowrap;
+}

@@ -10,6 +10,7 @@ import { ResetPricesSubmitButton } from "@/app/admin/reset-prices-submit-button"
 import { PublishScoreActions } from "@/app/admin/grand-prix/[id]/result/publish-score-actions";
 import { DeadlineForm } from "@/app/admin/grand-prix/[id]/deadline/deadline-form";
 import { formatUtcIsoInAmsterdam, toAmsterdamDateTimeLocalValue } from "@/lib/datetime";
+import { buildGrandPrixParticipationOverview } from "@/lib/admin-grand-prix-participation";
 import {
   getGrandPrixStatusLabel,
   isGrandPrixCancelled,
@@ -274,6 +275,45 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
   });
   const isCancelled = isGrandPrixCancelled(workflowStatus);
 
+  const [{ data: profiles }, { data: teamSelections }, { data: predictions }] = await Promise.all([
+    supabase.from("profiles").select("id, display_name, role").returns<Array<{ id: string; display_name: string | null; role: string | null }>>(),
+    supabase
+      .from("team_selections")
+      .select("user_id, team_selection_drivers(driver_id)")
+      .eq("grand_prix_id", managedGrandPrix.id)
+      .returns<Array<{ user_id: string; team_selection_drivers: Array<{ driver_id: string }> | null }>>(),
+    supabase
+      .from("predictions")
+      .select(
+        "user_id, sprint_quali_p1, sprint_quali_p2, sprint_quali_p3, sprint_race_p1, sprint_race_p2, sprint_race_p3, quali_p1, quali_p2, quali_p3, race_p1, race_p2, race_p3",
+      )
+      .eq("grand_prix_id", managedGrandPrix.id)
+      .returns<
+        Array<{
+          user_id: string;
+          sprint_quali_p1: string | null;
+          sprint_quali_p2: string | null;
+          sprint_quali_p3: string | null;
+          sprint_race_p1: string | null;
+          sprint_race_p2: string | null;
+          sprint_race_p3: string | null;
+          quali_p1: string | null;
+          quali_p2: string | null;
+          quali_p3: string | null;
+          race_p1: string | null;
+          race_p2: string | null;
+          race_p3: string | null;
+        }>
+      >(),
+  ]);
+
+  const participationOverview = buildGrandPrixParticipationOverview({
+    profiles: profiles ?? [],
+    teamSelections: teamSelections ?? [],
+    predictions: predictions ?? [],
+    isSprintWeekend: managedGrandPrix.is_sprint_weekend,
+  });
+
   return (
     <main className="leagues-page">
       <section className="leagues-card league-detail-card">
@@ -362,6 +402,35 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
         </section>
 
         <PublishScoreActions grandPrixId={managedGrandPrix.id} disabled={isCancelled} />
+
+        <section className="predictions-section">
+          <h2>C. Deelname-overzicht</h2>
+          <p>
+            Inzendingen per speler (zonder team- of voorspellingdetails).
+            Teams: {participationOverview.submittedTeamsCount}/{participationOverview.totalPlayers} · Voorspellingen: {" "}
+            {participationOverview.submittedPredictionsCount}/{participationOverview.totalPlayers}
+          </p>
+          <div className="standings-table-wrapper admin-participation-table-wrapper">
+            <table className="standings-table admin-participation-table">
+              <thead>
+                <tr>
+                  <th>Speler</th>
+                  <th>Status team</th>
+                  <th>Status voorspelling</th>
+                </tr>
+              </thead>
+              <tbody>
+                {participationOverview.rows.map((row) => (
+                  <tr key={row.userId}>
+                    <td className="standings-name-cell">{row.displayName}</td>
+                    <td>{row.hasTeam ? "✅ Team gekozen" : "❌ Geen team"}</td>
+                    <td>{row.hasPrediction ? "✅ Voorspelling ingevuld" : "❌ Geen voorspelling"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
         <section className="predictions-section">
           <h2>D. Coureurs / prijzen</h2>
