@@ -4,7 +4,13 @@ import Image from "next/image";
 import { formatUtcIsoInAmsterdamShort } from "@/lib/datetime";
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
-import { getCurrentSelectableGrandPrix } from "@/lib/team-selection-data";
+import {
+  getActiveGrandPrixDisplayLabel,
+  getActiveGrandPrixDisplayState,
+  getCurrentSelectableGrandPrix,
+  getGrandPrixTimeline,
+  getNextGrandPrixFromTimeline,
+} from "@/lib/team-selection-data";
 import { getLatestCurrentOrScoredGrandPrix } from "@/lib/latest-grand-prix";
 import { isSessionPublished } from "@/lib/session-publication";
 import { GlobalStandingsPanel } from "./dashboard/global-standings-panel";
@@ -115,8 +121,11 @@ export default async function HomePage() {
         name: membership.leagues!.name,
       })) ?? [];
 
-  const nextGrandPrix = await getCurrentSelectableGrandPrix(supabase).catch(() => null);
-  const hasSelectableGrandPrix = nextGrandPrix ? nextGrandPrix.deadline > nowIso : false;
+  const timeline = await getGrandPrixTimeline(supabase).catch(() => []);
+  const currentGrandPrix = await getCurrentSelectableGrandPrix(supabase).catch(() => null);
+  const nextGrandPrix = currentGrandPrix ? getNextGrandPrixFromTimeline(timeline, currentGrandPrix.id) : null;
+  const currentGrandPrixState = currentGrandPrix ? getActiveGrandPrixDisplayState(currentGrandPrix, nowIso) : null;
+  const currentGrandPrixLabel = currentGrandPrixState ? getActiveGrandPrixDisplayLabel(currentGrandPrixState) : null;
   const activeGrandPrixIds = new Set((activeGrandPrixRows ?? []).map((grandPrix) => grandPrix.id));
   const scoredActiveGrandPrixIds = [...new Set((allScoreRows ?? []).map((row) => row.grand_prix_id))]
     .filter((grandPrixId) => activeGrandPrixIds.has(grandPrixId));
@@ -318,16 +327,15 @@ export default async function HomePage() {
         </article>
 
         <article className="dashboard-card dashboard-home-card">
-          <h2>Volgende Grand Prix</h2>
-          {nextGrandPrix ? (
+          <h2>Huidige Grand Prix</h2>
+          {currentGrandPrix ? (
             <div className="dashboard-data-list">
-              <p className="dashboard-data-title">{nextGrandPrix.name}</p>
+              <p className="dashboard-data-title">{currentGrandPrix.name}</p>
               <p>
-                {hasSelectableGrandPrix ? "Deadline" : "Kwalificatie start"}:{" "}
-                {formatUtcIsoInAmsterdamShort(
-                  hasSelectableGrandPrix ? nextGrandPrix.deadline : nextGrandPrix.qualification_start,
-                )}
+                Status: <strong>{currentGrandPrixLabel}</strong>
               </p>
+              <p>Deadline: {formatUtcIsoInAmsterdamShort(currentGrandPrix.deadline)}</p>
+              {nextGrandPrix ? <p>Volgende Grand Prix: {nextGrandPrix.name}</p> : null}
               <Link
                 className="dashboard-secondary-cta"
                 href={firstLeagueId ? `/leagues/${firstLeagueId}/gp-spel` : "/leagues"}
@@ -336,7 +344,7 @@ export default async function HomePage() {
               </Link>
             </div>
           ) : (
-            <p className="league-list-empty">Er is nog geen aankomende Grand Prix beschikbaar.</p>
+            <p className="league-list-empty">Er is nog geen huidige Grand Prix beschikbaar.</p>
           )}
         </article>
       </section>

@@ -207,6 +207,56 @@ export function getActiveGrandPrixFromTimeline(timeline: GrandPrixTimelineItem[]
   return latestNonCancelledGrandPrix ?? null;
 }
 
+
+export type ActiveGrandPrixDisplayState = "inschrijving_geopend" | "vergrendeld" | "raceweekend_bezig";
+
+export function getLatestFinishedGrandPrixFromTimeline(timeline: GrandPrixTimelineItem[]): GrandPrixTimelineItem | null {
+  return (
+    [...timeline]
+      .filter((grandPrix) => grandPrix.status === "finished")
+      .sort((left, right) => right.qualification_start.localeCompare(left.qualification_start))[0] ?? null
+  );
+}
+
+export function getNextGrandPrixFromTimeline(
+  timeline: GrandPrixTimelineItem[],
+  activeGrandPrixId: string,
+): GrandPrixTimelineItem | null {
+  const activeIndex = timeline.findIndex((grandPrix) => grandPrix.id === activeGrandPrixId);
+
+  if (activeIndex < 0) {
+    return null;
+  }
+
+  return timeline.slice(activeIndex + 1).find((grandPrix) => grandPrix.status !== "cancelled") ?? null;
+}
+
+export function getActiveGrandPrixDisplayState(
+  grandPrix: GrandPrixTimelineItem,
+  nowIso: string = new Date().toISOString(),
+): ActiveGrandPrixDisplayState {
+  if (grandPrix.status === "locked") {
+    return "raceweekend_bezig";
+  }
+
+  if (grandPrix.status === "upcoming") {
+    return grandPrix.deadline > nowIso ? "inschrijving_geopend" : "vergrendeld";
+  }
+
+  return "vergrendeld";
+}
+
+export function getActiveGrandPrixDisplayLabel(state: ActiveGrandPrixDisplayState): string {
+  switch (state) {
+    case "inschrijving_geopend":
+      return "Inschrijving geopend";
+    case "raceweekend_bezig":
+      return "Raceweekend bezig";
+    case "vergrendeld":
+    default:
+      return "Vergrendeld";
+  }
+}
 export async function getCurrentSelectableGrandPrix(
   supabase: ReturnType<typeof createServerSupabaseClient>,
 ): Promise<GrandPrixTimelineItem> {
