@@ -191,28 +191,33 @@ export async function getGrandPrixTimeline(
   }));
 }
 
+export function getActiveGrandPrixFromTimeline(timeline: GrandPrixTimelineItem[]): GrandPrixTimelineItem | null {
+  const activeGrandPrix = timeline.find(
+    (grandPrix) => grandPrix.status !== "finished" && grandPrix.status !== "cancelled",
+  );
+
+  if (activeGrandPrix) {
+    return activeGrandPrix;
+  }
+
+  const latestNonCancelledGrandPrix = [...timeline]
+    .filter((grandPrix) => grandPrix.status !== "cancelled")
+    .sort((left, right) => right.qualification_start.localeCompare(left.qualification_start))[0];
+
+  return latestNonCancelledGrandPrix ?? null;
+}
+
 export async function getCurrentSelectableGrandPrix(
   supabase: ReturnType<typeof createServerSupabaseClient>,
 ): Promise<GrandPrixTimelineItem> {
   const timeline = await getGrandPrixTimeline(supabase);
-  const serverNowIso = new Date().toISOString();
-  const activeTimeline = timeline.filter((grandPrix) => grandPrix.status !== "cancelled");
+  const activeGrandPrix = getActiveGrandPrixFromTimeline(timeline);
 
-  const selectableGrandPrix = activeTimeline.find((grandPrix) => grandPrix.deadline > serverNowIso);
-
-  if (selectableGrandPrix) {
-    return selectableGrandPrix;
-  }
-
-  const mostRecentPastGrandPrix = [...activeTimeline]
-    .filter((grandPrix) => grandPrix.deadline <= serverNowIso)
-    .sort((left, right) => right.qualification_start.localeCompare(left.qualification_start))[0];
-
-  if (!mostRecentPastGrandPrix) {
+  if (!activeGrandPrix) {
     throw new Error("Geen Grand Prix beschikbaar");
   }
 
-  return mostRecentPastGrandPrix;
+  return activeGrandPrix;
 }
 
 export async function getGrandPrixAndDriversById(
