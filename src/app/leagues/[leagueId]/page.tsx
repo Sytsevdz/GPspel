@@ -2,7 +2,13 @@ import Link from "next/link";
 import { formatUtcIsoInAmsterdamShort } from "@/lib/datetime";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
-import { getCurrentSelectableGrandPrix } from "@/lib/team-selection-data";
+import {
+  getActiveGrandPrixDisplayLabel,
+  getActiveGrandPrixDisplayState,
+  getCurrentSelectableGrandPrix,
+  getGrandPrixTimeline,
+  getNextGrandPrixFromTimeline,
+} from "@/lib/team-selection-data";
 import { getLatestCurrentOrScoredGrandPrix } from "@/lib/latest-grand-prix";
 import { getAccessibleLeague } from "./league-access";
 import { DeleteLeagueAction } from "./delete-league-action";
@@ -123,9 +129,15 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
         }))
         .sort((left, right) => right.punten - left.punten || left.spelerNaam.localeCompare(right.spelerNaam))
     : [];
+  const timeline = await getGrandPrixTimeline(supabase).catch(() => []);
   const currentOrUpcomingGrandPrix = await getCurrentSelectableGrandPrix(supabase).catch(() => null);
-  const isGrandPrixSelectable =
-    currentOrUpcomingGrandPrix ? currentOrUpcomingGrandPrix.deadline > nowIso : false;
+  const nextGrandPrix = currentOrUpcomingGrandPrix
+    ? getNextGrandPrixFromTimeline(timeline, currentOrUpcomingGrandPrix.id)
+    : null;
+  const currentGrandPrixState = currentOrUpcomingGrandPrix
+    ? getActiveGrandPrixDisplayState(currentOrUpcomingGrandPrix, nowIso)
+    : null;
+  const currentGrandPrixLabel = currentGrandPrixState ? getActiveGrandPrixDisplayLabel(currentGrandPrixState) : null;
 
   return (
     <main className="leagues-page">
@@ -165,16 +177,15 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
         )}
 
         <section className="league-section">
-          <h2>Huidige of komende Grand Prix</h2>
+          <h2>Huidige Grand Prix</h2>
           {currentOrUpcomingGrandPrix ? (
             <div className="gp-highlight">
               <p className="gp-highlight-title">{currentOrUpcomingGrandPrix.name}</p>
               <p>
-                Status: <strong>{isGrandPrixSelectable ? "Open voor keuzes" : "Meest recente Grand Prix"}</strong>
+                Status: <strong>{currentGrandPrixLabel}</strong>
               </p>
-              <p>
-                Deadline: {formatUtcIsoInAmsterdamShort(currentOrUpcomingGrandPrix.deadline)}
-              </p>
+              <p>Deadline: {formatUtcIsoInAmsterdamShort(currentOrUpcomingGrandPrix.deadline)}</p>
+              {nextGrandPrix ? <p>Volgende Grand Prix: {nextGrandPrix.name}</p> : null}
             </div>
           ) : (
             <div className="league-list-empty">
