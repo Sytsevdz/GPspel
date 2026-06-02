@@ -35,6 +35,13 @@ type PredictionValues = {
   fastestPitstopTeam: string;
 };
 
+type PodiumPredictionField = Exclude<
+  keyof PredictionValues,
+  "fastestPitstopTeam"
+>;
+
+type PublishedSlotPoints = Record<PodiumPredictionField, number | null>;
+
 type PredictionsFormProps = {
   leagueId: string;
   grandPrixId: string;
@@ -49,28 +56,13 @@ type PredictionsFormProps = {
     fastestPitstop: number | null;
   };
   isSprintWeekend?: boolean;
-  publishedSlotPoints?: {
-    sprintQualiP1: number | null;
-    sprintQualiP2: number | null;
-    sprintQualiP3: number | null;
-    sprintRaceP1: number | null;
-    sprintRaceP2: number | null;
-    sprintRaceP3: number | null;
-    qualiP1: number | null;
-    qualiP2: number | null;
-    qualiP3: number | null;
-    raceP1: number | null;
-    raceP2: number | null;
-    raceP3: number | null;
-  };
+  publishedSlotPoints?: PublishedSlotPoints;
   readOnly?: boolean;
   actualFastestPitstopTeam?: string | null;
 };
 
-type PredictionField = keyof PredictionValues;
-
 type PodiumSlotConfig = {
-  field: PredictionField;
+  field: PodiumPredictionField;
   inputName: string;
   label: string;
   position: "P1" | "P2" | "P3";
@@ -259,10 +251,13 @@ export function PredictionsForm({
   publishedSlotPoints,
   readOnly = false,
   isSprintWeekend = false,
+  actualFastestPitstopTeam = null,
 }: PredictionsFormProps) {
   const [state, formAction] = useFormState(savePrediction, INITIAL_STATE);
   const [values, setValues] = useState<PredictionValues>(initialValues);
-  const [activeField, setActiveField] = useState<PredictionField | null>(null);
+  const [activeField, setActiveField] = useState<PodiumPredictionField | null>(
+    null,
+  );
 
   const driversById = useMemo(
     () => new Map(drivers.map((driver) => [driver.id, driver])),
@@ -359,7 +354,7 @@ export function PredictionsForm({
     return errors;
   }, [isSprintWeekend, values]);
 
-  const requiredFields: PredictionField[] = isSprintWeekend
+  const requiredFields: PodiumPredictionField[] = isSprintWeekend
     ? [
         "sprintQualiP1",
         "sprintQualiP2",
@@ -408,7 +403,7 @@ export function PredictionsForm({
     };
   }, [activeField, values]);
 
-  const onChangeValue = (field: PredictionField, value: string) => {
+  const onChangeValue = (field: PodiumPredictionField, value: string) => {
     if (readOnly) {
       return;
     }

@@ -199,7 +199,7 @@ export function ResultForm({
     }
 
     return errors;
-  }, [drivers.length, values]);
+  }, [drivers.length, isSprintWeekend, values]);
 
   const canSave = validationErrors.length === 0;
 
