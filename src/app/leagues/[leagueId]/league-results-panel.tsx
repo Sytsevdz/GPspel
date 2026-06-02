@@ -37,28 +37,36 @@ export function LeagueResultsPanel({
   latestGrandPrixStandings,
   standings,
 }: LeagueResultsPanelProps) {
+  const displayedGrandPrix = latestCompletedGrandPrix;
+
   const openPlayerDetails = (
     userId: string,
     leagueMembers: LeagueMember[],
-    openMemberDetails: (member: LeagueMember) => void,
-    canOpenDetails: boolean
+    openMemberDetails: (
+      member: LeagueMember,
+      context?: { grandPrixId: string; grandPrixName: string },
+    ) => void,
+    canOpenDetails: boolean,
   ) => {
-    if (!canOpenDetails) {
+    if (!canOpenDetails || !displayedGrandPrix) {
       return;
     }
 
     const member = leagueMembers.find((leagueMember) => leagueMember.userId === userId);
     if (member) {
-      openMemberDetails(member);
+      openMemberDetails(member, {
+        grandPrixId: displayedGrandPrix.id,
+        grandPrixName: displayedGrandPrix.name,
+      });
     }
   };
 
   return (
     <PlayerGrandPrixDetail
       leagueId={leagueId}
-      grandPrixId={latestCompletedGrandPrix?.id ?? ""}
-      grandPrixName={latestCompletedGrandPrix?.name ?? "Laatste Grand Prix"}
-      deadlinePassed={Boolean(latestCompletedGrandPrix)}
+      grandPrixId={displayedGrandPrix?.id ?? ""}
+      grandPrixName={displayedGrandPrix?.name ?? "Laatste Grand Prix"}
+      deadlinePassed={Boolean(displayedGrandPrix?.id)}
       members={members}
       sectionTitle="League resultaten"
       helperText="Klik op een speler in de tabellen om teamselectie en voorspellingen te bekijken."
@@ -67,11 +75,11 @@ export function LeagueResultsPanel({
           <section className="league-section league-results-section-card">
             <div className="league-results-section-header">
               <h3>Laatste Grand Prix</h3>
-              {latestCompletedGrandPrix ? (
-                <p className="league-results-section-subtitle">{latestCompletedGrandPrix.name}</p>
+              {displayedGrandPrix ? (
+                <p className="league-results-section-subtitle">{displayedGrandPrix.name}</p>
               ) : null}
             </div>
-            {latestCompletedGrandPrix ? (
+            {displayedGrandPrix ? (
               <>
                 <div className="standings-table-wrapper">
                   <table className="standings-table" aria-label="Laatste Grand Prix">

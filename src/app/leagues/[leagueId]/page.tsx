@@ -8,8 +8,8 @@ import {
   getCurrentSelectableGrandPrix,
   getGrandPrixTimeline,
   getNextGrandPrixFromTimeline,
+  getLatestFinishedGrandPrixFromTimeline,
 } from "@/lib/team-selection-data";
-import { getLatestPastOrScoredGrandPrix } from "@/lib/latest-grand-prix";
 import { getAccessibleLeague } from "./league-access";
 import { DeleteLeagueAction } from "./delete-league-action";
 import { LeaveLeagueAction } from "./leave-league-action";
@@ -106,9 +106,8 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
     }))
     .sort((left, right) => right.totaalPunten - left.totaalPunten || left.spelerNaam.localeCompare(right.spelerNaam));
 
-  const scoredGrandPrixIds = [...new Set(filteredScoreRows.map((scoreRow) => scoreRow.grand_prix_id))];
-
-  const latestGrandPrix = await getLatestPastOrScoredGrandPrix(supabase, scoredGrandPrixIds, nowIso);
+  const timeline = await getGrandPrixTimeline(supabase).catch(() => []);
+  const latestGrandPrix = getLatestFinishedGrandPrixFromTimeline(timeline);
 
   const latestGrandPrixPointsByUserId = new Map<string, number>();
 
@@ -129,7 +128,6 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
         }))
         .sort((left, right) => right.punten - left.punten || left.spelerNaam.localeCompare(right.spelerNaam))
     : [];
-  const timeline = await getGrandPrixTimeline(supabase).catch(() => []);
   const currentOrUpcomingGrandPrix = await getCurrentSelectableGrandPrix(supabase).catch(() => null);
   const nextGrandPrix = currentOrUpcomingGrandPrix
     ? getNextGrandPrixFromTimeline(timeline, currentOrUpcomingGrandPrix.id)

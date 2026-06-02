@@ -19,6 +19,7 @@ type GlobalStandingsPanelProps = {
 };
 
 export function GlobalStandingsPanel({ grandPrix, deadlinePassed, standings }: GlobalStandingsPanelProps) {
+  const displayedGrandPrix = grandPrix;
   const members = standings.map((entry) => ({
     userId: entry.userId,
     displayName: entry.spelerNaam,
@@ -26,25 +27,31 @@ export function GlobalStandingsPanel({ grandPrix, deadlinePassed, standings }: G
 
   const openPlayerDetails = (
     userId: string,
-    openMemberDetails: (member: { userId: string; displayName: string }) => void,
+    openMemberDetails: (
+      member: { userId: string; displayName: string },
+      context?: { grandPrixId: string; grandPrixName: string },
+    ) => void,
     canOpenDetails: boolean,
   ) => {
-    if (!canOpenDetails) {
+    if (!canOpenDetails || !displayedGrandPrix) {
       return;
     }
 
     const member = members.find((leagueMember) => leagueMember.userId === userId);
     if (member) {
-      openMemberDetails(member);
+      openMemberDetails(member, {
+        grandPrixId: displayedGrandPrix.id,
+        grandPrixName: displayedGrandPrix.name,
+      });
     }
   };
 
   return (
     <PlayerGrandPrixDetail
       leagueId="global"
-      grandPrixId={grandPrix?.id ?? ""}
-      grandPrixName={grandPrix?.name ?? "Laatste Grand Prix"}
-      deadlinePassed={deadlinePassed}
+      grandPrixId={displayedGrandPrix?.id ?? ""}
+      grandPrixName={displayedGrandPrix?.name ?? "Laatste Grand Prix"}
+      deadlinePassed={Boolean(displayedGrandPrix?.id) && deadlinePassed}
       members={members}
       showSectionShell={false}
       loadPlayerView={({ grandPrixId, member }) =>

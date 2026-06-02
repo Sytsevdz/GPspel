@@ -16,6 +16,11 @@ type Member = {
   displayName: string;
 };
 
+type PlayerGrandPrixContext = {
+  grandPrixId: string;
+  grandPrixName: string;
+};
+
 type DriverEntry = {
   id: string;
   name: string;
@@ -54,7 +59,9 @@ type PlayerGrandPrixDetailProps = {
   membersRenderer?: (args: {
     members: Member[];
     deadlinePassed: boolean;
-    openMemberDetails: (member: Member) => void;
+    grandPrixId: string;
+    grandPrixName: string;
+    openMemberDetails: (member: Member, context?: PlayerGrandPrixContext) => void;
   }) => ReactNode;
 };
 
@@ -236,6 +243,8 @@ export function PlayerGrandPrixDetail({
 }: PlayerGrandPrixDetailProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [selectedGrandPrixContext, setSelectedGrandPrixContext] =
+    useState<PlayerGrandPrixContext | null>(null);
   const [snapshot, setSnapshot] = useState<LoadedSnapshot | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isPending, startTransition] = useTransition();
@@ -327,22 +336,37 @@ export function PlayerGrandPrixDetail({
     );
   }, [snapshot]);
 
-  const openMemberDetails = (member: Member) => {
-    if (!deadlinePassed) {
+  const openMemberDetails = (
+    member: Member,
+    context: PlayerGrandPrixContext = { grandPrixId, grandPrixName },
+  ) => {
+    const safeGrandPrixId = context.grandPrixId.trim();
+
+    if (!deadlinePassed || !safeGrandPrixId) {
       return;
     }
 
+    const safeGrandPrixName = context.grandPrixName.trim() || grandPrixName;
+
     setSelectedMember(member);
+    setSelectedGrandPrixContext({
+      grandPrixId: safeGrandPrixId,
+      grandPrixName: safeGrandPrixName,
+    });
     setIsModalOpen(true);
     setSnapshot(null);
     setErrorMessage("");
 
     startTransition(async () => {
       const result = loadPlayerView
-        ? await loadPlayerView({ leagueId, grandPrixId, member })
+        ? await loadPlayerView({
+            leagueId,
+            grandPrixId: safeGrandPrixId,
+            member,
+          })
         : await getPlayerGrandPrixView(
             leagueId,
-            grandPrixId,
+            safeGrandPrixId,
             member.userId,
             member.displayName,
           );
@@ -360,6 +384,8 @@ export function PlayerGrandPrixDetail({
     membersRenderer({
       members,
       deadlinePassed,
+      grandPrixId,
+      grandPrixName,
       openMemberDetails,
     })
   ) : (
@@ -422,7 +448,8 @@ export function PlayerGrandPrixDetail({
                     "Speler"}
                 </h3>
                 <p>
-                  <strong>Grand Prix:</strong> {grandPrixName}
+                  <strong>Grand Prix:</strong>{" "}
+                  {selectedGrandPrixContext?.grandPrixName ?? grandPrixName}
                 </p>
               </div>
               <button
