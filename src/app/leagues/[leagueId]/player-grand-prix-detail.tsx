@@ -3,7 +3,10 @@
 import Image from "next/image";
 import { useMemo, useState, useTransition, type ReactNode } from "react";
 
-import { getPlayerGrandPrixView, type PlayerGrandPrixViewResult } from "@/app/actions/player-grand-prix-view";
+import {
+  getPlayerGrandPrixView,
+  type PlayerGrandPrixViewResult,
+} from "@/app/actions/player-grand-prix-view";
 import { DriverScoreCard } from "@/app/driver-score-card";
 import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
@@ -65,15 +68,45 @@ type PodiumSlot = {
 };
 
 const QUALIFICATION_SLOTS: PodiumSlot[] = [
-  { label: "P2", rankLabel: "Tweede plek", heightClassName: "podium-step-p2", slotClassName: "podium-slot--p2" },
-  { label: "P1", rankLabel: "Pole position", heightClassName: "podium-step-p1", slotClassName: "podium-slot--p1" },
-  { label: "P3", rankLabel: "Derde plek", heightClassName: "podium-step-p3", slotClassName: "podium-slot--p3" },
+  {
+    label: "P2",
+    rankLabel: "Tweede plek",
+    heightClassName: "podium-step-p2",
+    slotClassName: "podium-slot--p2",
+  },
+  {
+    label: "P1",
+    rankLabel: "Pole position",
+    heightClassName: "podium-step-p1",
+    slotClassName: "podium-slot--p1",
+  },
+  {
+    label: "P3",
+    rankLabel: "Derde plek",
+    heightClassName: "podium-step-p3",
+    slotClassName: "podium-slot--p3",
+  },
 ];
 
 const RACE_SLOTS: PodiumSlot[] = [
-  { label: "P2", rankLabel: "Tweede plek", heightClassName: "podium-step-p2", slotClassName: "podium-slot--p2" },
-  { label: "P1", rankLabel: "Winnaar", heightClassName: "podium-step-p1", slotClassName: "podium-slot--p1" },
-  { label: "P3", rankLabel: "Derde plek", heightClassName: "podium-step-p3", slotClassName: "podium-slot--p3" },
+  {
+    label: "P2",
+    rankLabel: "Tweede plek",
+    heightClassName: "podium-step-p2",
+    slotClassName: "podium-slot--p2",
+  },
+  {
+    label: "P1",
+    rankLabel: "Winnaar",
+    heightClassName: "podium-step-p1",
+    slotClassName: "podium-slot--p1",
+  },
+  {
+    label: "P3",
+    rankLabel: "Derde plek",
+    heightClassName: "podium-step-p3",
+    slotClassName: "podium-slot--p3",
+  },
 ];
 
 const EMPTY_LABELS_BY_SLOT: Record<PodiumSlot["label"], string> = {
@@ -82,7 +115,8 @@ const EMPTY_LABELS_BY_SLOT: Record<PodiumSlot["label"], string> = {
   P3: "Geen coureur opgeslagen",
 };
 
-const formatPublishedPoints = (value: number | null) => (value === null ? "—" : value);
+const formatPublishedPoints = (value: number | null) =>
+  value === null ? "—" : value;
 
 function PodiumReadOnly({
   title,
@@ -120,21 +154,37 @@ function PodiumReadOnly({
       <div className="podium-grid" aria-label={`${title} podium`}>
         {slots.map((slot) => {
           const selectedDriver = podiumByPosition.get(slot.label);
-          const selectedTeam = selectedDriver ? resolveTeamSelectionTeam(selectedDriver.constructorTeam) : null;
+          const selectedTeam = selectedDriver
+            ? resolveTeamSelectionTeam(selectedDriver.constructorTeam)
+            : null;
           const sectionPrefix =
-            title === "Sprint kwalificatie" ? "sprintQuali" : title === "Sprint race" ? "sprintRace" : title === "Kwalificatie" ? "quali" : "race";
-          const slotPointsField = `${sectionPrefix}${slot.label}` as keyof PredictionSlotPoints;
+            title === "Sprint kwalificatie"
+              ? "sprintQuali"
+              : title === "Sprint race"
+                ? "sprintRace"
+                : title === "Kwalificatie"
+                  ? "quali"
+                  : "race";
+          const slotPointsField =
+            `${sectionPrefix}${slot.label}` as keyof PredictionSlotPoints;
           const slotPublishedPoints = publishedSlotPoints[slotPointsField];
 
           return (
-            <div key={`${title}-${slot.label}`} className={`podium-slot ${slot.heightClassName} ${slot.slotClassName} ${selectedDriver ? "filled" : "empty"}`}>
+            <div
+              key={`${title}-${slot.label}`}
+              className={`podium-slot ${slot.heightClassName} ${slot.slotClassName} ${selectedDriver ? "filled" : "empty"}`}
+            >
               <div className="podium-slot-content">
                 <div className="podium-slot-heading">
                   <span className="podium-slot-position">{slot.label}</span>
                   <div className="podium-slot-meta">
-                    <span className="podium-slot-rank-label">{slot.rankLabel}</span>
+                    <span className="podium-slot-rank-label">
+                      {slot.rankLabel}
+                    </span>
                     {showPublishedSlotPoints && slotPublishedPoints !== null ? (
-                      <span className="podium-slot-points">+{slotPublishedPoints}</span>
+                      <span className="podium-slot-points">
+                        +{slotPublishedPoints}
+                      </span>
                     ) : null}
                   </div>
                 </div>
@@ -223,8 +273,13 @@ export function PlayerGrandPrixDetail({
 
     (snapshot?.predictionSlotScores ?? []).forEach((detail) => {
       const sectionPrefix =
-        detail.predictionType === "sprint_quali" ? "sprintQuali" : detail.predictionType === "sprint_race" ? "sprintRace" : detail.predictionType;
-      const field = `${sectionPrefix}P${detail.slotPosition}` as keyof PredictionSlotPoints;
+        detail.predictionType === "sprint_quali"
+          ? "sprintQuali"
+          : detail.predictionType === "sprint_race"
+            ? "sprintRace"
+            : detail.predictionType;
+      const field =
+        `${sectionPrefix}P${detail.slotPosition}` as keyof PredictionSlotPoints;
       slotPoints[field] = detail.points;
     });
 
@@ -242,16 +297,22 @@ export function PlayerGrandPrixDetail({
     );
   }, [snapshot?.teamScoreDetails]);
 
-  const hasPublishedSprintQualiTeamScores = snapshot?.publication.sprintQualiPublished ?? false;
+  const hasPublishedSprintQualiTeamScores =
+    snapshot?.publication.sprintQualiPublished ?? false;
 
-  const hasPublishedSprintRaceTeamScores = snapshot?.publication.sprintRacePublished ?? false;
+  const hasPublishedSprintRaceTeamScores =
+    snapshot?.publication.sprintRacePublished ?? false;
 
-  const hasPublishedQualiTeamScores = snapshot?.publication.qualiPublished ?? false;
+  const hasPublishedQualiTeamScores =
+    snapshot?.publication.qualiPublished ?? false;
 
-  const hasPublishedRaceTeamScores = snapshot?.publication.racePublished ?? false;
+  const hasPublishedRaceTeamScores =
+    snapshot?.publication.racePublished ?? false;
 
   const hasPublishedPredictionSlotScores = useMemo(() => {
-    return (snapshot?.predictionSlotScores ?? []).some((detail) => detail.points !== null);
+    return (snapshot?.predictionSlotScores ?? []).some(
+      (detail) => detail.points !== null,
+    );
   }, [snapshot?.predictionSlotScores]);
 
   const hasPublishedTotals = useMemo(() => {
@@ -279,7 +340,12 @@ export function PlayerGrandPrixDetail({
     startTransition(async () => {
       const result = loadPlayerView
         ? await loadPlayerView({ leagueId, grandPrixId, member })
-        : await getPlayerGrandPrixView(leagueId, grandPrixId, member.userId, member.displayName);
+        : await getPlayerGrandPrixView(
+            leagueId,
+            grandPrixId,
+            member.userId,
+            member.displayName,
+          );
 
       if (result.status === "error") {
         setErrorMessage(result.message);
@@ -341,22 +407,39 @@ export function PlayerGrandPrixDetail({
             }
           }}
         >
-            <section className="podium-selection-panel player-detail-panel" role="dialog" aria-modal="true" aria-label="Spelerdetails">
+          <section
+            className="podium-selection-panel player-detail-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Spelerdetails"
+          >
             <div className="podium-selection-panel-header player-detail-header">
               <div className="player-detail-header-copy">
                 <span className="player-detail-eyebrow">Spelerdetail</span>
-                <h3>{snapshot?.playerName ?? selectedMember?.displayName ?? "Speler"}</h3>
+                <h3>
+                  {snapshot?.playerName ??
+                    selectedMember?.displayName ??
+                    "Speler"}
+                </h3>
                 <p>
                   <strong>Grand Prix:</strong> {grandPrixName}
                 </p>
               </div>
-              <button type="button" className="podium-selection-close" onClick={() => setIsModalOpen(false)}>
+              <button
+                type="button"
+                className="podium-selection-close"
+                onClick={() => setIsModalOpen(false)}
+              >
                 Sluiten
               </button>
             </div>
 
-            {isPending ? <p className="league-list-empty">Gegevens laden...</p> : null}
-            {!isPending && errorMessage ? <p className="form-message error">{errorMessage}</p> : null}
+            {isPending ? (
+              <p className="league-list-empty">Gegevens laden...</p>
+            ) : null}
+            {!isPending && errorMessage ? (
+              <p className="form-message error">{errorMessage}</p>
+            ) : null}
 
             {!isPending && snapshot ? (
               <div className="player-detail-content">
@@ -366,22 +449,48 @@ export function PlayerGrandPrixDetail({
                     <p>Opgeslagen selectie voor deze Grand Prix.</p>
                   </div>
                   {snapshot.teamSelection.length > 0 ? (
-                    <ul className="selected-driver-cars compact-selected-driver-cars" aria-label="Geselecteerde coureurs met teamwagens">
+                    <ul
+                      className="selected-driver-cars compact-selected-driver-cars"
+                      aria-label="Geselecteerde coureurs met teamwagens"
+                    >
                       {snapshot.teamSelection.map((driver) => {
-                        const team = resolveTeamSelectionTeam(driver.constructorTeam);
-                        const driverPoints = teamScoreDetailsByDriverId.get(driver.id);
+                        const team = resolveTeamSelectionTeam(
+                          driver.constructorTeam,
+                        );
+                        const driverPoints = teamScoreDetailsByDriverId.get(
+                          driver.id,
+                        );
                         const pointRows = [
                           {
                             label: "Sprint kwali",
-                            value: hasPublishedSprintQualiTeamScores ? (driverPoints?.teamSprintQualiPoints ?? 0) : null,
+                            value: hasPublishedSprintQualiTeamScores
+                              ? (driverPoints?.teamSprintQualiPoints ?? 0)
+                              : null,
                           },
                           {
                             label: "Sprint race",
-                            value: hasPublishedSprintRaceTeamScores ? (driverPoints?.teamSprintRacePoints ?? 0) : null,
+                            value: hasPublishedSprintRaceTeamScores
+                              ? (driverPoints?.teamSprintRacePoints ?? 0)
+                              : null,
                           },
-                          { label: "Kwali", value: hasPublishedQualiTeamScores ? (driverPoints?.teamQualiPoints ?? 0) : null },
-                          { label: "Race", value: hasPublishedRaceTeamScores ? (driverPoints?.teamRacePoints ?? 0) : null },
-                          { label: "Totaal", value: hasPublishedTeamScores ? (driverPoints?.totalPoints ?? 0) : null },
+                          {
+                            label: "Kwali",
+                            value: hasPublishedQualiTeamScores
+                              ? (driverPoints?.teamQualiPoints ?? 0)
+                              : null,
+                          },
+                          {
+                            label: "Race",
+                            value: hasPublishedRaceTeamScores
+                              ? (driverPoints?.teamRacePoints ?? 0)
+                              : null,
+                          },
+                          {
+                            label: "Totaal",
+                            value: hasPublishedTeamScores
+                              ? (driverPoints?.totalPoints ?? 0)
+                              : null,
+                          },
                         ].filter((row) => row.value !== null);
 
                         return (
@@ -403,15 +512,20 @@ export function PlayerGrandPrixDetail({
                   ) : (
                     <p className="league-list-empty">Geen team opgeslagen</p>
                   )}
-                  {snapshot.teamSelection.length > 0 && !hasPublishedTeamScores ? (
-                    <p className="league-list-empty">Teampunten zijn nog niet gepubliceerd.</p>
+                  {snapshot.teamSelection.length > 0 &&
+                  !hasPublishedTeamScores ? (
+                    <p className="league-list-empty">
+                      Teampunten zijn nog niet gepubliceerd.
+                    </p>
                   ) : null}
                 </section>
 
                 <section>
                   <div className="player-detail-section-header">
                     <h3>Voorspellingen</h3>
-                    <p>Kwalificatie en race staan los van elkaar weergegeven.</p>
+                    <p>
+                      Kwalificatie en race staan los van elkaar weergegeven.
+                    </p>
                   </div>
                   {snapshot.hasPredictions ? (
                     <>
@@ -422,14 +536,18 @@ export function PlayerGrandPrixDetail({
                             podium={snapshot.sprintQualificationPodium}
                             slots={QUALIFICATION_SLOTS}
                             publishedSlotPoints={predictionSlotPoints}
-                            showPublishedSlotPoints={snapshot.publication.sprintQualiPublished}
+                            showPublishedSlotPoints={
+                              snapshot.publication.sprintQualiPublished
+                            }
                           />
                           <PodiumReadOnly
                             title="Sprint race"
                             podium={snapshot.sprintRacePodium}
                             slots={RACE_SLOTS}
                             publishedSlotPoints={predictionSlotPoints}
-                            showPublishedSlotPoints={snapshot.publication.sprintRacePublished}
+                            showPublishedSlotPoints={
+                              snapshot.publication.sprintRacePublished
+                            }
                           />
                         </>
                       ) : null}
@@ -438,22 +556,61 @@ export function PlayerGrandPrixDetail({
                         podium={snapshot.qualificationPodium}
                         slots={QUALIFICATION_SLOTS}
                         publishedSlotPoints={predictionSlotPoints}
-                        showPublishedSlotPoints={hasPublishedPredictionSlotScores}
+                        showPublishedSlotPoints={
+                          hasPublishedPredictionSlotScores
+                        }
                       />
                       <PodiumReadOnly
                         title="Race"
                         podium={snapshot.racePodium}
                         slots={RACE_SLOTS}
                         publishedSlotPoints={predictionSlotPoints}
-                        showPublishedSlotPoints={hasPublishedPredictionSlotScores}
+                        showPublishedSlotPoints={
+                          hasPublishedPredictionSlotScores
+                        }
                       />
+                      {snapshot.bonusPrediction ? (
+                        <section className="predictions-section">
+                          <div className="predictions-section-header">
+                            <h3>Bonusvoorspelling</h3>
+                          </div>
+                          <dl className="gp-spel-inline-totals">
+                            <div>
+                              <dt>Snelste pitstop voorspeld</dt>
+                              <dd>
+                                {snapshot.bonusPrediction.selectedTeam ??
+                                  "Geen team gekozen"}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Snelste pitstop werkelijk</dt>
+                              <dd>
+                                {snapshot.bonusPrediction.actualTeam ??
+                                  "Nog niet bekend"}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Punten</dt>
+                              <dd>
+                                {formatPublishedPoints(
+                                  snapshot.bonusPrediction.points,
+                                )}
+                              </dd>
+                            </div>
+                          </dl>
+                        </section>
+                      ) : null}
                     </>
                   ) : (
-                    <p className="league-list-empty">Geen voorspellingen opgeslagen</p>
+                    <p className="league-list-empty">
+                      Geen voorspellingen opgeslagen
+                    </p>
                   )}
-                  {(snapshot.hasPredictions) &&
+                  {snapshot.hasPredictions &&
                   !hasPublishedPredictionSlotScores ? (
-                    <p className="league-list-empty">Voorspellingspunten zijn nog niet gepubliceerd.</p>
+                    <p className="league-list-empty">
+                      Voorspellingspunten zijn nog niet gepubliceerd.
+                    </p>
                   ) : null}
                 </section>
 
@@ -462,19 +619,29 @@ export function PlayerGrandPrixDetail({
                     <dl className="gp-spel-inline-totals">
                       <div>
                         <dt>Team punten</dt>
-                        <dd>{formatPublishedPoints(snapshot.totals.teamPoints)}</dd>
+                        <dd>
+                          {formatPublishedPoints(snapshot.totals.teamPoints)}
+                        </dd>
                       </div>
                       <div>
                         <dt>Voorspelling punten</dt>
-                        <dd>{formatPublishedPoints(snapshot.totals.predictionPoints)}</dd>
+                        <dd>
+                          {formatPublishedPoints(
+                            snapshot.totals.predictionPoints,
+                          )}
+                        </dd>
                       </div>
                       <div>
                         <dt>Totaal punten</dt>
-                        <dd>{formatPublishedPoints(snapshot.totals.totalPoints)}</dd>
+                        <dd>
+                          {formatPublishedPoints(snapshot.totals.totalPoints)}
+                        </dd>
                       </div>
                     </dl>
                   ) : (
-                    <p className="league-list-empty">Punten zijn nog niet gepubliceerd voor deze Grand Prix.</p>
+                    <p className="league-list-empty">
+                      Punten zijn nog niet gepubliceerd voor deze Grand Prix.
+                    </p>
                   )}
                 </section>
               </div>

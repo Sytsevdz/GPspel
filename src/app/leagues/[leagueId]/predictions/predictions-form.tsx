@@ -4,7 +4,10 @@ import Image from "next/image";
 import { useMemo, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 
-import { savePrediction, type PredictionsActionState } from "@/app/actions/predictions";
+import {
+  savePrediction,
+  type PredictionsActionState,
+} from "@/app/actions/predictions";
 import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 
@@ -29,41 +32,37 @@ type PredictionValues = {
   raceP1: string;
   raceP2: string;
   raceP3: string;
+  fastestPitstopTeam: string;
 };
+
+type PodiumPredictionField = Exclude<
+  keyof PredictionValues,
+  "fastestPitstopTeam"
+>;
+
+type PublishedSlotPoints = Record<PodiumPredictionField, number | null>;
 
 type PredictionsFormProps = {
   leagueId: string;
   grandPrixId: string;
   drivers: DriverOption[];
+  constructorTeams: string[];
   initialValues: PredictionValues;
   publishedPoints?: {
     sprintQuali: number | null;
     sprintRace: number | null;
     quali: number | null;
     race: number | null;
+    fastestPitstop: number | null;
   };
   isSprintWeekend?: boolean;
-  publishedSlotPoints?: {
-    sprintQualiP1: number | null;
-    sprintQualiP2: number | null;
-    sprintQualiP3: number | null;
-    sprintRaceP1: number | null;
-    sprintRaceP2: number | null;
-    sprintRaceP3: number | null;
-    qualiP1: number | null;
-    qualiP2: number | null;
-    qualiP3: number | null;
-    raceP1: number | null;
-    raceP2: number | null;
-    raceP3: number | null;
-  };
+  publishedSlotPoints?: PublishedSlotPoints;
   readOnly?: boolean;
+  actualFastestPitstopTeam?: string | null;
 };
 
-type PredictionField = keyof PredictionValues;
-
 type PodiumSlotConfig = {
-  field: PredictionField;
+  field: PodiumPredictionField;
   inputName: string;
   label: string;
   position: "P1" | "P2" | "P3";
@@ -85,18 +84,66 @@ const PODIUM_SECTIONS: PodiumSectionConfig[] = [
     id: "sprintQuali",
     title: "Sprint kwalificatie",
     slots: [
-      { field: "sprintQualiP2", inputName: "sprint_quali_p2", label: "Sprint kwalificatie P2", position: "P2", rankLabel: "Tweede plek", heightClassName: "podium-step-p2", slotClassName: "podium-slot--p2" },
-      { field: "sprintQualiP1", inputName: "sprint_quali_p1", label: "Sprint kwalificatie P1", position: "P1", rankLabel: "Pole position", heightClassName: "podium-step-p1", slotClassName: "podium-slot--p1" },
-      { field: "sprintQualiP3", inputName: "sprint_quali_p3", label: "Sprint kwalificatie P3", position: "P3", rankLabel: "Derde plek", heightClassName: "podium-step-p3", slotClassName: "podium-slot--p3" },
+      {
+        field: "sprintQualiP2",
+        inputName: "sprint_quali_p2",
+        label: "Sprint kwalificatie P2",
+        position: "P2",
+        rankLabel: "Tweede plek",
+        heightClassName: "podium-step-p2",
+        slotClassName: "podium-slot--p2",
+      },
+      {
+        field: "sprintQualiP1",
+        inputName: "sprint_quali_p1",
+        label: "Sprint kwalificatie P1",
+        position: "P1",
+        rankLabel: "Pole position",
+        heightClassName: "podium-step-p1",
+        slotClassName: "podium-slot--p1",
+      },
+      {
+        field: "sprintQualiP3",
+        inputName: "sprint_quali_p3",
+        label: "Sprint kwalificatie P3",
+        position: "P3",
+        rankLabel: "Derde plek",
+        heightClassName: "podium-step-p3",
+        slotClassName: "podium-slot--p3",
+      },
     ],
   },
   {
     id: "sprintRace",
     title: "Sprint race",
     slots: [
-      { field: "sprintRaceP2", inputName: "sprint_race_p2", label: "Sprint race P2", position: "P2", rankLabel: "Tweede plek", heightClassName: "podium-step-p2", slotClassName: "podium-slot--p2" },
-      { field: "sprintRaceP1", inputName: "sprint_race_p1", label: "Sprint race P1", position: "P1", rankLabel: "Winnaar", heightClassName: "podium-step-p1", slotClassName: "podium-slot--p1" },
-      { field: "sprintRaceP3", inputName: "sprint_race_p3", label: "Sprint race P3", position: "P3", rankLabel: "Derde plek", heightClassName: "podium-step-p3", slotClassName: "podium-slot--p3" },
+      {
+        field: "sprintRaceP2",
+        inputName: "sprint_race_p2",
+        label: "Sprint race P2",
+        position: "P2",
+        rankLabel: "Tweede plek",
+        heightClassName: "podium-step-p2",
+        slotClassName: "podium-slot--p2",
+      },
+      {
+        field: "sprintRaceP1",
+        inputName: "sprint_race_p1",
+        label: "Sprint race P1",
+        position: "P1",
+        rankLabel: "Winnaar",
+        heightClassName: "podium-step-p1",
+        slotClassName: "podium-slot--p1",
+      },
+      {
+        field: "sprintRaceP3",
+        inputName: "sprint_race_p3",
+        label: "Sprint race P3",
+        position: "P3",
+        rankLabel: "Derde plek",
+        heightClassName: "podium-step-p3",
+        slotClassName: "podium-slot--p3",
+      },
     ],
   },
   {
@@ -171,16 +218,26 @@ function SaveButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
 
   return (
-    <button type="submit" className="predictions-submit-button" disabled={disabled || pending}>
+    <button
+      type="submit"
+      className="predictions-submit-button"
+      disabled={disabled || pending}
+    >
       {pending ? "Bezig met opslaan..." : "Voorspelling opslaan"}
     </button>
   );
 }
 
-const getSectionSelections = (values: PredictionValues, sectionId: PodiumSectionConfig["id"]) => {
-  if (sectionId === "sprintQuali") return [values.sprintQualiP1, values.sprintQualiP2, values.sprintQualiP3];
-  if (sectionId === "sprintRace") return [values.sprintRaceP1, values.sprintRaceP2, values.sprintRaceP3];
-  if (sectionId === "quali") return [values.qualiP1, values.qualiP2, values.qualiP3];
+const getSectionSelections = (
+  values: PredictionValues,
+  sectionId: PodiumSectionConfig["id"],
+) => {
+  if (sectionId === "sprintQuali")
+    return [values.sprintQualiP1, values.sprintQualiP2, values.sprintQualiP3];
+  if (sectionId === "sprintRace")
+    return [values.sprintRaceP1, values.sprintRaceP2, values.sprintRaceP3];
+  if (sectionId === "quali")
+    return [values.qualiP1, values.qualiP2, values.qualiP3];
   return [values.raceP1, values.raceP2, values.raceP3];
 };
 
@@ -188,17 +245,24 @@ export function PredictionsForm({
   leagueId,
   grandPrixId,
   drivers,
+  constructorTeams,
   initialValues,
   publishedPoints,
   publishedSlotPoints,
   readOnly = false,
   isSprintWeekend = false,
+  actualFastestPitstopTeam = null,
 }: PredictionsFormProps) {
   const [state, formAction] = useFormState(savePrediction, INITIAL_STATE);
   const [values, setValues] = useState<PredictionValues>(initialValues);
-  const [activeField, setActiveField] = useState<PredictionField | null>(null);
+  const [activeField, setActiveField] = useState<PodiumPredictionField | null>(
+    null,
+  );
 
-  const driversById = useMemo(() => new Map(drivers.map((driver) => [driver.id, driver])), [drivers]);
+  const driversById = useMemo(
+    () => new Map(drivers.map((driver) => [driver.id, driver])),
+    [drivers],
+  );
   const sortedDrivers = useMemo(() => {
     const groupedDrivers = new Map<string, DriverOption[]>();
 
@@ -221,7 +285,10 @@ export function PredictionsForm({
 
           return left.name.localeCompare(right.name, "nl-NL");
         }),
-        teamScore: teamDrivers.reduce((total, driver) => total + (driver.seasonScore ?? 0), 0),
+        teamScore: teamDrivers.reduce(
+          (total, driver) => total + (driver.seasonScore ?? 0),
+          0,
+        ),
       }))
       .sort((left, right) => {
         if (right.teamScore !== left.teamScore) {
@@ -235,20 +302,47 @@ export function PredictionsForm({
 
   const validationErrors = useMemo(() => {
     const errors: string[] = [];
-    const sprintQualificationSelections = [values.sprintQualiP1, values.sprintQualiP2, values.sprintQualiP3];
-    const sprintRaceSelections = [values.sprintRaceP1, values.sprintRaceP2, values.sprintRaceP3];
-    const qualificationSelections = [values.qualiP1, values.qualiP2, values.qualiP3];
+    const sprintQualificationSelections = [
+      values.sprintQualiP1,
+      values.sprintQualiP2,
+      values.sprintQualiP3,
+    ];
+    const sprintRaceSelections = [
+      values.sprintRaceP1,
+      values.sprintRaceP2,
+      values.sprintRaceP3,
+    ];
+    const qualificationSelections = [
+      values.qualiP1,
+      values.qualiP2,
+      values.qualiP3,
+    ];
     const raceSelections = [values.raceP1, values.raceP2, values.raceP3];
 
     if (isSprintWeekend) {
-      const filledSprintQualificationSelections = sprintQualificationSelections.filter(Boolean);
-      if (new Set(filledSprintQualificationSelections).size !== filledSprintQualificationSelections.length) errors.push("Je mag binnen sprint kwalificatie geen coureur dubbel kiezen");
+      const filledSprintQualificationSelections =
+        sprintQualificationSelections.filter(Boolean);
+      if (
+        new Set(filledSprintQualificationSelections).size !==
+        filledSprintQualificationSelections.length
+      )
+        errors.push(
+          "Je mag binnen sprint kwalificatie geen coureur dubbel kiezen",
+        );
       const filledSprintRaceSelections = sprintRaceSelections.filter(Boolean);
-      if (new Set(filledSprintRaceSelections).size !== filledSprintRaceSelections.length) errors.push("Je mag binnen sprint race geen coureur dubbel kiezen");
+      if (
+        new Set(filledSprintRaceSelections).size !==
+        filledSprintRaceSelections.length
+      )
+        errors.push("Je mag binnen sprint race geen coureur dubbel kiezen");
     }
 
-    const filledQualificationSelections = qualificationSelections.filter(Boolean);
-    if (new Set(filledQualificationSelections).size !== filledQualificationSelections.length) {
+    const filledQualificationSelections =
+      qualificationSelections.filter(Boolean);
+    if (
+      new Set(filledQualificationSelections).size !==
+      filledQualificationSelections.length
+    ) {
       errors.push("Je mag binnen kwalificatie geen coureur dubbel kiezen");
     }
 
@@ -260,7 +354,7 @@ export function PredictionsForm({
     return errors;
   }, [isSprintWeekend, values]);
 
-  const requiredFields: PredictionField[] = isSprintWeekend
+  const requiredFields: PodiumPredictionField[] = isSprintWeekend
     ? [
         "sprintQualiP1",
         "sprintQualiP2",
@@ -277,20 +371,27 @@ export function PredictionsForm({
       ]
     : ["qualiP1", "qualiP2", "qualiP3", "raceP1", "raceP2", "raceP3"];
 
-  const hasAllSelections = requiredFields.every((field) => Boolean(values[field]));
-  const canSave = hasAllSelections && validationErrors.length === 0 && !readOnly;
+  const hasAllSelections =
+    requiredFields.every((field) => Boolean(values[field])) &&
+    Boolean(values.fastestPitstopTeam);
+  const canSave =
+    hasAllSelections && validationErrors.length === 0 && !readOnly;
 
   const activeSelection = useMemo(() => {
     if (!activeField) {
       return null;
     }
 
-    const section = PODIUM_SECTIONS.find((candidateSection) => candidateSection.slots.some((slot) => slot.field === activeField));
+    const section = PODIUM_SECTIONS.find((candidateSection) =>
+      candidateSection.slots.some((slot) => slot.field === activeField),
+    );
     if (!section) {
       return null;
     }
 
-    const slot = section.slots.find((candidateSlot) => candidateSlot.field === activeField);
+    const slot = section.slots.find(
+      (candidateSlot) => candidateSlot.field === activeField,
+    );
     if (!slot) {
       return null;
     }
@@ -302,7 +403,7 @@ export function PredictionsForm({
     };
   }, [activeField, values]);
 
-  const onChangeValue = (field: PredictionField, value: string) => {
+  const onChangeValue = (field: PodiumPredictionField, value: string) => {
     if (readOnly) {
       return;
     }
@@ -315,22 +416,38 @@ export function PredictionsForm({
       <input type="hidden" name="league_id" value={leagueId} />
       <input type="hidden" name="grand_prix_id" value={grandPrixId} />
 
-      {PODIUM_SECTIONS.filter((section) => isSprintWeekend || (section.id !== "sprintQuali" && section.id !== "sprintRace")).map((section) => (
+      {PODIUM_SECTIONS.filter(
+        (section) =>
+          isSprintWeekend ||
+          (section.id !== "sprintQuali" && section.id !== "sprintRace"),
+      ).map((section) => (
         <section key={section.id} className="predictions-section">
           <div className="predictions-section-header">
             <h2>{section.title}</h2>
             {publishedPoints && publishedPoints[section.id] !== null ? (
-              <p className="predictions-points-chip">Punten: {publishedPoints[section.id] ?? 0}</p>
+              <p className="predictions-points-chip">
+                Punten: {publishedPoints[section.id] ?? 0}
+              </p>
             ) : null}
-            {!readOnly ? <p>Klik op een podiumplek om een coureur te kiezen of aan te passen.</p> : null}
+            {!readOnly ? (
+              <p>
+                Klik op een podiumplek om een coureur te kiezen of aan te
+                passen.
+              </p>
+            ) : null}
           </div>
 
           <div className="podium-grid" aria-label={`${section.title} podium`}>
             {section.slots.map((slot) => {
               const selectedDriverId = values[slot.field];
-              const selectedDriver = selectedDriverId ? driversById.get(selectedDriverId) : null;
-              const selectedTeam = selectedDriver ? resolveTeamSelectionTeam(selectedDriver.constructorTeam) : null;
-              const selectedCardImageSize = getTeamSideImageSize("selectedCard");
+              const selectedDriver = selectedDriverId
+                ? driversById.get(selectedDriverId)
+                : null;
+              const selectedTeam = selectedDriver
+                ? resolveTeamSelectionTeam(selectedDriver.constructorTeam)
+                : null;
+              const selectedCardImageSize =
+                getTeamSideImageSize("selectedCard");
               const isActive = activeField === slot.field;
               const slotPublishedPoints = publishedSlotPoints?.[slot.field];
               const slotClasses = [
@@ -347,11 +464,18 @@ export function PredictionsForm({
                 <>
                   <div className="podium-slot-content">
                     <div className="podium-slot-heading">
-                      <span className="podium-slot-position">{slot.position}</span>
+                      <span className="podium-slot-position">
+                        {slot.position}
+                      </span>
                       <div className="podium-slot-meta">
-                        <span className="podium-slot-rank-label">{slot.rankLabel}</span>
-                        {slotPublishedPoints !== null && slotPublishedPoints !== undefined ? (
-                          <span className="podium-slot-points">+{slotPublishedPoints}</span>
+                        <span className="podium-slot-rank-label">
+                          {slot.rankLabel}
+                        </span>
+                        {slotPublishedPoints !== null &&
+                        slotPublishedPoints !== undefined ? (
+                          <span className="podium-slot-points">
+                            +{slotPublishedPoints}
+                          </span>
                         ) : null}
                       </div>
                     </div>
@@ -387,7 +511,11 @@ export function PredictionsForm({
               return readOnly ? (
                 <div key={slot.field} className={slotClasses}>
                   {slotContent}
-                  <input type="hidden" name={slot.inputName} value={selectedDriverId} />
+                  <input
+                    type="hidden"
+                    name={slot.inputName}
+                    value={selectedDriverId}
+                  />
                 </div>
               ) : (
                 <button
@@ -398,7 +526,11 @@ export function PredictionsForm({
                   aria-pressed={isActive}
                 >
                   {slotContent}
-                  <input type="hidden" name={slot.inputName} value={selectedDriverId} />
+                  <input
+                    type="hidden"
+                    name={slot.inputName}
+                    value={selectedDriverId}
+                  />
                 </button>
               );
             })}
@@ -416,13 +548,22 @@ export function PredictionsForm({
             }
           }}
         >
-          <div className="podium-selection-panel" role="dialog" aria-modal="true" aria-label={`Kies coureur voor ${activeSelection.slot.position}`}>
+          <div
+            className="podium-selection-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Kies coureur voor ${activeSelection.slot.position}`}
+          >
             <div className="podium-selection-panel-header">
               <div>
                 <h3>{`Kies coureur voor ${activeSelection.slot.position}`}</h3>
                 <p>{activeSelection.section.title}</p>
               </div>
-              <button type="button" className="podium-selection-close" onClick={() => setActiveField(null)}>
+              <button
+                type="button"
+                className="podium-selection-close"
+                onClick={() => setActiveField(null)}
+              >
                 Sluiten
               </button>
             </div>
@@ -433,7 +574,8 @@ export function PredictionsForm({
                 const imageSize = getTeamSideImageSize("modalOption");
                 const currentSelection = values[activeSelection.slot.field];
                 const selectedElsewhere =
-                  activeSelection.sectionSelections.includes(driver.id) && currentSelection !== driver.id;
+                  activeSelection.sectionSelections.includes(driver.id) &&
+                  currentSelection !== driver.id;
                 const isSelected = currentSelection === driver.id;
 
                 return (
@@ -459,7 +601,9 @@ export function PredictionsForm({
                     <div className="podium-driver-option-copy">
                       <strong>{driver.name}</strong>
                       <span>{driver.constructorTeam}</span>
-                      {selectedElsewhere ? <span>Al gekozen in dit podium</span> : null}
+                      {selectedElsewhere ? (
+                        <span>Al gekozen in dit podium</span>
+                      ) : null}
                     </div>
                   </button>
                 );
@@ -468,6 +612,63 @@ export function PredictionsForm({
           </div>
         </div>
       ) : null}
+
+      <section className="predictions-section">
+        <div className="predictions-section-header">
+          <h2>Bonusvoorspelling</h2>
+          {publishedPoints && publishedPoints.fastestPitstop !== null ? (
+            <p className="predictions-points-chip">
+              Punten: {publishedPoints.fastestPitstop ?? 0}
+            </p>
+          ) : null}
+          {!readOnly ? (
+            <p>
+              Kies het constructorteam dat volgens jou de snelste pitstop maakt.
+            </p>
+          ) : null}
+        </div>
+
+        <label className="predictions-field">
+          <span>Snelste pitstop</span>
+          <select
+            name="fastest_pitstop_team"
+            value={values.fastestPitstopTeam}
+            disabled={readOnly}
+            onChange={(event) =>
+              setValues((current) => ({
+                ...current,
+                fastestPitstopTeam: event.target.value,
+              }))
+            }
+          >
+            <option value="">Kies een team</option>
+            {constructorTeams.map((team) => (
+              <option key={team} value={team}>
+                {team}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <dl className="gp-spel-inline-totals">
+          <div>
+            <dt>Gekozen team</dt>
+            <dd>{values.fastestPitstopTeam || "Nog geen team gekozen"}</dd>
+          </div>
+          {actualFastestPitstopTeam ? (
+            <div>
+              <dt>Werkelijk team</dt>
+              <dd>{actualFastestPitstopTeam}</dd>
+            </div>
+          ) : null}
+          {publishedPoints && publishedPoints.fastestPitstop !== null ? (
+            <div>
+              <dt>Punten</dt>
+              <dd>{publishedPoints.fastestPitstop ?? 0}</dd>
+            </div>
+          ) : null}
+        </dl>
+      </section>
 
       {validationErrors.length > 0 && (
         <div className="form-message error" role="alert">
@@ -480,12 +681,26 @@ export function PredictionsForm({
       )}
 
       {state.status !== "idle" && state.message && (
-        <p className={`form-message ${state.status === "success" ? "success" : "error"}`}>{state.message}</p>
+        <p
+          className={`form-message ${state.status === "success" ? "success" : "error"}`}
+        >
+          {state.message}
+        </p>
       )}
 
-      {!readOnly && !hasAllSelections ? <p className="league-list-empty">Vul alle podiumplekken in om je voorspelling op te slaan.</p> : null}
+      {!readOnly && !hasAllSelections ? (
+        <p className="league-list-empty">
+          Vul alle podiumplekken in om je voorspelling op te slaan.
+        </p>
+      ) : null}
 
-      {readOnly ? <p className="league-list-empty">Deze Grand Prix is gesloten. Je voorspelling is alleen-lezen.</p> : <SaveButton disabled={!canSave} />}
+      {readOnly ? (
+        <p className="league-list-empty">
+          Deze Grand Prix is gesloten. Je voorspelling is alleen-lezen.
+        </p>
+      ) : (
+        <SaveButton disabled={!canSave} />
+      )}
     </form>
   );
 }

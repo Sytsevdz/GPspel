@@ -47,30 +47,35 @@ export function PublishScoreActions({ grandPrixId, disabled = false }: { grandPr
       <div className="admin-action-stack">
         <form action={sprintQualificationAction}>
           <input type="hidden" name="grand_prix_id" value={grandPrixId} />
+          <input type="hidden" name="expected_grand_prix_id" value={grandPrixId} />
           <PublishButton label="Sprint kwalificatie publiceren" pendingLabel="Publiceren..." disabled={disabled} />
         </form>
         <ActionFeedback {...sprintQualificationState} />
 
         <form action={sprintRaceAction}>
           <input type="hidden" name="grand_prix_id" value={grandPrixId} />
+          <input type="hidden" name="expected_grand_prix_id" value={grandPrixId} />
           <PublishButton label="Sprint race publiceren" pendingLabel="Publiceren..." disabled={disabled} />
         </form>
         <ActionFeedback {...sprintRaceState} />
 
         <form action={qualificationAction}>
           <input type="hidden" name="grand_prix_id" value={grandPrixId} />
+          <input type="hidden" name="expected_grand_prix_id" value={grandPrixId} />
           <PublishButton label="Kwalificatie publiceren" pendingLabel="Publiceren..." disabled={disabled} />
         </form>
         <ActionFeedback {...qualificationState} />
 
         <form action={finalAction}>
           <input type="hidden" name="grand_prix_id" value={grandPrixId} />
+          <input type="hidden" name="expected_grand_prix_id" value={grandPrixId} />
           <PublishButton label="Race publiceren" pendingLabel="Publiceren..." disabled={disabled} />
         </form>
         <ActionFeedback {...finalState} />
 
         <form action={resetAction}>
           <input type="hidden" name="grand_prix_id" value={grandPrixId} />
+          <input type="hidden" name="expected_grand_prix_id" value={grandPrixId} />
           <ConfirmSubmitButton
             confirmMessage="Weet je zeker dat je alle spelerspunten voor deze Grand Prix wilt resetten?"
             label="Punten resetten voor spelers"
