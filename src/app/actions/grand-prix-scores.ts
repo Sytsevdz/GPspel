@@ -61,7 +61,7 @@ type ScoreComponentValues = {
   sprintQualiPredictionPoints: number;
   sprintRacePredictionPoints: number;
   racePredictionPoints: number;
-  fastestPitstopPredictionPoints: number;
+  fastestPitstopPredictionPoints: number | null;
 };
 
 const F1_RACE_POINTS_BY_POSITION: Record<number, number> = {
@@ -212,7 +212,7 @@ const buildPredictionPoints = (components: ScoreComponentValues) =>
   components.sprintQualiPredictionPoints +
   components.sprintRacePredictionPoints +
   components.racePredictionPoints +
-  components.fastestPitstopPredictionPoints;
+  (components.fastestPitstopPredictionPoints ?? 0);
 
 const buildSprintPredictionComponents = ({
   isSprintWeekend,
@@ -403,8 +403,7 @@ const loadExistingScores = async (grandPrixId: string) => {
       sprintQualiPredictionPoints: row.sprint_quali_prediction_points ?? 0,
       sprintRacePredictionPoints: row.sprint_race_prediction_points ?? 0,
       racePredictionPoints: row.race_prediction_points ?? 0,
-      fastestPitstopPredictionPoints:
-        row.fastest_pitstop_prediction_points ?? 0,
+      fastestPitstopPredictionPoints: row.fastest_pitstop_prediction_points,
     });
   });
 
@@ -712,7 +711,7 @@ export async function calculateGrandPrixQualificationScores(
         sprintPredictionComponents.sprintRacePredictionPoints,
       racePredictionPoints: existing?.racePredictionPoints ?? 0,
       fastestPitstopPredictionPoints:
-        existing?.fastestPitstopPredictionPoints ?? 0,
+        existing?.fastestPitstopPredictionPoints ?? null,
     });
   });
 
@@ -754,7 +753,7 @@ export async function calculateGrandPrixQualificationScores(
         sprintComponents.sprintRacePredictionPoints,
       racePredictionPoints: existing?.racePredictionPoints ?? 0,
       fastestPitstopPredictionPoints:
-        existing?.fastestPitstopPredictionPoints ?? 0,
+        existing?.fastestPitstopPredictionPoints ?? null,
     });
   });
 
@@ -1075,7 +1074,7 @@ export async function calculateGrandPrixSprintQualificationScores(
       sprintRacePredictionPoints: existing?.sprintRacePredictionPoints ?? 0,
       racePredictionPoints: existing?.racePredictionPoints ?? 0,
       fastestPitstopPredictionPoints:
-        existing?.fastestPitstopPredictionPoints ?? 0,
+        existing?.fastestPitstopPredictionPoints ?? null,
     });
   });
 
@@ -1104,7 +1103,7 @@ export async function calculateGrandPrixSprintQualificationScores(
         sprintRacePredictionPoints: existing?.sprintRacePredictionPoints ?? 0,
         racePredictionPoints: existing?.racePredictionPoints ?? 0,
         fastestPitstopPredictionPoints:
-          existing?.fastestPitstopPredictionPoints ?? 0,
+          existing?.fastestPitstopPredictionPoints ?? null,
       });
       return predictedTopThree.map((predictedDriverId, index) => ({
         grand_prix_id: normalizedGrandPrixId,
@@ -1205,7 +1204,7 @@ export async function calculateGrandPrixSprintRaceScores(grandPrixId: string) {
       sprintRacePredictionPoints: existing?.sprintRacePredictionPoints ?? 0,
       racePredictionPoints: existing?.racePredictionPoints ?? 0,
       fastestPitstopPredictionPoints:
-        existing?.fastestPitstopPredictionPoints ?? 0,
+        existing?.fastestPitstopPredictionPoints ?? null,
     });
   });
 
@@ -1234,7 +1233,7 @@ export async function calculateGrandPrixSprintRaceScores(grandPrixId: string) {
         ),
         racePredictionPoints: existing?.racePredictionPoints ?? 0,
         fastestPitstopPredictionPoints:
-          existing?.fastestPitstopPredictionPoints ?? 0,
+          existing?.fastestPitstopPredictionPoints ?? null,
       });
       return predictedTopThree.map((predictedDriverId, index) => ({
         grand_prix_id: normalizedGrandPrixId,
