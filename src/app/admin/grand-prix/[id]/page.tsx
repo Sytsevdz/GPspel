@@ -408,6 +408,7 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
                 <Link href={`/admin/grand-prix/${managedGrandPrix.id}/result`}>Uitslag invoeren</Link>
                 <form action={clearResult}>
                   <input type="hidden" name="grand_prix_id" value={managedGrandPrix.id} />
+                  <input type="hidden" name="expected_grand_prix_id" value={managedGrandPrix.id} />
                   <ConfirmSubmitButton
                     confirmMessage="Weet je zeker dat je de opgeslagen uitslag voor deze Grand Prix wilt verwijderen?"
                     label="Uitslag resetten"
