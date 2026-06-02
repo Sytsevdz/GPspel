@@ -2,7 +2,11 @@
 
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { isSessionPublished } from "@/lib/session-publication";
-import { isGrandPrixCancelled, resolveGrandPrixWorkflowStatus, type GrandPrixStatus } from "@/lib/grand-prix-status";
+import {
+  isGrandPrixCancelled,
+  resolveGrandPrixWorkflowStatus,
+  type GrandPrixStatus,
+} from "@/lib/grand-prix-status";
 
 type PodiumEntry = {
   id: string;
@@ -17,6 +21,12 @@ type TeamScoreDetail = {
   teamQualiPoints: number | null;
   teamRacePoints: number | null;
   totalPoints: number | null;
+};
+
+type BonusPredictionResult = {
+  selectedTeam: string | null;
+  actualTeam: string | null;
+  points: number | null;
 };
 
 type PredictionSlotScore = {
@@ -34,6 +44,7 @@ export type PlayerGrandPrixViewResult =
       sprintQualificationPodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null;
       sprintRacePodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null;
       racePodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null;
+      bonusPrediction: BonusPredictionResult | null;
       hasPredictions: boolean;
       isSprintWeekend: boolean;
       teamScoreDetails: TeamScoreDetail[];
@@ -55,7 +66,8 @@ export type PlayerGrandPrixViewResult =
       message: string;
     };
 
-const GENERIC_ERROR_MESSAGE = "De gegevens van deze speler konden niet worden geladen.";
+const GENERIC_ERROR_MESSAGE =
+  "De gegevens van deze speler konden niet worden geladen.";
 
 async function loadPlayerGrandPrixViewData(
   supabase: ReturnType<typeof createServerSupabaseClient>,
@@ -67,7 +79,11 @@ async function loadPlayerGrandPrixViewData(
     .from("grand_prix")
     .select("deadline, status, is_sprint_weekend")
     .eq("id", safeGrandPrixId)
-    .maybeSingle<{ deadline: string; status: GrandPrixStatus; is_sprint_weekend: boolean }>();
+    .maybeSingle<{
+      deadline: string;
+      status: GrandPrixStatus;
+      is_sprint_weekend: boolean;
+    }>();
 
   if (!grandPrix) {
     return {
@@ -91,15 +107,24 @@ async function loadPlayerGrandPrixViewData(
   if (workflowStatus === "upcoming") {
     return {
       status: "error",
-      message: "Deze keuzes worden zichtbaar zodra de kwalificatiedeadline is verstreken.",
+      message:
+        "Deze keuzes worden zichtbaar zodra de kwalificatiedeadline is verstreken.",
     };
   }
 
-  const [{ data: teamSelection }, { data: prediction }, { data: teamScoreDetails }, { data: predictionSlotScores }, { data: totals }] =
-    await Promise.all([
+  const [
+    { data: teamSelection },
+    { data: prediction },
+    { data: teamScoreDetails },
+    { data: predictionSlotScores },
+    { data: totals },
+    { data: bonusResult },
+  ] = await Promise.all([
     supabase
       .from("team_selections")
-      .select("id, team_selection_drivers(driver_id, drivers(id, name, constructor_team))")
+      .select(
+        "id, team_selection_drivers(driver_id, drivers(id, name, constructor_team))",
+      )
       .eq("user_id", safePlayerId)
       .eq("grand_prix_id", safeGrandPrixId)
       .maybeSingle<{
@@ -115,7 +140,9 @@ async function loadPlayerGrandPrixViewData(
       }>(),
     supabase
       .from("predictions")
-      .select("sprint_quali_p1, sprint_quali_p2, sprint_quali_p3, sprint_race_p1, sprint_race_p2, sprint_race_p3, quali_p1, quali_p2, quali_p3, race_p1, race_p2, race_p3")
+      .select(
+        "sprint_quali_p1, sprint_quali_p2, sprint_quali_p3, sprint_race_p1, sprint_race_p2, sprint_race_p3, quali_p1, quali_p2, quali_p3, race_p1, race_p2, race_p3, fastest_pitstop_team",
+      )
       .eq("user_id", safePlayerId)
       .eq("grand_prix_id", safeGrandPrixId)
       .maybeSingle<{
@@ -131,10 +158,13 @@ async function loadPlayerGrandPrixViewData(
         race_p1: string | null;
         race_p2: string | null;
         race_p3: string | null;
+        fastest_pitstop_team: string | null;
       }>(),
     supabase
       .from("grand_prix_score_details")
-      .select("driver_id, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points, total_points")
+      .select(
+        "driver_id, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points, total_points",
+      )
       .eq("user_id", safePlayerId)
       .eq("grand_prix_id", safeGrandPrixId)
       .returns<
@@ -161,7 +191,9 @@ async function loadPlayerGrandPrixViewData(
       >(),
     supabase
       .from("grand_prix_scores")
-      .select("team_points, prediction_points, total_points, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points")
+      .select(
+        "team_points, prediction_points, total_points, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points, fastest_pitstop_prediction_points",
+      )
       .eq("user_id", safePlayerId)
       .eq("grand_prix_id", safeGrandPrixId)
       .maybeSingle<{
@@ -172,41 +204,52 @@ async function loadPlayerGrandPrixViewData(
         team_sprint_race_points: number | null;
         team_quali_points: number | null;
         team_race_points: number | null;
+        fastest_pitstop_prediction_points: number | null;
       }>(),
+    supabase
+      .from("grand_prix_bonus_results")
+      .select("fastest_pitstop_team")
+      .eq("grand_prix_id", safeGrandPrixId)
+      .maybeSingle<{ fastest_pitstop_team: string | null }>(),
   ]);
 
   const teamSelectionRows = teamSelection?.team_selection_drivers ?? [];
 
   const teamSelectionDrivers = teamSelectionRows
     .map((row) => row.drivers)
-    .filter((row): row is { id: string; name: string; constructor_team: string } => Boolean(row))
+    .filter(
+      (row): row is { id: string; name: string; constructor_team: string } =>
+        Boolean(row),
+    )
     .map((driver) => ({
       id: driver.id,
       name: driver.name,
       constructorTeam: driver.constructor_team,
     }));
 
-  let qualificationPodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null = null;
-  let sprintQualificationPodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null = null;
+  let qualificationPodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null =
+    null;
+  let sprintQualificationPodium:
+    | [PodiumEntry, PodiumEntry, PodiumEntry]
+    | null = null;
   let sprintRacePodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null = null;
   let racePodium: [PodiumEntry, PodiumEntry, PodiumEntry] | null = null;
 
   const hasAnyPredictionSection = Boolean(
     prediction &&
-      (
-        prediction.sprint_quali_p1 ||
-        prediction.sprint_quali_p2 ||
-        prediction.sprint_quali_p3 ||
-        prediction.sprint_race_p1 ||
-        prediction.sprint_race_p2 ||
-        prediction.sprint_race_p3 ||
-        prediction.quali_p1 ||
-        prediction.quali_p2 ||
-        prediction.quali_p3 ||
-        prediction.race_p1 ||
-        prediction.race_p2 ||
-        prediction.race_p3
-      ),
+    (prediction.sprint_quali_p1 ||
+      prediction.sprint_quali_p2 ||
+      prediction.sprint_quali_p3 ||
+      prediction.sprint_race_p1 ||
+      prediction.sprint_race_p2 ||
+      prediction.sprint_race_p3 ||
+      prediction.quali_p1 ||
+      prediction.quali_p2 ||
+      prediction.quali_p3 ||
+      prediction.race_p1 ||
+      prediction.race_p2 ||
+      prediction.race_p3 ||
+      prediction.fastest_pitstop_team),
   );
 
   if (prediction) {
@@ -236,7 +279,11 @@ async function loadPlayerGrandPrixViewData(
     const driversById = new Map(
       (predictionDrivers ?? []).map((driver) => [
         driver.id,
-        { id: driver.id, name: driver.name, constructorTeam: driver.constructor_team },
+        {
+          id: driver.id,
+          name: driver.name,
+          constructorTeam: driver.constructor_team,
+        },
       ]),
     );
 
@@ -245,13 +292,35 @@ async function loadPlayerGrandPrixViewData(
         .map((driverId) => (driverId ? driversById.get(driverId) : null))
         .filter((entry): entry is PodiumEntry => Boolean(entry));
 
-      return mapped.length === 3 ? ([mapped[0], mapped[1], mapped[2]] as [PodiumEntry, PodiumEntry, PodiumEntry]) : null;
+      return mapped.length === 3
+        ? ([mapped[0], mapped[1], mapped[2]] as [
+            PodiumEntry,
+            PodiumEntry,
+            PodiumEntry,
+          ])
+        : null;
     };
 
-    sprintQualificationPodium = buildPodium([prediction.sprint_quali_p1, prediction.sprint_quali_p2, prediction.sprint_quali_p3]);
-    sprintRacePodium = buildPodium([prediction.sprint_race_p1, prediction.sprint_race_p2, prediction.sprint_race_p3]);
-    qualificationPodium = buildPodium([prediction.quali_p1, prediction.quali_p2, prediction.quali_p3]);
-    racePodium = buildPodium([prediction.race_p1, prediction.race_p2, prediction.race_p3]);
+    sprintQualificationPodium = buildPodium([
+      prediction.sprint_quali_p1,
+      prediction.sprint_quali_p2,
+      prediction.sprint_quali_p3,
+    ]);
+    sprintRacePodium = buildPodium([
+      prediction.sprint_race_p1,
+      prediction.sprint_race_p2,
+      prediction.sprint_race_p3,
+    ]);
+    qualificationPodium = buildPodium([
+      prediction.quali_p1,
+      prediction.quali_p2,
+      prediction.quali_p3,
+    ]);
+    racePodium = buildPodium([
+      prediction.race_p1,
+      prediction.race_p2,
+      prediction.race_p3,
+    ]);
   }
 
   return {
@@ -262,6 +331,14 @@ async function loadPlayerGrandPrixViewData(
     sprintQualificationPodium,
     sprintRacePodium,
     racePodium,
+    bonusPrediction:
+      workflowStatus === "finished"
+        ? {
+            selectedTeam: prediction?.fastest_pitstop_team ?? null,
+            actualTeam: bonusResult?.fastest_pitstop_team ?? null,
+            points: totals?.fastest_pitstop_prediction_points ?? null,
+          }
+        : null,
     hasPredictions: hasAnyPredictionSection,
     isSprintWeekend: grandPrix.is_sprint_weekend,
     teamScoreDetails: (teamScoreDetails ?? []).map((detail) => ({
@@ -283,8 +360,14 @@ async function loadPlayerGrandPrixViewData(
       totalPoints: totals?.total_points ?? null,
     },
     publication: {
-      sprintQualiPublished: isSessionPublished(totals, "team_sprint_quali_points"),
-      sprintRacePublished: isSessionPublished(totals, "team_sprint_race_points"),
+      sprintQualiPublished: isSessionPublished(
+        totals,
+        "team_sprint_quali_points",
+      ),
+      sprintRacePublished: isSessionPublished(
+        totals,
+        "team_sprint_race_points",
+      ),
       qualiPublished: isSessionPublished(totals, "team_quali_points"),
       racePublished: isSessionPublished(totals, "team_race_points"),
     },
@@ -351,7 +434,12 @@ export async function getPlayerGrandPrixView(
     };
   }
 
-  return loadPlayerGrandPrixViewData(supabase, safeGrandPrixId, safePlayerId, safePlayerName);
+  return loadPlayerGrandPrixViewData(
+    supabase,
+    safeGrandPrixId,
+    safePlayerId,
+    safePlayerName,
+  );
 }
 
 export async function getGlobalPlayerGrandPrixView(
@@ -383,5 +471,10 @@ export async function getGlobalPlayerGrandPrixView(
     };
   }
 
-  return loadPlayerGrandPrixViewData(supabase, safeGrandPrixId, safePlayerId, safePlayerName);
+  return loadPlayerGrandPrixViewData(
+    supabase,
+    safeGrandPrixId,
+    safePlayerId,
+    safePlayerName,
+  );
 }

@@ -8,7 +8,10 @@ import {
   calculateGrandPrixSprintQualificationScores,
   calculateGrandPrixSprintRaceScores,
 } from "@/app/actions/grand-prix-scores";
-import { isGrandPrixCancelled, type GrandPrixStatus } from "@/lib/grand-prix-status";
+import {
+  isGrandPrixCancelled,
+  type GrandPrixStatus,
+} from "@/lib/grand-prix-status";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 export type GrandPrixResultActionState = {
@@ -45,13 +48,20 @@ async function requireAdminAndGrandPrix(grandPrixId: string) {
     .from("grand_prix")
     .select("id, status, is_sprint_weekend")
     .eq("id", grandPrixId)
-    .maybeSingle<{ id: string; status: GrandPrixStatus; is_sprint_weekend: boolean }>();
+    .maybeSingle<{
+      id: string;
+      status: GrandPrixStatus;
+      is_sprint_weekend: boolean;
+    }>();
 
   if (!grandPrix) {
     return { supabase: null, error: "Er ging iets mis bij het opslaan" };
   }
   if (isGrandPrixCancelled(grandPrix.status)) {
-    return { supabase: null, error: "Deze Grand Prix is geannuleerd. Deze actie is niet beschikbaar." };
+    return {
+      supabase: null,
+      error: "Deze Grand Prix is geannuleerd. Deze actie is niet beschikbaar.",
+    };
   }
 
   return { supabase, error: null };
@@ -187,7 +197,8 @@ export async function publishGrandPrixFinalScores(
   if (statusUpdateError) {
     return {
       status: "error",
-      message: "Racepunten zijn gepubliceerd, maar status bijwerken naar afgerond mislukte.",
+      message:
+        "Racepunten zijn gepubliceerd, maar status bijwerken naar afgerond mislukte.",
     };
   }
 
@@ -246,7 +257,10 @@ export async function resetGrandPrixPlayerScores(
     };
   }
 
-  const { error: scoreDeleteError } = await adminCheck.supabase.from("grand_prix_scores").delete().eq("grand_prix_id", grandPrixId);
+  const { error: scoreDeleteError } = await adminCheck.supabase
+    .from("grand_prix_scores")
+    .delete()
+    .eq("grand_prix_id", grandPrixId);
 
   if (scoreDeleteError) {
     return {
@@ -286,7 +300,10 @@ export async function resetGrandPrixResult(
     };
   }
 
-  const { error: deleteError } = await adminCheck.supabase.from("grand_prix_driver_results").delete().eq("grand_prix_id", grandPrixId);
+  const { error: deleteError } = await adminCheck.supabase
+    .from("grand_prix_driver_results")
+    .delete()
+    .eq("grand_prix_id", grandPrixId);
 
   if (deleteError) {
     return {
@@ -313,7 +330,9 @@ export async function saveGrandPrixResult(
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean);
-  const sprintQualificationOrder = String(formData.get("sprint_qualification_order") ?? "")
+  const sprintQualificationOrder = String(
+    formData.get("sprint_qualification_order") ?? "",
+  )
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean);
@@ -325,8 +344,15 @@ export async function saveGrandPrixResult(
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean);
+  const fastestPitstopTeam = String(
+    formData.get("fastest_pitstop_team") ?? "",
+  ).trim();
 
-  if (!grandPrixId || qualificationOrder.length === 0 || raceOrder.length === 0) {
+  if (
+    !grandPrixId ||
+    qualificationOrder.length === 0 ||
+    raceOrder.length === 0
+  ) {
     return {
       status: "error",
       message: "Er ging iets mis bij het opslaan",
@@ -342,12 +368,27 @@ export async function saveGrandPrixResult(
     };
   }
 
-  const { data: drivers } = await adminCheck.supabase.from("drivers").select("id").eq("active", true);
+  const { data: drivers } = await adminCheck.supabase
+    .from("drivers")
+    .select("id, constructor_team")
+    .eq("active", true)
+    .returns<Array<{ id: string; constructor_team: string }>>();
 
   const activeDriverIds = (drivers ?? []).map((driver) => driver.id);
   const activeDriverSet = new Set(activeDriverIds);
+  const activeConstructorTeams = new Set(
+    (drivers ?? []).map((driver) => driver.constructor_team),
+  );
 
-  const isSprintWeekend = adminCheck.supabase ? (await adminCheck.supabase.from("grand_prix").select("is_sprint_weekend").eq("id", grandPrixId).maybeSingle<{is_sprint_weekend:boolean}>()).data?.is_sprint_weekend === true : false;
+  const isSprintWeekend = adminCheck.supabase
+    ? (
+        await adminCheck.supabase
+          .from("grand_prix")
+          .select("is_sprint_weekend")
+          .eq("id", grandPrixId)
+          .maybeSingle<{ is_sprint_weekend: boolean }>()
+      ).data?.is_sprint_weekend === true
+    : false;
   if (
     qualificationOrder.length !== activeDriverIds.length ||
     raceOrder.length !== activeDriverIds.length ||
@@ -361,11 +402,24 @@ export async function saveGrandPrixResult(
   ) {
     return {
       status: "error",
-      message: "Elke actieve coureur moet precies één positie hebben in kwalificatie, sprint kwalificatie, sprint race en race",
+      message:
+        "Elke actieve coureur moet precies één positie hebben in kwalificatie, sprint kwalificatie, sprint race en race",
     };
   }
 
-  const selectedDriverIds = [...qualificationOrder, ...sprintQualificationOrder, ...sprintRaceOrder, ...raceOrder];
+  const selectedDriverIds = [
+    ...qualificationOrder,
+    ...sprintQualificationOrder,
+    ...sprintRaceOrder,
+    ...raceOrder,
+  ];
+
+  if (fastestPitstopTeam && !activeConstructorTeams.has(fastestPitstopTeam)) {
+    return {
+      status: "error",
+      message: "Kies een geldig constructorteam voor snelste pitstop",
+    };
+  }
 
   if (selectedDriverIds.some((driverId) => !activeDriverSet.has(driverId))) {
     return {
@@ -374,21 +428,36 @@ export async function saveGrandPrixResult(
     };
   }
 
-  const qualiPositionByDriverId = new Map(qualificationOrder.map((driverId, index) => [driverId, index + 1]));
-  const sprintQualiPositionByDriverId = new Map(sprintQualificationOrder.map((driverId, index) => [driverId, index + 1]));
-  const sprintRacePositionByDriverId = new Map(sprintRaceOrder.map((driverId, index) => [driverId, index + 1]));
-  const racePositionByDriverId = new Map(raceOrder.map((driverId, index) => [driverId, index + 1]));
+  const qualiPositionByDriverId = new Map(
+    qualificationOrder.map((driverId, index) => [driverId, index + 1]),
+  );
+  const sprintQualiPositionByDriverId = new Map(
+    sprintQualificationOrder.map((driverId, index) => [driverId, index + 1]),
+  );
+  const sprintRacePositionByDriverId = new Map(
+    sprintRaceOrder.map((driverId, index) => [driverId, index + 1]),
+  );
+  const racePositionByDriverId = new Map(
+    raceOrder.map((driverId, index) => [driverId, index + 1]),
+  );
 
   const rows = activeDriverIds.map((driverId) => ({
     grand_prix_id: grandPrixId,
     driver_id: driverId,
     quali_position: qualiPositionByDriverId.get(driverId)!,
-    sprint_quali_position: isSprintWeekend ? (sprintQualiPositionByDriverId.get(driverId) ?? null) : null,
-    sprint_race_position: isSprintWeekend ? (sprintRacePositionByDriverId.get(driverId) ?? null) : null,
+    sprint_quali_position: isSprintWeekend
+      ? (sprintQualiPositionByDriverId.get(driverId) ?? null)
+      : null,
+    sprint_race_position: isSprintWeekend
+      ? (sprintRacePositionByDriverId.get(driverId) ?? null)
+      : null,
     race_position: racePositionByDriverId.get(driverId)!,
   }));
 
-  const { error: deleteError } = await adminCheck.supabase.from("grand_prix_driver_results").delete().eq("grand_prix_id", grandPrixId);
+  const { error: deleteError } = await adminCheck.supabase
+    .from("grand_prix_driver_results")
+    .delete()
+    .eq("grand_prix_id", grandPrixId);
 
   if (deleteError) {
     return {
@@ -397,12 +466,31 @@ export async function saveGrandPrixResult(
     };
   }
 
-  const { error: insertError } = await adminCheck.supabase.from("grand_prix_driver_results").insert(rows);
+  const { error: insertError } = await adminCheck.supabase
+    .from("grand_prix_driver_results")
+    .insert(rows);
 
   if (insertError) {
     return {
       status: "error",
       message: "Er ging iets mis bij het opslaan",
+    };
+  }
+
+  const { error: bonusUpsertError } = await adminCheck.supabase
+    .from("grand_prix_bonus_results")
+    .upsert(
+      {
+        grand_prix_id: grandPrixId,
+        fastest_pitstop_team: fastestPitstopTeam || null,
+      },
+      { onConflict: "grand_prix_id" },
+    );
+
+  if (bonusUpsertError) {
+    return {
+      status: "error",
+      message: "Uitslag opgeslagen, maar snelste pitstop opslaan mislukte",
     };
   }
 

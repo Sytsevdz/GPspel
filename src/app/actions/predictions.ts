@@ -35,8 +35,21 @@ export async function savePrediction(
   const raceP1 = String(formData.get("race_p1") ?? "").trim();
   const raceP2 = String(formData.get("race_p2") ?? "").trim();
   const raceP3 = String(formData.get("race_p3") ?? "").trim();
+  const fastestPitstopTeam = String(
+    formData.get("fastest_pitstop_team") ?? "",
+  ).trim();
 
-  if (!leagueId || !grandPrixId || !qualiP1 || !qualiP2 || !qualiP3 || !raceP1 || !raceP2 || !raceP3) {
+  if (
+    !leagueId ||
+    !grandPrixId ||
+    !qualiP1 ||
+    !qualiP2 ||
+    !qualiP3 ||
+    !raceP1 ||
+    !raceP2 ||
+    !raceP3 ||
+    !fastestPitstopTeam
+  ) {
     return {
       status: "error",
       message: "Er ging iets mis bij het opslaan van je voorspelling",
@@ -99,38 +112,78 @@ export async function savePrediction(
   if (isGrandPrixCancelled(teamSelectionData.grandPrix.status)) {
     return {
       status: "error",
-      message: "Deze Grand Prix is geannuleerd. Voorspellingen zijn niet beschikbaar.",
+      message:
+        "Deze Grand Prix is geannuleerd. Voorspellingen zijn niet beschikbaar.",
     };
   }
 
-  if (teamSelectionData.grandPrix.status === "locked" || teamSelectionData.grandPrix.status === "finished") {
+  if (
+    teamSelectionData.grandPrix.status === "locked" ||
+    teamSelectionData.grandPrix.status === "finished"
+  ) {
     return {
       status: "error",
       message: "De deadline van deze Grand Prix is verstreken.",
     };
   }
 
-
   const isSprintWeekend = teamSelectionData.grandPrix.is_sprint_weekend;
 
   if (isSprintWeekend) {
-    if (!sprintQualiP1 || !sprintQualiP2 || !sprintQualiP3 || !sprintRaceP1 || !sprintRaceP2 || !sprintRaceP3) {
-      return { status: "error", message: "Vul ook sprint kwalificatie en sprint race in." };
+    if (
+      !sprintQualiP1 ||
+      !sprintQualiP2 ||
+      !sprintQualiP3 ||
+      !sprintRaceP1 ||
+      !sprintRaceP2 ||
+      !sprintRaceP3
+    ) {
+      return {
+        status: "error",
+        message: "Vul ook sprint kwalificatie en sprint race in.",
+      };
     }
 
     if (new Set([sprintQualiP1, sprintQualiP2, sprintQualiP3]).size !== 3) {
-      return { status: "error", message: "Je mag binnen sprint kwalificatie geen coureur dubbel kiezen" };
+      return {
+        status: "error",
+        message: "Je mag binnen sprint kwalificatie geen coureur dubbel kiezen",
+      };
     }
 
     if (new Set([sprintRaceP1, sprintRaceP2, sprintRaceP3]).size !== 3) {
-      return { status: "error", message: "Je mag binnen sprint race geen coureur dubbel kiezen" };
+      return {
+        status: "error",
+        message: "Je mag binnen sprint race geen coureur dubbel kiezen",
+      };
     }
   }
 
-  const allowedDriverIds = new Set(teamSelectionData.drivers.map((driver) => driver.id));
-  const selectedIds = [qualiP1, qualiP2, qualiP3, raceP1, raceP2, raceP3, sprintQualiP1, sprintQualiP2, sprintQualiP3, sprintRaceP1, sprintRaceP2, sprintRaceP3].filter(Boolean);
+  const allowedDriverIds = new Set(
+    teamSelectionData.drivers.map((driver) => driver.id),
+  );
+  const allowedConstructorTeams = new Set(
+    teamSelectionData.drivers.map((driver) => driver.constructorTeam),
+  );
+  const selectedIds = [
+    qualiP1,
+    qualiP2,
+    qualiP3,
+    raceP1,
+    raceP2,
+    raceP3,
+    sprintQualiP1,
+    sprintQualiP2,
+    sprintQualiP3,
+    sprintRaceP1,
+    sprintRaceP2,
+    sprintRaceP3,
+  ].filter(Boolean);
 
-  if (selectedIds.some((driverId) => !allowedDriverIds.has(driverId))) {
+  if (
+    selectedIds.some((driverId) => !allowedDriverIds.has(driverId)) ||
+    !allowedConstructorTeams.has(fastestPitstopTeam)
+  ) {
     return {
       status: "error",
       message: "Er ging iets mis bij het opslaan van je voorspelling",
@@ -147,6 +200,7 @@ export async function savePrediction(
       race_p1: raceP1,
       race_p2: raceP2,
       race_p3: raceP3,
+      fastest_pitstop_team: fastestPitstopTeam,
       sprint_quali_p1: isSprintWeekend ? sprintQualiP1 : null,
       sprint_quali_p2: isSprintWeekend ? sprintQualiP2 : null,
       sprint_quali_p3: isSprintWeekend ? sprintQualiP3 : null,

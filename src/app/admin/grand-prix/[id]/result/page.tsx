@@ -18,6 +18,10 @@ type GrandPrixResultPageProps = {
   };
 };
 
+type ExistingBonusResult = {
+  fastest_pitstop_team: string | null;
+};
+
 type ExistingResult = {
   driver_id: string;
   quali_position: number | null;
@@ -26,7 +30,9 @@ type ExistingResult = {
   race_position: number | null;
 };
 
-export default async function GrandPrixResultPage({ params }: GrandPrixResultPageProps) {
+export default async function GrandPrixResultPage({
+  params,
+}: GrandPrixResultPageProps) {
   const supabase = createServerSupabaseClient();
   const {
     data: { user },
@@ -60,7 +66,13 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
     .from("grand_prix")
     .select("id, name, status, deadline, is_sprint_weekend")
     .eq("id", params.id)
-    .maybeSingle<{ id: string; name: string; status: GrandPrixStatus; deadline: string; is_sprint_weekend: boolean }>();
+    .maybeSingle<{
+      id: string;
+      name: string;
+      status: GrandPrixStatus;
+      deadline: string;
+      is_sprint_weekend: boolean;
+    }>();
 
   if (!grandPrix) {
     return (
@@ -102,25 +114,45 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
     );
   }
 
-  const { data: existingResultRows } = await supabase
-    .from("grand_prix_driver_results")
-    .select("driver_id, quali_position, sprint_quali_position, sprint_race_position, race_position")
-    .eq("grand_prix_id", grandPrix.id)
-    .returns<ExistingResult[]>();
+  const [{ data: existingResultRows }, { data: existingBonusResult }] =
+    await Promise.all([
+      supabase
+        .from("grand_prix_driver_results")
+        .select(
+          "driver_id, quali_position, sprint_quali_position, sprint_race_position, race_position",
+        )
+        .eq("grand_prix_id", grandPrix.id)
+        .returns<ExistingResult[]>(),
+      supabase
+        .from("grand_prix_bonus_results")
+        .select("fastest_pitstop_team")
+        .eq("grand_prix_id", grandPrix.id)
+        .maybeSingle<ExistingBonusResult>(),
+    ]);
 
   const driverIds = drivers.map((driver) => driver.id);
   const existingRows = existingResultRows ?? [];
 
   const toOrderedIds = (
-    positionField: "quali_position" | "sprint_quali_position" | "sprint_race_position" | "race_position",
+    positionField:
+      | "quali_position"
+      | "sprint_quali_position"
+      | "sprint_race_position"
+      | "race_position",
   ) => {
     const orderedExistingIds = existingRows
       .filter((row) => Number.isInteger(row[positionField] ?? null))
-      .sort((a, b) => (a[positionField] ?? Number.POSITIVE_INFINITY) - (b[positionField] ?? Number.POSITIVE_INFINITY))
+      .sort(
+        (a, b) =>
+          (a[positionField] ?? Number.POSITIVE_INFINITY) -
+          (b[positionField] ?? Number.POSITIVE_INFINITY),
+      )
       .map((row) => row.driver_id)
       .filter((driverId) => driverIds.includes(driverId));
 
-    const missingIds = driverIds.filter((driverId) => !orderedExistingIds.includes(driverId));
+    const missingIds = driverIds.filter(
+      (driverId) => !orderedExistingIds.includes(driverId),
+    );
     return [...orderedExistingIds, ...missingIds];
   };
 
@@ -129,7 +161,12 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
     sprintQualificationOrder: toOrderedIds("sprint_quali_position"),
     sprintRaceOrder: toOrderedIds("sprint_race_position"),
     raceOrder: toOrderedIds("race_position"),
+    fastestPitstopTeam: existingBonusResult?.fastest_pitstop_team ?? "",
   };
+
+  const constructorTeams = Array.from(
+    new Set(drivers.map((driver) => driver.constructor_team)),
+  ).sort((left, right) => left.localeCompare(right, "nl-NL"));
 
   return (
     <main className="leagues-page">
@@ -142,16 +179,24 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
             </p>
             <p>
               Status: {getGrandPrixStatusLabel(workflowStatus)}
-              {isCancelled ? <span className="gp-status-badge">Geannuleerd</span> : null}
+              {isCancelled ? (
+                <span className="gp-status-badge">Geannuleerd</span>
+              ) : null}
             </p>
           </div>
-          <Link href={`/admin/grand-prix/${grandPrix.id}`} className="league-back-link">
+          <Link
+            href={`/admin/grand-prix/${grandPrix.id}`}
+            className="league-back-link"
+          >
             ← Terug naar Beheer GP
           </Link>
         </div>
 
         {isCancelled ? (
-          <p className="league-list-empty">Deze GP is geannuleerd. Uitslag invoeren en score-publicatie zijn uitgeschakeld.</p>
+          <p className="league-list-empty">
+            Deze GP is geannuleerd. Uitslag invoeren en score-publicatie zijn
+            uitgeschakeld.
+          </p>
         ) : (
           <ResultForm
             grandPrixId={grandPrix.id}
@@ -162,10 +207,14 @@ export default async function GrandPrixResultPage({ params }: GrandPrixResultPag
               constructorTeam: driver.constructor_team,
             }))}
             initialValues={initialValues}
+            constructorTeams={constructorTeams}
           />
         )}
 
-        <PublishScoreActions grandPrixId={grandPrix.id} disabled={isCancelled} />
+        <PublishScoreActions
+          grandPrixId={grandPrix.id}
+          disabled={isCancelled}
+        />
       </section>
     </main>
   );

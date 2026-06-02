@@ -2,7 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
-import { getGrandPrixStatusLabel, isGrandPrixCancelled } from "@/lib/grand-prix-status";
+import {
+  getGrandPrixStatusLabel,
+  isGrandPrixCancelled,
+} from "@/lib/grand-prix-status";
 import { isSessionPublished } from "@/lib/session-publication";
 import {
   getGrandPrixAndDriversById,
@@ -42,6 +45,7 @@ type ExistingPrediction = {
   race_p1: string;
   race_p2: string;
   race_p3: string;
+  fastest_pitstop_team: string | null;
 };
 
 type UserGrandPrixScoreRow = {
@@ -52,6 +56,7 @@ type UserGrandPrixScoreRow = {
   sprint_race_prediction_points: number | null;
   quali_prediction_points: number | null;
   race_prediction_points: number | null;
+  fastest_pitstop_prediction_points: number | null;
   team_sprint_quali_points: number | null;
   team_sprint_race_points: number | null;
   team_quali_points: number | null;
@@ -77,6 +82,10 @@ type UserGrandPrixPredictionScoreDetailRow = {
   points: number;
 };
 
+type BonusResultRow = {
+  fastest_pitstop_team: string | null;
+};
+
 type PredictionSlotPoints = {
   sprintQualiP1: number | null;
   sprintQualiP2: number | null;
@@ -92,7 +101,9 @@ type PredictionSlotPoints = {
   raceP3: number | null;
 };
 
-export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPageProps) {
+export default async function GPSpelGrandPrixPage({
+  params,
+}: GPSpelGrandPrixPageProps) {
   const league = await getAccessibleLeague(params.leagueId);
 
   if (!league) {
@@ -124,7 +135,10 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
       getGrandPrixAndDriversById(supabase, params.grandPrixId),
     ]);
 
-    const { previousGrandPrixId, nextGrandPrixId } = getGrandPrixNavigation(timeline, params.grandPrixId);
+    const { previousGrandPrixId, nextGrandPrixId } = getGrandPrixNavigation(
+      timeline,
+      params.grandPrixId,
+    );
 
     const [
       { data: existingTeamSelection },
@@ -132,42 +146,56 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
       { data: userScore },
       { data: userScoreDetails },
       { data: predictionScoreDetails },
+      { data: bonusResult },
     ] = await Promise.all([
-        supabase
-          .from("team_selections")
-          .select("id, team_selection_drivers(driver_id)")
-          .eq("user_id", user.id)
-          .eq("grand_prix_id", gpData.grandPrix.id)
-          .maybeSingle<ExistingTeamSelection>(),
-        supabase
-          .from("predictions")
-          .select("sprint_quali_p1, sprint_quali_p2, sprint_quali_p3, sprint_race_p1, sprint_race_p2, sprint_race_p3, quali_p1, quali_p2, quali_p3, race_p1, race_p2, race_p3")
-          .eq("user_id", user.id)
-          .eq("grand_prix_id", gpData.grandPrix.id)
-          .maybeSingle<ExistingPrediction>(),
-        supabase
-          .from("grand_prix_scores")
-          .select("team_points, prediction_points, total_points, sprint_quali_prediction_points, sprint_race_prediction_points, quali_prediction_points, race_prediction_points, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points")
-          .eq("user_id", user.id)
-          .eq("grand_prix_id", gpData.grandPrix.id)
-          .maybeSingle<UserGrandPrixScoreRow>(),
-        supabase
-          .from("grand_prix_score_details")
-          .select("driver_id, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points, total_points, drivers(name, constructor_team)")
-          .eq("user_id", user.id)
-          .eq("grand_prix_id", gpData.grandPrix.id)
-          .order("total_points", { ascending: false })
-          .returns<UserGrandPrixScoreDetailRow[]>(),
-        supabase
-          .from("grand_prix_prediction_score_details")
-          .select("prediction_type, slot_position, points")
-          .eq("user_id", user.id)
-          .eq("grand_prix_id", gpData.grandPrix.id)
-          .returns<UserGrandPrixPredictionScoreDetailRow[]>(),
-      ]);
+      supabase
+        .from("team_selections")
+        .select("id, team_selection_drivers(driver_id)")
+        .eq("user_id", user.id)
+        .eq("grand_prix_id", gpData.grandPrix.id)
+        .maybeSingle<ExistingTeamSelection>(),
+      supabase
+        .from("predictions")
+        .select(
+          "sprint_quali_p1, sprint_quali_p2, sprint_quali_p3, sprint_race_p1, sprint_race_p2, sprint_race_p3, quali_p1, quali_p2, quali_p3, race_p1, race_p2, race_p3, fastest_pitstop_team",
+        )
+        .eq("user_id", user.id)
+        .eq("grand_prix_id", gpData.grandPrix.id)
+        .maybeSingle<ExistingPrediction>(),
+      supabase
+        .from("grand_prix_scores")
+        .select(
+          "team_points, prediction_points, total_points, sprint_quali_prediction_points, sprint_race_prediction_points, quali_prediction_points, race_prediction_points, fastest_pitstop_prediction_points, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points",
+        )
+        .eq("user_id", user.id)
+        .eq("grand_prix_id", gpData.grandPrix.id)
+        .maybeSingle<UserGrandPrixScoreRow>(),
+      supabase
+        .from("grand_prix_score_details")
+        .select(
+          "driver_id, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points, total_points, drivers(name, constructor_team)",
+        )
+        .eq("user_id", user.id)
+        .eq("grand_prix_id", gpData.grandPrix.id)
+        .order("total_points", { ascending: false })
+        .returns<UserGrandPrixScoreDetailRow[]>(),
+      supabase
+        .from("grand_prix_prediction_score_details")
+        .select("prediction_type, slot_position, points")
+        .eq("user_id", user.id)
+        .eq("grand_prix_id", gpData.grandPrix.id)
+        .returns<UserGrandPrixPredictionScoreDetailRow[]>(),
+      supabase
+        .from("grand_prix_bonus_results")
+        .select("fastest_pitstop_team")
+        .eq("grand_prix_id", gpData.grandPrix.id)
+        .maybeSingle<BonusResultRow>(),
+    ]);
 
     const initialSelectedDriverIds =
-      existingTeamSelection?.team_selection_drivers.map((teamSelectionDriver) => teamSelectionDriver.driver_id) ?? [];
+      existingTeamSelection?.team_selection_drivers.map(
+        (teamSelectionDriver) => teamSelectionDriver.driver_id,
+      ) ?? [];
 
     const initialPredictionValues = {
       sprintQualiP1: existingPrediction?.sprint_quali_p1 ?? "",
@@ -182,6 +210,7 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
       raceP1: existingPrediction?.race_p1 ?? "",
       raceP2: existingPrediction?.race_p2 ?? "",
       raceP3: existingPrediction?.race_p3 ?? "",
+      fastestPitstopTeam: existingPrediction?.fastest_pitstop_team ?? "",
     };
     const slotPredictionPointsByField: PredictionSlotPoints = {
       sprintQualiP1: null,
@@ -198,8 +227,16 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
       raceP3: null,
     };
     (predictionScoreDetails ?? []).forEach((detail) => {
-      const sectionPrefix = detail.prediction_type === "sprint_quali" ? "sprintQuali" : detail.prediction_type === "sprint_race" ? "sprintRace" : detail.prediction_type === "quali" ? "quali" : "race";
-      const field = `${sectionPrefix}P${detail.slot_position}` as keyof PredictionSlotPoints;
+      const sectionPrefix =
+        detail.prediction_type === "sprint_quali"
+          ? "sprintQuali"
+          : detail.prediction_type === "sprint_race"
+            ? "sprintRace"
+            : detail.prediction_type === "quali"
+              ? "quali"
+              : "race";
+      const field =
+        `${sectionPrefix}P${detail.slot_position}` as keyof PredictionSlotPoints;
       slotPredictionPointsByField[field] = detail.points;
     });
     const scoreDetails = userScoreDetails ?? [];
@@ -215,17 +252,51 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
         },
       ]),
     );
-    const hasPublishedSprintQualiTeamPoints = isSessionPublished(userScore, "team_sprint_quali_points");
-    const hasPublishedSprintRaceTeamPoints = isSessionPublished(userScore, "team_sprint_race_points");
-    const hasPublishedQualiTeamPoints = isSessionPublished(userScore, "team_quali_points");
-    const hasPublishedRaceTeamPoints = isSessionPublished(userScore, "team_race_points");
-    const hasPublishedPredictionSprintQualiPoints = isSessionPublished(userScore, "sprint_quali_prediction_points");
-    const hasPublishedPredictionSprintRacePoints = isSessionPublished(userScore, "sprint_race_prediction_points");
-    const hasPublishedPredictionQualiPoints = isSessionPublished(userScore, "quali_prediction_points");
-    const hasPublishedPredictionRacePoints = isSessionPublished(userScore, "race_prediction_points");
+    const hasPublishedSprintQualiTeamPoints = isSessionPublished(
+      userScore,
+      "team_sprint_quali_points",
+    );
+    const hasPublishedSprintRaceTeamPoints = isSessionPublished(
+      userScore,
+      "team_sprint_race_points",
+    );
+    const hasPublishedQualiTeamPoints = isSessionPublished(
+      userScore,
+      "team_quali_points",
+    );
+    const hasPublishedRaceTeamPoints = isSessionPublished(
+      userScore,
+      "team_race_points",
+    );
+    const hasPublishedPredictionSprintQualiPoints = isSessionPublished(
+      userScore,
+      "sprint_quali_prediction_points",
+    );
+    const hasPublishedPredictionSprintRacePoints = isSessionPublished(
+      userScore,
+      "sprint_race_prediction_points",
+    );
+    const hasPublishedPredictionQualiPoints = isSessionPublished(
+      userScore,
+      "quali_prediction_points",
+    );
+    const hasPublishedPredictionRacePoints = isSessionPublished(
+      userScore,
+      "race_prediction_points",
+    );
+    const hasPublishedFastestPitstopPoints = isSessionPublished(
+      userScore,
+      "fastest_pitstop_prediction_points",
+    );
+    const constructorTeams = Array.from(
+      new Set(gpData.drivers.map((driver) => driver.constructorTeam)),
+    ).sort((left, right) => left.localeCompare(right, "nl-NL"));
 
     const isCancelled = isGrandPrixCancelled(gpData.grandPrix.status);
-    const isReadOnly = isCancelled || gpData.grandPrix.status === "locked" || gpData.grandPrix.status === "finished";
+    const isReadOnly =
+      isCancelled ||
+      gpData.grandPrix.status === "locked" ||
+      gpData.grandPrix.status === "finished";
 
     return (
       <main className="leagues-page">
@@ -236,7 +307,11 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
               <p>
                 Grand Prix: <strong>{gpData.grandPrix.name}</strong>
               </p>
-              {isCancelled ? <p className="gp-status-badge">{getGrandPrixStatusLabel(gpData.grandPrix.status)}</p> : null}
+              {isCancelled ? (
+                <p className="gp-status-badge">
+                  {getGrandPrixStatusLabel(gpData.grandPrix.status)}
+                </p>
+              ) : null}
             </div>
             <Link href="/" className="league-back-link">
               ← Terug naar dashboard
@@ -251,21 +326,33 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
             />
             <div className="gp-navigation-buttons">
               {previousGrandPrixId ? (
-                <Link href={`/leagues/${league.id}/gp-spel/${previousGrandPrixId}`} className="league-back-link">
+                <Link
+                  href={`/leagues/${league.id}/gp-spel/${previousGrandPrixId}`}
+                  className="league-back-link"
+                >
                   ← Vorige GP
                 </Link>
               ) : (
-                <span className="league-back-link disabled-link" aria-disabled="true">
+                <span
+                  className="league-back-link disabled-link"
+                  aria-disabled="true"
+                >
                   ← Vorige GP
                 </span>
               )}
 
               {nextGrandPrixId ? (
-                <Link href={`/leagues/${league.id}/gp-spel/${nextGrandPrixId}`} className="league-back-link">
+                <Link
+                  href={`/leagues/${league.id}/gp-spel/${nextGrandPrixId}`}
+                  className="league-back-link"
+                >
                   Volgende GP →
                 </Link>
               ) : (
-                <span className="league-back-link disabled-link" aria-disabled="true">
+                <span
+                  className="league-back-link disabled-link"
+                  aria-disabled="true"
+                >
                   Volgende GP →
                 </span>
               )}
@@ -275,15 +362,23 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
           {isCancelled ? (
             <section className="gp-spel-section">
               <p className="league-list-empty">
-                Deze Grand Prix is geannuleerd. Team kiezen, voorspellingen en scores zijn niet van toepassing.
+                Deze Grand Prix is geannuleerd. Team kiezen, voorspellingen en
+                scores zijn niet van toepassing.
               </p>
             </section>
           ) : (
             <>
-              <section className="gp-spel-section" aria-labelledby="team-kiezen-title">
+              <section
+                className="gp-spel-section"
+                aria-labelledby="team-kiezen-title"
+              >
                 <div className="gp-spel-section-header">
                   <h2 id="team-kiezen-title">Team kiezen</h2>
-                  {userScore ? <p className="gp-spel-section-points">Team punten: {userScore.team_points ?? 0}</p> : null}
+                  {userScore ? (
+                    <p className="gp-spel-section-points">
+                      Team punten: {userScore.team_points ?? 0}
+                    </p>
+                  ) : null}
                 </div>
                 <TeamSelectionCompactForm
                   leagueId={league.id}
@@ -291,8 +386,12 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
                   drivers={gpData.drivers}
                   initialSelectedDriverIds={initialSelectedDriverIds}
                   publishedDriverScores={publishedDriverScores}
-                  hasPublishedSprintQualiPoints={hasPublishedSprintQualiTeamPoints}
-                  hasPublishedSprintRacePoints={hasPublishedSprintRaceTeamPoints}
+                  hasPublishedSprintQualiPoints={
+                    hasPublishedSprintQualiTeamPoints
+                  }
+                  hasPublishedSprintRacePoints={
+                    hasPublishedSprintRaceTeamPoints
+                  }
                   isSprintWeekend={gpData.grandPrix.is_sprint_weekend}
                   hasPublishedQualiPoints={hasPublishedQualiTeamPoints}
                   hasPublishedRacePoints={hasPublishedRaceTeamPoints}
@@ -302,25 +401,47 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
                 />
               </section>
 
-              <section className="gp-spel-section" aria-labelledby="voorspellingen-title">
+              <section
+                className="gp-spel-section"
+                aria-labelledby="voorspellingen-title"
+              >
                 <div className="gp-spel-section-header">
                   <h2 id="voorspellingen-title">Voorspellingen</h2>
                   {userScore ? (
-                    <p className="gp-spel-section-points">Voorspelling punten: {userScore.prediction_points ?? 0}</p>
+                    <p className="gp-spel-section-points">
+                      Voorspelling punten: {userScore.prediction_points ?? 0}
+                    </p>
                   ) : null}
                 </div>
                 <PredictionsForm
                   leagueId={league.id}
                   grandPrixId={gpData.grandPrix.id}
                   drivers={gpData.drivers}
+                  constructorTeams={constructorTeams}
                   initialValues={initialPredictionValues}
                   publishedPoints={{
-                    sprintQuali: hasPublishedPredictionSprintQualiPoints ? (userScore?.sprint_quali_prediction_points ?? 0) : null,
-                    sprintRace: hasPublishedPredictionSprintRacePoints ? (userScore?.sprint_race_prediction_points ?? 0) : null,
-                    quali: hasPublishedPredictionQualiPoints ? (userScore?.quali_prediction_points ?? 0) : null,
-                    race: hasPublishedPredictionRacePoints ? (userScore?.race_prediction_points ?? 0) : null,
+                    sprintQuali: hasPublishedPredictionSprintQualiPoints
+                      ? (userScore?.sprint_quali_prediction_points ?? 0)
+                      : null,
+                    sprintRace: hasPublishedPredictionSprintRacePoints
+                      ? (userScore?.sprint_race_prediction_points ?? 0)
+                      : null,
+                    quali: hasPublishedPredictionQualiPoints
+                      ? (userScore?.quali_prediction_points ?? 0)
+                      : null,
+                    race: hasPublishedPredictionRacePoints
+                      ? (userScore?.race_prediction_points ?? 0)
+                      : null,
+                    fastestPitstop: hasPublishedFastestPitstopPoints
+                      ? (userScore?.fastest_pitstop_prediction_points ?? 0)
+                      : null,
                   }}
                   isSprintWeekend={gpData.grandPrix.is_sprint_weekend}
+                  actualFastestPitstopTeam={
+                    hasPublishedFastestPitstopPoints
+                      ? (bonusResult?.fastest_pitstop_team ?? null)
+                      : null
+                  }
                   publishedSlotPoints={slotPredictionPointsByField}
                   readOnly={isReadOnly}
                 />
@@ -328,7 +449,10 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
             </>
           )}
           {!isCancelled && userScore ? (
-            <section className="gp-spel-section gp-spel-totals-section" aria-label="Punten totaal">
+            <section
+              className="gp-spel-section gp-spel-totals-section"
+              aria-label="Punten totaal"
+            >
               <dl className="gp-spel-inline-totals">
                 <div>
                   <dt>Team punten</dt>
@@ -345,7 +469,9 @@ export default async function GPSpelGrandPrixPage({ params }: GPSpelGrandPrixPag
               </dl>
             </section>
           ) : !isCancelled ? (
-            <p className="league-list-empty">Nog geen punten gepubliceerd voor deze Grand Prix</p>
+            <p className="league-list-empty">
+              Nog geen punten gepubliceerd voor deze Grand Prix
+            </p>
           ) : null}
         </section>
       </main>

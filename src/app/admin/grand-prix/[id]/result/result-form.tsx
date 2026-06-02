@@ -3,7 +3,10 @@
 import { useMemo, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 
-import { saveGrandPrixResult, type GrandPrixResultActionState } from "@/app/actions/grand-prix-results";
+import {
+  saveGrandPrixResult,
+  type GrandPrixResultActionState,
+} from "@/app/actions/grand-prix-results";
 
 type DriverOption = {
   id: string;
@@ -16,15 +19,17 @@ type ResultValues = {
   sprintQualificationOrder: string[];
   sprintRaceOrder: string[];
   raceOrder: string[];
+  fastestPitstopTeam: string;
 };
 
-type ResultField = keyof ResultValues;
+type ResultField = Exclude<keyof ResultValues, "fastestPitstopTeam">;
 
 type ResultFormProps = {
   grandPrixId: string;
   isSprintWeekend: boolean;
   drivers: DriverOption[];
   initialValues: ResultValues;
+  constructorTeams: string[];
 };
 
 const INITIAL_STATE: GrandPrixResultActionState = { status: "idle" };
@@ -32,10 +37,15 @@ const INITIAL_STATE: GrandPrixResultActionState = { status: "idle" };
 function SaveButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
 
-  return <button type="submit" disabled={disabled || pending}>{pending ? "Bezig met opslaan..." : "Uitslag opslaan"}</button>;
+  return (
+    <button type="submit" disabled={disabled || pending}>
+      {pending ? "Bezig met opslaan..." : "Uitslag opslaan"}
+    </button>
+  );
 }
 
-const buildDriverLabel = (driver: DriverOption) => `${driver.name} (${driver.constructorTeam})`;
+const buildDriverLabel = (driver: DriverOption) =>
+  `${driver.name} (${driver.constructorTeam})`;
 
 function ReorderList({
   title,
@@ -69,7 +79,11 @@ function ReorderList({
       <div className="result-import">
         <label className="predictions-field">
           <span>{pasteLabel}</span>
-          <textarea value={pasteValue} onChange={(event) => onPasteChange(event.target.value)} rows={6} />
+          <textarea
+            value={pasteValue}
+            onChange={(event) => onPasteChange(event.target.value)}
+            rows={6}
+          />
         </label>
         <button type="button" onClick={onImport}>
           {pasteButtonLabel}
@@ -116,7 +130,13 @@ function ReorderList({
   );
 }
 
-export function ResultForm({ grandPrixId, isSprintWeekend, drivers, initialValues }: ResultFormProps) {
+export function ResultForm({
+  grandPrixId,
+  isSprintWeekend,
+  drivers,
+  initialValues,
+  constructorTeams,
+}: ResultFormProps) {
   const [state, formAction] = useFormState(saveGrandPrixResult, INITIAL_STATE);
   const [values, setValues] = useState<ResultValues>(initialValues);
   const [pasteValues, setPasteValues] = useState<Record<ResultField, string>>({
@@ -125,30 +145,57 @@ export function ResultForm({ grandPrixId, isSprintWeekend, drivers, initialValue
     sprintRaceOrder: "",
     raceOrder: "",
   });
-  const [pasteErrors, setPasteErrors] = useState<Record<ResultField, string | null>>({
+  const [pasteErrors, setPasteErrors] = useState<
+    Record<ResultField, string | null>
+  >({
     qualificationOrder: null,
     sprintQualificationOrder: null,
     sprintRaceOrder: null,
     raceOrder: null,
   });
 
-  const driversById = useMemo(() => new Map(drivers.map((driver) => [driver.id, driver])), [drivers]);
+  const driversById = useMemo(
+    () => new Map(drivers.map((driver) => [driver.id, driver])),
+    [drivers],
+  );
 
   const validationErrors = useMemo(() => {
     const errors: string[] = [];
 
-    if (values.qualificationOrder.length !== drivers.length || new Set(values.qualificationOrder).size !== drivers.length) {
-      errors.push("Binnen kwalificatie moet elke actieve coureur precies één positie hebben");
+    if (
+      values.qualificationOrder.length !== drivers.length ||
+      new Set(values.qualificationOrder).size !== drivers.length
+    ) {
+      errors.push(
+        "Binnen kwalificatie moet elke actieve coureur precies één positie hebben",
+      );
     }
 
-    if (values.raceOrder.length !== drivers.length || new Set(values.raceOrder).size !== drivers.length) {
-      errors.push("Binnen race moet elke actieve coureur precies één positie hebben");
+    if (
+      values.raceOrder.length !== drivers.length ||
+      new Set(values.raceOrder).size !== drivers.length
+    ) {
+      errors.push(
+        "Binnen race moet elke actieve coureur precies één positie hebben",
+      );
     }
-    if (isSprintWeekend && (values.sprintQualificationOrder.length !== drivers.length || new Set(values.sprintQualificationOrder).size !== drivers.length)) {
-      errors.push("Binnen sprint kwalificatie moet elke actieve coureur precies één positie hebben");
+    if (
+      isSprintWeekend &&
+      (values.sprintQualificationOrder.length !== drivers.length ||
+        new Set(values.sprintQualificationOrder).size !== drivers.length)
+    ) {
+      errors.push(
+        "Binnen sprint kwalificatie moet elke actieve coureur precies één positie hebben",
+      );
     }
-    if (isSprintWeekend && (values.sprintRaceOrder.length !== drivers.length || new Set(values.sprintRaceOrder).size !== drivers.length)) {
-      errors.push("Binnen sprint race moet elke actieve coureur precies één positie hebben");
+    if (
+      isSprintWeekend &&
+      (values.sprintRaceOrder.length !== drivers.length ||
+        new Set(values.sprintRaceOrder).size !== drivers.length)
+    ) {
+      errors.push(
+        "Binnen sprint race moet elke actieve coureur precies één positie hebben",
+      );
     }
 
     return errors;
@@ -156,7 +203,11 @@ export function ResultForm({ grandPrixId, isSprintWeekend, drivers, initialValue
 
   const canSave = validationErrors.length === 0;
 
-  const moveInList = (field: ResultField, fromIndex: number, toIndex: number) => {
+  const moveInList = (
+    field: ResultField,
+    fromIndex: number,
+    toIndex: number,
+  ) => {
     if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) {
       return;
     }
@@ -185,7 +236,8 @@ export function ResultForm({ grandPrixId, isSprintWeekend, drivers, initialValue
       .toLocaleLowerCase("nl-NL")
       .trim();
 
-  const cleanPastedLine = (line: string) => line.replace(/^\s*(?:(?:\d+\s*[.):-]?\s*)|(?:[-–—•*]\s*))+/u, "").trim();
+  const cleanPastedLine = (line: string) =>
+    line.replace(/^\s*(?:(?:\d+\s*[.):-]?\s*)|(?:[-–—•*]\s*))+/u, "").trim();
 
   const importOrder = (field: ResultField) => {
     const pastedLines = pasteValues[field]
@@ -201,7 +253,9 @@ export function ResultForm({ grandPrixId, isSprintWeekend, drivers, initialValue
       return;
     }
 
-    const driverIdsByName = new Map(drivers.map((driver) => [normalizeDriverName(driver.name), driver.id]));
+    const driverIdsByName = new Map(
+      drivers.map((driver) => [normalizeDriverName(driver.name), driver.id]),
+    );
     const nextOrder: string[] = [];
     const seenDrivers = new Set<string>();
 
@@ -241,10 +295,50 @@ export function ResultForm({ grandPrixId, isSprintWeekend, drivers, initialValue
   return (
     <form action={formAction} className="predictions-form">
       <input type="hidden" name="grand_prix_id" value={grandPrixId} />
-      <input type="hidden" name="qualification_order" value={values.qualificationOrder.join(",")} />
-      <input type="hidden" name="sprint_qualification_order" value={isSprintWeekend ? values.sprintQualificationOrder.join(",") : ""} />
-      <input type="hidden" name="sprint_race_order" value={isSprintWeekend ? values.sprintRaceOrder.join(",") : ""} />
-      <input type="hidden" name="race_order" value={values.raceOrder.join(",")} />
+      <input
+        type="hidden"
+        name="qualification_order"
+        value={values.qualificationOrder.join(",")}
+      />
+      <input
+        type="hidden"
+        name="sprint_qualification_order"
+        value={isSprintWeekend ? values.sprintQualificationOrder.join(",") : ""}
+      />
+      <input
+        type="hidden"
+        name="sprint_race_order"
+        value={isSprintWeekend ? values.sprintRaceOrder.join(",") : ""}
+      />
+      <input
+        type="hidden"
+        name="race_order"
+        value={values.raceOrder.join(",")}
+      />
+
+      <section className="predictions-section">
+        <h2>Bonusvoorspelling</h2>
+        <label className="predictions-field">
+          <span>Snelste pitstop</span>
+          <select
+            name="fastest_pitstop_team"
+            value={values.fastestPitstopTeam}
+            onChange={(event) =>
+              setValues((current) => ({
+                ...current,
+                fastestPitstopTeam: event.target.value,
+              }))
+            }
+          >
+            <option value="">Kies een team</option>
+            {constructorTeams.map((team) => (
+              <option key={team} value={team}>
+                {team}
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
 
       <ReorderList
         title="Kwalificatie"
@@ -264,41 +358,47 @@ export function ResultForm({ grandPrixId, isSprintWeekend, drivers, initialValue
         onMove={(from, to) => moveInList("qualificationOrder", from, to)}
       />
 
-      {isSprintWeekend ? <ReorderList
-        title="Sprint kwalificatie"
-        pasteLabel="Plak sprint kwalificatievolgorde"
-        pasteButtonLabel="Verwerk sprint kwalificatie"
-        order={values.sprintQualificationOrder}
-        driversById={driversById}
-        pasteValue={pasteValues.sprintQualificationOrder}
-        pasteError={pasteErrors.sprintQualificationOrder}
-        onPasteChange={(value) =>
-          setPasteValues((current) => ({
-            ...current,
-            sprintQualificationOrder: value,
-          }))
-        }
-        onImport={() => importOrder("sprintQualificationOrder")}
-        onMove={(from, to) => moveInList("sprintQualificationOrder", from, to)}
-      /> : null}
+      {isSprintWeekend ? (
+        <ReorderList
+          title="Sprint kwalificatie"
+          pasteLabel="Plak sprint kwalificatievolgorde"
+          pasteButtonLabel="Verwerk sprint kwalificatie"
+          order={values.sprintQualificationOrder}
+          driversById={driversById}
+          pasteValue={pasteValues.sprintQualificationOrder}
+          pasteError={pasteErrors.sprintQualificationOrder}
+          onPasteChange={(value) =>
+            setPasteValues((current) => ({
+              ...current,
+              sprintQualificationOrder: value,
+            }))
+          }
+          onImport={() => importOrder("sprintQualificationOrder")}
+          onMove={(from, to) =>
+            moveInList("sprintQualificationOrder", from, to)
+          }
+        />
+      ) : null}
 
-      {isSprintWeekend ? <ReorderList
-        title="Sprint race"
-        pasteLabel="Plak sprint racevolgorde"
-        pasteButtonLabel="Verwerk sprint race"
-        order={values.sprintRaceOrder}
-        driversById={driversById}
-        pasteValue={pasteValues.sprintRaceOrder}
-        pasteError={pasteErrors.sprintRaceOrder}
-        onPasteChange={(value) =>
-          setPasteValues((current) => ({
-            ...current,
-            sprintRaceOrder: value,
-          }))
-        }
-        onImport={() => importOrder("sprintRaceOrder")}
-        onMove={(from, to) => moveInList("sprintRaceOrder", from, to)}
-      /> : null}
+      {isSprintWeekend ? (
+        <ReorderList
+          title="Sprint race"
+          pasteLabel="Plak sprint racevolgorde"
+          pasteButtonLabel="Verwerk sprint race"
+          order={values.sprintRaceOrder}
+          driversById={driversById}
+          pasteValue={pasteValues.sprintRaceOrder}
+          pasteError={pasteErrors.sprintRaceOrder}
+          onPasteChange={(value) =>
+            setPasteValues((current) => ({
+              ...current,
+              sprintRaceOrder: value,
+            }))
+          }
+          onImport={() => importOrder("sprintRaceOrder")}
+          onMove={(from, to) => moveInList("sprintRaceOrder", from, to)}
+        />
+      ) : null}
 
       <ReorderList
         title="Race"
@@ -329,7 +429,11 @@ export function ResultForm({ grandPrixId, isSprintWeekend, drivers, initialValue
       )}
 
       {state.status !== "idle" && state.message && (
-        <p className={`form-message ${state.status === "success" ? "success" : "error"}`}>{state.message}</p>
+        <p
+          className={`form-message ${state.status === "success" ? "success" : "error"}`}
+        >
+          {state.message}
+        </p>
       )}
 
       <SaveButton disabled={!canSave} />
