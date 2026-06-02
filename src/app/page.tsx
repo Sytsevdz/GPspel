@@ -9,9 +9,9 @@ import {
   getActiveGrandPrixDisplayState,
   getCurrentSelectableGrandPrix,
   getGrandPrixTimeline,
+  getLatestFinishedGrandPrixFromTimeline,
   getNextGrandPrixFromTimeline,
 } from "@/lib/team-selection-data";
-import { getLatestCurrentOrScoredGrandPrix } from "@/lib/latest-grand-prix";
 import { isSessionPublished } from "@/lib/session-publication";
 import { GlobalStandingsPanel } from "./dashboard/global-standings-panel";
 import { DriverScoreCard } from "./driver-score-card";
@@ -157,14 +157,7 @@ export default async function HomePage() {
   const activeGrandPrixIds = new Set(
     (activeGrandPrixRows ?? []).map((grandPrix) => grandPrix.id),
   );
-  const scoredActiveGrandPrixIds = [
-    ...new Set((allScoreRows ?? []).map((row) => row.grand_prix_id)),
-  ].filter((grandPrixId) => activeGrandPrixIds.has(grandPrixId));
-  const latestGrandPrix = await getLatestCurrentOrScoredGrandPrix(
-    supabase,
-    scoredActiveGrandPrixIds,
-    nowIso,
-  );
+  const latestGrandPrix = getLatestFinishedGrandPrixFromTimeline(timeline);
   const isLatestGrandPrixFinished = latestGrandPrix
     ? latestGrandPrix.status === "finished"
     : false;
