@@ -164,10 +164,6 @@ export default async function HomePage() {
   const latestGrandPrixStatusLabel = isLatestGrandPrixFinished
     ? "Afgelopen"
     : "Bezig";
-  const isLatestGrandPrixDeadlinePassed = latestGrandPrix
-    ? latestGrandPrix.deadline <= nowIso
-    : false;
-
   const userLatestScore = latestGrandPrix
     ? (
         await supabase
@@ -467,7 +463,7 @@ export default async function HomePage() {
                 ? { id: latestGrandPrix.id, name: latestGrandPrix.name }
                 : null
             }
-            deadlinePassed={isLatestGrandPrixDeadlinePassed}
+            deadlinePassed={Boolean(latestGrandPrix?.id)}
             standings={globalStandings}
           />
         </article>

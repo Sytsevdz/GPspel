@@ -331,16 +331,36 @@ const loadBonusResult = async (grandPrixId: string) => {
   return data?.fastest_pitstop_team?.trim() || null;
 };
 
+const normalizeConstructorTeam = (team: string | null) =>
+  team?.trim().toLocaleLowerCase("nl-NL") || null;
+
 const calculateFastestPitstopPredictionPoints = (
   predictedTeam: string | null,
   actualTeam: string | null,
 ) => {
-  if (!predictedTeam || !actualTeam) {
+  const normalizedPredictedTeam = normalizeConstructorTeam(predictedTeam);
+  const normalizedActualTeam = normalizeConstructorTeam(actualTeam);
+
+  if (!normalizedPredictedTeam || !normalizedActualTeam) {
     return 0;
   }
 
-  return predictedTeam === actualTeam ? 10 : 0;
+  return normalizedPredictedTeam === normalizedActualTeam ? 10 : 0;
 };
+
+const buildFastestPitstopPredictionPointsByUserId = (
+  predictions: PredictionRow[],
+  actualTeam: string | null,
+) =>
+  new Map(
+    predictions.map((prediction) => [
+      prediction.user_id,
+      calculateFastestPitstopPredictionPoints(
+        prediction.fastest_pitstop_team,
+        actualTeam,
+      ),
+    ]),
+  );
 
 const loadDriverResults = async (grandPrixId: string) => {
   const supabase = createServerSupabaseClient();
@@ -911,6 +931,12 @@ export async function calculateGrandPrixRaceScores(grandPrixId: string) {
     });
   });
 
+  const fastestPitstopPredictionPointsByUserId =
+    buildFastestPitstopPredictionPointsByUserId(
+      predictions,
+      officialFastestPitstopTeam,
+    );
+
   predictions.forEach((prediction) => {
     const qualiPredictionPoints = calculateTopThreePredictionPoints(
       [prediction.quali_p1, prediction.quali_p2, prediction.quali_p3],
@@ -954,10 +980,16 @@ export async function calculateGrandPrixRaceScores(grandPrixId: string) {
         existing?.sprintRacePredictionPoints ??
         sprintComponents.sprintRacePredictionPoints,
       racePredictionPoints,
-      fastestPitstopPredictionPoints: calculateFastestPitstopPredictionPoints(
-        prediction.fastest_pitstop_team,
-        officialFastestPitstopTeam,
-      ),
+      fastestPitstopPredictionPoints:
+        fastestPitstopPredictionPointsByUserId.get(prediction.user_id) ?? 0,
+    });
+  });
+
+  componentByUserId.forEach((components, userId) => {
+    componentByUserId.set(userId, {
+      ...components,
+      fastestPitstopPredictionPoints:
+        fastestPitstopPredictionPointsByUserId.get(userId) ?? 0,
     });
   });
 
