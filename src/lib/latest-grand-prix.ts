@@ -17,7 +17,7 @@ type LatestGrandPrixDbCandidate = {
   is_sprint_weekend: boolean;
 };
 
-export async function getLatestCurrentOrScoredGrandPrix(
+export async function getLatestPastOrScoredGrandPrix(
   supabase: ReturnType<typeof createServerSupabaseClient>,
   scoredGrandPrixIds: string[],
   nowIso: string = new Date().toISOString(),
@@ -31,7 +31,7 @@ export async function getLatestCurrentOrScoredGrandPrix(
     }),
   });
 
-  const { data: currentOrRecentGrandPrix } = await supabase
+  const { data: latestPastGrandPrix } = await supabase
     .from("grand_prix")
     .select("id, name, deadline, status, is_sprint_weekend")
     .neq("status", "cancelled")
@@ -40,8 +40,8 @@ export async function getLatestCurrentOrScoredGrandPrix(
     .limit(1)
     .maybeSingle<LatestGrandPrixDbCandidate>();
 
-  if (currentOrRecentGrandPrix) {
-    return resolveCandidate(currentOrRecentGrandPrix);
+  if (latestPastGrandPrix) {
+    return resolveCandidate(latestPastGrandPrix);
   }
 
   if (scoredGrandPrixIds.length === 0) {

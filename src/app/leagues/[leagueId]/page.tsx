@@ -9,7 +9,7 @@ import {
   getGrandPrixTimeline,
   getNextGrandPrixFromTimeline,
 } from "@/lib/team-selection-data";
-import { getLatestCurrentOrScoredGrandPrix } from "@/lib/latest-grand-prix";
+import { getLatestPastOrScoredGrandPrix } from "@/lib/latest-grand-prix";
 import { getAccessibleLeague } from "./league-access";
 import { DeleteLeagueAction } from "./delete-league-action";
 import { LeaveLeagueAction } from "./leave-league-action";
@@ -108,7 +108,7 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
 
   const scoredGrandPrixIds = [...new Set(filteredScoreRows.map((scoreRow) => scoreRow.grand_prix_id))];
 
-  const latestGrandPrix = await getLatestCurrentOrScoredGrandPrix(supabase, scoredGrandPrixIds, nowIso);
+  const latestGrandPrix = await getLatestPastOrScoredGrandPrix(supabase, scoredGrandPrixIds, nowIso);
 
   const latestGrandPrixPointsByUserId = new Map<string, number>();
 
