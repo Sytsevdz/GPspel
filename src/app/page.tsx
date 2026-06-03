@@ -15,6 +15,7 @@ import {
 import { isSessionPublished } from "@/lib/session-publication";
 import { GlobalStandingsPanel } from "./dashboard/global-standings-panel";
 import { DriverScoreCard } from "./driver-score-card";
+import { FastestPitstopBonusCard } from "./fastest-pitstop-bonus-card";
 
 type LeagueMembershipRow = {
   league_id: string;
@@ -421,20 +422,16 @@ export default async function HomePage() {
                     ) : null}
 
                     {hasPublishedFastestPitstopPoints ? (
-                      <div className="dashboard-result-stat">
-                        <dt>Snelste pitstop</dt>
-                        <dd>
-                          {userLatestPrediction?.fastest_pitstop_team ??
-                            "Geen team"}{" "}
-                          /{" "}
-                          {latestBonusResult?.fastest_pitstop_team ??
-                            "Onbekend"}{" "}
-                          (
-                          {userLatestScore.fastest_pitstop_prediction_points ??
-                            0}{" "}
-                          pnt)
-                        </dd>
-                      </div>
+                      <FastestPitstopBonusCard
+                        selectedTeam={userLatestPrediction?.fastest_pitstop_team}
+                        actualTeam={latestBonusResult?.fastest_pitstop_team}
+                        points={
+                          userLatestScore.fastest_pitstop_prediction_points ?? 0
+                        }
+                        showActual
+                        showPoints
+                        className="dashboard-bonus-card"
+                      />
                     ) : null}
                     <div className="dashboard-result-stat">
                       <dt>Voorspelling punten</dt>
