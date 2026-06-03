@@ -7,6 +7,7 @@ import {
   saveGrandPrixResult,
   type GrandPrixResultActionState,
 } from "@/app/actions/grand-prix-results";
+import { FastestPitstopBonusCard } from "@/app/fastest-pitstop-bonus-card";
 
 type DriverOption = {
   id: string;
@@ -316,28 +317,41 @@ export function ResultForm({
         value={values.raceOrder.join(",")}
       />
 
-      <section className="predictions-section">
-        <h2>Bonusvoorspelling</h2>
-        <label className="predictions-field">
-          <span>Snelste pitstop</span>
-          <select
-            name="fastest_pitstop_team"
-            value={values.fastestPitstopTeam}
-            onChange={(event) =>
-              setValues((current) => ({
-                ...current,
-                fastestPitstopTeam: event.target.value,
-              }))
-            }
-          >
-            <option value="">Kies een team</option>
-            {constructorTeams.map((team) => (
-              <option key={team} value={team}>
-                {team}
-              </option>
-            ))}
-          </select>
-        </label>
+      <section className="predictions-section bonus-results-section">
+        <div className="predictions-section-header">
+          <h2>Bonusresultaten</h2>
+          <p>
+            Leg het constructorteam vast dat officieel de snelste pitstop reed.
+          </p>
+        </div>
+        <FastestPitstopBonusCard
+          title="Snelste pitstop-team"
+          subtitle="Selecteer het team dat de bonusuitslag bepaalt."
+          selectedTeam={values.fastestPitstopTeam}
+          helperText="Dit veld gebruikt dezelfde teamlijst als de voorspelling en wijzigt geen scoringslogica."
+          selectControl={
+            <label className="predictions-field fastest-pitstop-select-field">
+              <span>Snelste pitstop-team</span>
+              <select
+                name="fastest_pitstop_team"
+                value={values.fastestPitstopTeam}
+                onChange={(event) =>
+                  setValues((current) => ({
+                    ...current,
+                    fastestPitstopTeam: event.target.value,
+                  }))
+                }
+              >
+                <option value="">Kies een team</option>
+                {constructorTeams.map((team) => (
+                  <option key={team} value={team}>
+                    {team}
+                  </option>
+                ))}
+              </select>
+            </label>
+          }
+        />
       </section>
 
       <ReorderList

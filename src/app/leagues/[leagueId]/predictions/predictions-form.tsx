@@ -8,6 +8,7 @@ import {
   savePrediction,
   type PredictionsActionState,
 } from "@/app/actions/predictions";
+import { FastestPitstopBonusCard } from "@/app/fastest-pitstop-bonus-card";
 import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 
@@ -613,62 +614,36 @@ export function PredictionsForm({
         </div>
       ) : null}
 
-      <section className="predictions-section">
-        <div className="predictions-section-header">
-          <h2>Bonusvoorspelling</h2>
-          {publishedPoints && publishedPoints.fastestPitstop !== null ? (
-            <p className="predictions-points-chip">
-              Punten: {publishedPoints.fastestPitstop ?? 0}
-            </p>
-          ) : null}
-          {!readOnly ? (
-            <p>
-              Kies het constructorteam dat volgens jou de snelste pitstop maakt.
-            </p>
-          ) : null}
-        </div>
-
-        <label className="predictions-field">
-          <span>Snelste pitstop</span>
-          <select
-            name="fastest_pitstop_team"
-            value={values.fastestPitstopTeam}
-            disabled={readOnly}
-            onChange={(event) =>
-              setValues((current) => ({
-                ...current,
-                fastestPitstopTeam: event.target.value,
-              }))
-            }
-          >
-            <option value="">Kies een team</option>
-            {constructorTeams.map((team) => (
-              <option key={team} value={team}>
-                {team}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <dl className="gp-spel-inline-totals">
-          <div>
-            <dt>Gekozen team</dt>
-            <dd>{values.fastestPitstopTeam || "Nog geen team gekozen"}</dd>
-          </div>
-          {actualFastestPitstopTeam ? (
-            <div>
-              <dt>Werkelijk team</dt>
-              <dd>{actualFastestPitstopTeam}</dd>
-            </div>
-          ) : null}
-          {publishedPoints && publishedPoints.fastestPitstop !== null ? (
-            <div>
-              <dt>Punten</dt>
-              <dd>{publishedPoints.fastestPitstop ?? 0}</dd>
-            </div>
-          ) : null}
-        </dl>
-      </section>
+      <FastestPitstopBonusCard
+        selectedTeam={values.fastestPitstopTeam}
+        actualTeam={actualFastestPitstopTeam}
+        points={publishedPoints?.fastestPitstop ?? null}
+        showActual={publishedPoints?.fastestPitstop !== null && publishedPoints !== undefined}
+        showPoints={publishedPoints?.fastestPitstop !== null && publishedPoints !== undefined}
+        selectControl={
+          <label className="predictions-field fastest-pitstop-select-field">
+            <span>Snelste pitstop-team</span>
+            <select
+              name="fastest_pitstop_team"
+              value={values.fastestPitstopTeam}
+              disabled={readOnly}
+              onChange={(event) =>
+                setValues((current) => ({
+                  ...current,
+                  fastestPitstopTeam: event.target.value,
+                }))
+              }
+            >
+              <option value="">Kies een team</option>
+              {constructorTeams.map((team) => (
+                <option key={team} value={team}>
+                  {team}
+                </option>
+              ))}
+            </select>
+          </label>
+        }
+      />
 
       {validationErrors.length > 0 && (
         <div className="form-message error" role="alert">

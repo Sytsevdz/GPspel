@@ -8,6 +8,7 @@ import {
   type PlayerGrandPrixViewResult,
 } from "@/app/actions/player-grand-prix-view";
 import { DriverScoreCard } from "@/app/driver-score-card";
+import { FastestPitstopBonusCard } from "@/app/fastest-pitstop-bonus-card";
 import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 
@@ -597,35 +598,13 @@ export function PlayerGrandPrixDetail({
                         }
                       />
                       {snapshot.bonusPrediction ? (
-                        <section className="predictions-section">
-                          <div className="predictions-section-header">
-                            <h3>Bonusvoorspelling</h3>
-                          </div>
-                          <dl className="gp-spel-inline-totals">
-                            <div>
-                              <dt>Snelste pitstop voorspeld</dt>
-                              <dd>
-                                {snapshot.bonusPrediction.selectedTeam ??
-                                  "Geen team gekozen"}
-                              </dd>
-                            </div>
-                            <div>
-                              <dt>Snelste pitstop werkelijk</dt>
-                              <dd>
-                                {snapshot.bonusPrediction.actualTeam ??
-                                  "Nog niet bekend"}
-                              </dd>
-                            </div>
-                            <div>
-                              <dt>Punten</dt>
-                              <dd>
-                                {formatPublishedPoints(
-                                  snapshot.bonusPrediction.points,
-                                )}
-                              </dd>
-                            </div>
-                          </dl>
-                        </section>
+                        <FastestPitstopBonusCard
+                          selectedTeam={snapshot.bonusPrediction.selectedTeam}
+                          actualTeam={snapshot.bonusPrediction.actualTeam}
+                          points={snapshot.bonusPrediction.points}
+                          showActual
+                          showPoints
+                        />
                       ) : null}
                     </>
                   ) : (
