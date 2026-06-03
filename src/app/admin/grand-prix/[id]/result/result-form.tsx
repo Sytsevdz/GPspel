@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 
@@ -8,6 +9,8 @@ import {
   type GrandPrixResultActionState,
 } from "@/app/actions/grand-prix-results";
 import { FastestPitstopBonusCard } from "@/app/fastest-pitstop-bonus-card";
+import { getTeamSideImageSize } from "@/lib/team-side-view-images";
+import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 
 type DriverOption = {
   id: string;
@@ -154,6 +157,9 @@ export function ResultForm({
     sprintRaceOrder: null,
     raceOrder: null,
   });
+
+  const [isFastestPitstopPickerOpen, setIsFastestPitstopPickerOpen] =
+    useState(false);
 
   const driversById = useMemo(
     () => new Map(drivers.map((driver) => [driver.id, driver])),
@@ -324,35 +330,89 @@ export function ResultForm({
             Leg het constructorteam vast dat officieel de snelste pitstop reed.
           </p>
         </div>
+        <input
+          type="hidden"
+          name="fastest_pitstop_team"
+          value={values.fastestPitstopTeam}
+        />
         <FastestPitstopBonusCard
           title="Snelste pitstop-team"
           subtitle="Selecteer het team dat de bonusuitslag bepaalt."
           selectedTeam={values.fastestPitstopTeam}
           helperText="Dit veld gebruikt dezelfde teamlijst als de voorspelling en wijzigt geen scoringslogica."
-          selectControl={
-            <label className="predictions-field fastest-pitstop-select-field">
-              <span>Snelste pitstop-team</span>
-              <select
-                name="fastest_pitstop_team"
-                value={values.fastestPitstopTeam}
-                onChange={(event) =>
-                  setValues((current) => ({
-                    ...current,
-                    fastestPitstopTeam: event.target.value,
-                  }))
-                }
-              >
-                <option value="">Kies een team</option>
-                {constructorTeams.map((team) => (
-                  <option key={team} value={team}>
-                    {team}
-                  </option>
-                ))}
-              </select>
-            </label>
-          }
+          onOpenPicker={() => setIsFastestPitstopPickerOpen(true)}
         />
       </section>
+
+      {isFastestPitstopPickerOpen ? (
+        <div
+          className="podium-selection-overlay"
+          role="presentation"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setIsFastestPitstopPickerOpen(false);
+            }
+          }}
+        >
+          <div
+            className="podium-selection-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Kies team voor snelste pitstop"
+          >
+            <div className="podium-selection-panel-header">
+              <div>
+                <h3>Kies snelste pitstop-team</h3>
+                <p>Bonusresultaten</p>
+              </div>
+              <button
+                type="button"
+                className="podium-selection-close"
+                onClick={() => setIsFastestPitstopPickerOpen(false)}
+              >
+                Sluiten
+              </button>
+            </div>
+
+            <div className="podium-driver-options fastest-pitstop-team-options">
+              {constructorTeams.map((teamName) => {
+                const team = resolveTeamSelectionTeam(teamName);
+                const imageSize = getTeamSideImageSize("modalOption");
+                const isSelected = values.fastestPitstopTeam === teamName;
+
+                return (
+                  <button
+                    key={teamName}
+                    type="button"
+                    className={`podium-driver-option fastest-pitstop-team-option ${isSelected ? "selected" : ""}`}
+                    onClick={() => {
+                      setValues((current) => ({
+                        ...current,
+                        fastestPitstopTeam: teamName,
+                      }));
+                      setIsFastestPitstopPickerOpen(false);
+                    }}
+                  >
+                    <div className="podium-driver-option-image">
+                      <Image
+                        src={team.image}
+                        alt={`${team.name} wagen`}
+                        width={imageSize.width}
+                        height={imageSize.height}
+                        className={imageSize.className}
+                      />
+                    </div>
+                    <div className="podium-driver-option-copy">
+                      <strong>{team.name}</strong>
+                      <span>{isSelected ? "Geselecteerd" : "Kies dit team"}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <ReorderList
         title="Kwalificatie"
