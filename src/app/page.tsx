@@ -7,10 +7,10 @@ import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 import {
   getActiveGrandPrixDisplayLabel,
   getActiveGrandPrixDisplayState,
-  getCurrentSelectableGrandPrix,
+  getGameplayGrandPrix,
   getGrandPrixTimeline,
-  getHomeGrandPrixDisplayFromTimeline,
   getNextGrandPrixFromTimeline,
+  getScoreGrandPrix,
 } from "@/lib/team-selection-data";
 import { isSessionPublished } from "@/lib/session-publication";
 import { GlobalStandingsPanel } from "./dashboard/global-standings-panel";
@@ -143,9 +143,7 @@ export default async function HomePage() {
       })) ?? [];
 
   const timeline = await getGrandPrixTimeline(supabase).catch(() => []);
-  const currentGrandPrix = await getCurrentSelectableGrandPrix(supabase).catch(
-    () => null,
-  );
+  const currentGrandPrix = getGameplayGrandPrix(timeline);
   const nextGrandPrix = currentGrandPrix
     ? getNextGrandPrixFromTimeline(timeline, currentGrandPrix.id)
     : null;
@@ -158,15 +156,25 @@ export default async function HomePage() {
   const activeGrandPrixIds = new Set(
     (activeGrandPrixRows ?? []).map((grandPrix) => grandPrix.id),
   );
-  const homeGrandPrixDisplay = getHomeGrandPrixDisplayFromTimeline(timeline);
-  const displayedGrandPrix = homeGrandPrixDisplay?.grandPrix ?? null;
-  const isDisplayedGrandPrixActive = homeGrandPrixDisplay?.source === "active";
-  const displayedGrandPrixHeading = isDisplayedGrandPrixActive
+  const scoreGrandPrixDisplay = getScoreGrandPrix(timeline, nowIso);
+  const displayedGrandPrix = scoreGrandPrixDisplay?.grandPrix ?? null;
+  const isDisplayedGrandPrixGameplay =
+    scoreGrandPrixDisplay?.source === "gameplay";
+  const displayedGrandPrixHeading = isDisplayedGrandPrixGameplay
     ? "Huidige Grand Prix"
     : "Laatste Grand Prix";
-  const displayedGrandPrixStatusLabel = isDisplayedGrandPrixActive
-    ? "Raceweekend bezig"
+  const displayedGrandPrixState =
+    displayedGrandPrix && isDisplayedGrandPrixGameplay
+      ? getActiveGrandPrixDisplayState(displayedGrandPrix, nowIso)
+      : null;
+  const displayedGrandPrixStatusLabel = displayedGrandPrixState
+    ? getActiveGrandPrixDisplayLabel(displayedGrandPrixState)
     : "Afgelopen";
+  const canOpenDisplayedGrandPrixDetails = Boolean(
+    displayedGrandPrix &&
+      (displayedGrandPrix.status === "finished" ||
+        displayedGrandPrix.deadline <= nowIso),
+  );
   const userDisplayedScore = displayedGrandPrix
     ? (
         await supabase
@@ -310,7 +318,7 @@ export default async function HomePage() {
             {displayedGrandPrix ? (
               <span
                 className={`dashboard-gp-status-badge ${
-                  isDisplayedGrandPrixActive
+                  isDisplayedGrandPrixGameplay
                     ? "dashboard-gp-status-badge--ongoing"
                     : "dashboard-gp-status-badge--finished"
                 }`}
@@ -328,7 +336,8 @@ export default async function HomePage() {
               <p className="dashboard-result-kicker">Jouw resultaat</p>
               <p className="dashboard-data-title">{displayedGrandPrix.name}</p>
               {userDisplayedScore &&
-              (!isDisplayedGrandPrixActive || hasAnyPublishedDisplayedScore) ? (
+              (!isDisplayedGrandPrixGameplay ||
+                hasAnyPublishedDisplayedScore) ? (
                 <>
                   {userDisplayedScoreDetails.length > 0 ? (
                     <ul
@@ -464,7 +473,7 @@ export default async function HomePage() {
                 </>
               ) : (
                 <p className="league-list-empty">
-                  {isDisplayedGrandPrixActive
+                  {isDisplayedGrandPrixGameplay
                     ? "Nog geen punten gepubliceerd"
                     : "Je hebt voor deze Grand Prix nog geen score."}
                 </p>
@@ -481,7 +490,7 @@ export default async function HomePage() {
                 ? { id: displayedGrandPrix.id, name: displayedGrandPrix.name }
                 : null
             }
-            deadlinePassed={Boolean(displayedGrandPrix?.id)}
+            deadlinePassed={canOpenDisplayedGrandPrixDetails}
             standings={globalStandings}
           />
         </article>

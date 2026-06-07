@@ -191,59 +191,69 @@ export async function getGrandPrixTimeline(
   }));
 }
 
-export function getActiveGrandPrixFromTimeline(
-  timeline: GrandPrixTimelineItem[],
-): GrandPrixTimelineItem | null {
-  return (
-    timeline.find(
-      (grandPrix) => grandPrix.status !== "finished" && grandPrix.status !== "cancelled",
-    ) ?? null
-  );
-}
-
-function getLatestNonCancelledGrandPrixFromTimeline(
+export function getGameplayGrandPrix(
   timeline: GrandPrixTimelineItem[],
 ): GrandPrixTimelineItem | null {
   return (
     [...timeline]
-      .filter((grandPrix) => grandPrix.status !== "cancelled")
-      .sort((left, right) => right.qualification_start.localeCompare(left.qualification_start))[0] ?? null
+      .sort((left, right) =>
+        left.qualification_start.localeCompare(right.qualification_start),
+      )
+      .find(
+        (grandPrix) =>
+          grandPrix.status !== "finished" && grandPrix.status !== "cancelled",
+      ) ?? null
   );
 }
 
-export type ActiveGrandPrixDisplayState = "inschrijving_geopend" | "vergrendeld" | "raceweekend_bezig";
+export type ActiveGrandPrixDisplayState =
+  | "inschrijving_geopend"
+  | "vergrendeld"
+  | "raceweekend_bezig";
 
-export function getLatestFinishedGrandPrixFromTimeline(timeline: GrandPrixTimelineItem[]): GrandPrixTimelineItem | null {
+export function getLatestFinishedGrandPrix(
+  timeline: GrandPrixTimelineItem[],
+): GrandPrixTimelineItem | null {
   return (
     [...timeline]
       .filter((grandPrix) => grandPrix.status === "finished")
-      .sort((left, right) => right.qualification_start.localeCompare(left.qualification_start))[0] ?? null
+      .sort((left, right) =>
+        right.qualification_start.localeCompare(left.qualification_start),
+      )[0] ?? null
   );
 }
 
-export type HomeGrandPrixDisplay = {
+export type ScoreGrandPrixDisplay = {
   grandPrix: GrandPrixTimelineItem;
-  source: "active" | "latest_finished";
+  source: "gameplay" | "latest_finished";
 };
 
-export function getHomeGrandPrixDisplayFromTimeline(
+export function getScoreGrandPrix(
   timeline: GrandPrixTimelineItem[],
-): HomeGrandPrixDisplay | null {
-  const activeGrandPrix = getActiveGrandPrixFromTimeline(timeline);
+  nowIso: string = new Date().toISOString(),
+): ScoreGrandPrixDisplay | null {
+  const gameplayGrandPrix = getGameplayGrandPrix(timeline);
 
-  if (activeGrandPrix) {
+  if (gameplayGrandPrix && gameplayGrandPrix.deadline <= nowIso) {
     return {
-      grandPrix: activeGrandPrix,
-      source: "active",
+      grandPrix: gameplayGrandPrix,
+      source: "gameplay",
     };
   }
 
-  const latestFinishedGrandPrix = getLatestFinishedGrandPrixFromTimeline(timeline);
+  const latestFinishedGrandPrix = getLatestFinishedGrandPrix(timeline);
 
-  return latestFinishedGrandPrix
+  if (latestFinishedGrandPrix) {
+    return {
+      grandPrix: latestFinishedGrandPrix,
+      source: "latest_finished",
+    };
+  }
+
+  return gameplayGrandPrix
     ? {
-        grandPrix: latestFinishedGrandPrix,
-        source: "latest_finished",
+        grandPrix: gameplayGrandPrix,
+        source: "gameplay",
       }
     : null;
 }
@@ -287,21 +297,6 @@ export function getActiveGrandPrixDisplayLabel(state: ActiveGrandPrixDisplayStat
       return "Vergrendeld";
   }
 }
-export async function getCurrentSelectableGrandPrix(
-  supabase: ReturnType<typeof createServerSupabaseClient>,
-): Promise<GrandPrixTimelineItem> {
-  const timeline = await getGrandPrixTimeline(supabase);
-  const selectableGrandPrix =
-    getActiveGrandPrixFromTimeline(timeline) ??
-    getLatestNonCancelledGrandPrixFromTimeline(timeline);
-
-  if (!selectableGrandPrix) {
-    throw new Error("Geen Grand Prix beschikbaar");
-  }
-
-  return selectableGrandPrix;
-}
-
 export async function getGrandPrixAndDriversById(
   supabase: ReturnType<typeof createServerSupabaseClient>,
   grandPrixId: string,

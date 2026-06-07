@@ -1,14 +1,11 @@
 import Link from "next/link";
-import { formatUtcIsoInAmsterdamShort } from "@/lib/datetime";
 import { createServerSupabaseClient } from "@/lib/supabase";
 
 import {
   getActiveGrandPrixDisplayLabel,
   getActiveGrandPrixDisplayState,
-  getCurrentSelectableGrandPrix,
   getGrandPrixTimeline,
-  getNextGrandPrixFromTimeline,
-  getLatestFinishedGrandPrixFromTimeline,
+  getScoreGrandPrix,
 } from "@/lib/team-selection-data";
 import { getAccessibleLeague } from "./league-access";
 import { DeleteLeagueAction } from "./delete-league-action";
@@ -104,38 +101,57 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
       spelerNaam: member.profiles?.display_name ?? "Speler",
       totaalPunten: totalPointsByUserId.get(member.user_id) ?? 0,
     }))
-    .sort((left, right) => right.totaalPunten - left.totaalPunten || left.spelerNaam.localeCompare(right.spelerNaam));
+    .sort(
+      (left, right) =>
+        right.totaalPunten - left.totaalPunten ||
+        left.spelerNaam.localeCompare(right.spelerNaam),
+    );
 
   const timeline = await getGrandPrixTimeline(supabase).catch(() => []);
-  const latestGrandPrix = getLatestFinishedGrandPrixFromTimeline(timeline);
+  const scoreGrandPrixDisplay = getScoreGrandPrix(timeline, nowIso);
+  const scoreGrandPrix = scoreGrandPrixDisplay?.grandPrix ?? null;
 
-  const latestGrandPrixPointsByUserId = new Map<string, number>();
+  const scoreGrandPrixPointsByUserId = new Map<string, number>();
 
-  if (latestGrandPrix) {
+  if (scoreGrandPrix) {
     filteredScoreRows
-      .filter((scoreRow) => scoreRow.grand_prix_id === latestGrandPrix.id)
+      .filter((scoreRow) => scoreRow.grand_prix_id === scoreGrandPrix.id)
       .forEach((scoreRow) => {
-        latestGrandPrixPointsByUserId.set(scoreRow.user_id, scoreRow.total_points ?? 0);
+        scoreGrandPrixPointsByUserId.set(
+          scoreRow.user_id,
+          scoreRow.total_points ?? 0,
+        );
       });
   }
 
-  const latestGrandPrixStandings = latestGrandPrix
+  const scoreGrandPrixStandings = scoreGrandPrix
     ? (members ?? [])
         .map((member) => ({
           userId: member.user_id,
           spelerNaam: member.profiles?.display_name ?? "Speler",
-          punten: latestGrandPrixPointsByUserId.get(member.user_id) ?? 0,
+          punten: scoreGrandPrixPointsByUserId.get(member.user_id) ?? 0,
         }))
-        .sort((left, right) => right.punten - left.punten || left.spelerNaam.localeCompare(right.spelerNaam))
+        .sort(
+          (left, right) =>
+            right.punten - left.punten ||
+            left.spelerNaam.localeCompare(right.spelerNaam),
+        )
     : [];
-  const currentOrUpcomingGrandPrix = await getCurrentSelectableGrandPrix(supabase).catch(() => null);
-  const nextGrandPrix = currentOrUpcomingGrandPrix
-    ? getNextGrandPrixFromTimeline(timeline, currentOrUpcomingGrandPrix.id)
-    : null;
-  const currentGrandPrixState = currentOrUpcomingGrandPrix
-    ? getActiveGrandPrixDisplayState(currentOrUpcomingGrandPrix, nowIso)
-    : null;
-  const currentGrandPrixLabel = currentGrandPrixState ? getActiveGrandPrixDisplayLabel(currentGrandPrixState) : null;
+  const scoreGrandPrixHeading =
+    scoreGrandPrixDisplay?.source === "gameplay"
+      ? "Huidige Grand Prix"
+      : "Laatste Grand Prix";
+  const scoreGrandPrixState =
+    scoreGrandPrix && scoreGrandPrixDisplay?.source === "gameplay"
+      ? getActiveGrandPrixDisplayState(scoreGrandPrix, nowIso)
+      : null;
+  const scoreGrandPrixStatusLabel = scoreGrandPrixState
+    ? getActiveGrandPrixDisplayLabel(scoreGrandPrixState)
+    : "Afgelopen";
+  const canOpenScoreGrandPrixDetails = Boolean(
+    scoreGrandPrix &&
+      (scoreGrandPrix.status === "finished" || scoreGrandPrix.deadline <= nowIso),
+  );
 
   return (
     <main className="leagues-page">
@@ -157,11 +173,11 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
         ) : (
           <LeagueResultsPanel
             leagueId={league.id}
-            latestCompletedGrandPrix={
-              latestGrandPrix
+            scoreGrandPrix={
+              scoreGrandPrix
                 ? {
-                    id: latestGrandPrix.id,
-                    name: latestGrandPrix.name,
+                    id: scoreGrandPrix.id,
+                    name: scoreGrandPrix.name,
                   }
                 : null
             }
@@ -169,21 +185,20 @@ export default async function LeaguePage({ params }: LeaguePageProps) {
               userId: member.user_id,
               displayName: member.profiles?.display_name ?? "Speler",
             }))}
-            latestGrandPrixStandings={latestGrandPrixStandings}
+            scoreGrandPrixStandings={scoreGrandPrixStandings}
             standings={standings}
+            canOpenPlayerDetails={canOpenScoreGrandPrixDetails}
           />
         )}
 
         <section className="league-section">
-          <h2>Huidige Grand Prix</h2>
-          {currentOrUpcomingGrandPrix ? (
+          <h2>{scoreGrandPrixHeading}</h2>
+          {scoreGrandPrix ? (
             <div className="gp-highlight">
-              <p className="gp-highlight-title">{currentOrUpcomingGrandPrix.name}</p>
+              <p className="gp-highlight-title">{scoreGrandPrix.name}</p>
               <p>
-                Status: <strong>{currentGrandPrixLabel}</strong>
+                Status: <strong>{scoreGrandPrixStatusLabel}</strong>
               </p>
-              <p>Deadline: {formatUtcIsoInAmsterdamShort(currentOrUpcomingGrandPrix.deadline)}</p>
-              {nextGrandPrix ? <p>Volgende Grand Prix: {nextGrandPrix.name}</p> : null}
             </div>
           ) : (
             <div className="league-list-empty">
