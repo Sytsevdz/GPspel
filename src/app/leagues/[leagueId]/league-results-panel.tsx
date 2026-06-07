@@ -7,7 +7,7 @@ type LeagueMember = {
   displayName: string;
 };
 
-type LatestGrandPrixStandingEntry = {
+type ScoreGrandPrixStandingEntry = {
   userId: string;
   spelerNaam: string;
   punten: number;
@@ -21,23 +21,25 @@ type LeagueStandingEntry = {
 
 type LeagueResultsPanelProps = {
   leagueId: string;
-  latestCompletedGrandPrix: {
+  scoreGrandPrix: {
     id: string;
     name: string;
   } | null;
   members: LeagueMember[];
-  latestGrandPrixStandings: LatestGrandPrixStandingEntry[];
+  scoreGrandPrixStandings: ScoreGrandPrixStandingEntry[];
   standings: LeagueStandingEntry[];
+  canOpenPlayerDetails: boolean;
 };
 
 export function LeagueResultsPanel({
   leagueId,
-  latestCompletedGrandPrix,
+  scoreGrandPrix,
   members,
-  latestGrandPrixStandings,
+  scoreGrandPrixStandings,
   standings,
+  canOpenPlayerDetails,
 }: LeagueResultsPanelProps) {
-  const displayedGrandPrix = latestCompletedGrandPrix;
+  const displayedGrandPrix = scoreGrandPrix;
 
   const openPlayerDetails = (
     userId: string,
@@ -65,8 +67,8 @@ export function LeagueResultsPanel({
     <PlayerGrandPrixDetail
       leagueId={leagueId}
       grandPrixId={displayedGrandPrix?.id ?? ""}
-      grandPrixName={displayedGrandPrix?.name ?? "Laatste Grand Prix"}
-      deadlinePassed={Boolean(displayedGrandPrix?.id)}
+      grandPrixName={displayedGrandPrix?.name ?? "Grand Prix resultaten"}
+      deadlinePassed={Boolean(displayedGrandPrix?.id) && canOpenPlayerDetails}
       members={members}
       sectionTitle="League resultaten"
       helperText="Klik op een speler in de tabellen om teamselectie en voorspellingen te bekijken."
@@ -74,7 +76,7 @@ export function LeagueResultsPanel({
         <>
           <section className="league-section league-results-section-card">
             <div className="league-results-section-header">
-              <h3>Laatste Grand Prix</h3>
+              <h3>Grand Prix resultaten</h3>
               {displayedGrandPrix ? (
                 <p className="league-results-section-subtitle">{displayedGrandPrix.name}</p>
               ) : null}
@@ -82,7 +84,7 @@ export function LeagueResultsPanel({
             {displayedGrandPrix ? (
               <>
                 <div className="standings-table-wrapper">
-                  <table className="standings-table" aria-label="Laatste Grand Prix">
+                  <table className="standings-table" aria-label="Grand Prix resultaten">
                     <thead>
                       <tr>
                         <th scope="col" className="standings-position-column">
@@ -95,7 +97,7 @@ export function LeagueResultsPanel({
                       </tr>
                     </thead>
                     <tbody>
-                      {latestGrandPrixStandings.map((entry, index) => {
+                      {scoreGrandPrixStandings.map((entry, index) => {
                         const position = index + 1;
                         const topRankClass =
                           position === 1
@@ -107,7 +109,7 @@ export function LeagueResultsPanel({
                                 : "";
                         return (
                           <tr
-                            key={`latest-${entry.userId}`}
+                            key={`score-${entry.userId}`}
                             className={`standings-row-clickable${topRankClass}`}
                             onClick={() =>
                               openPlayerDetails(entry.userId, leagueMembers, openMemberDetails, deadlinePassed)

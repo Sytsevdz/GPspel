@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
-import { getCurrentSelectableGrandPrix } from "@/lib/team-selection-data";
+import {
+  getGameplayGrandPrix,
+  getGrandPrixTimeline,
+} from "@/lib/team-selection-data";
 
 import { getAccessibleLeague } from "../league-access";
 
@@ -19,7 +22,12 @@ export default async function GPSpelRedirectPage({ params }: GPSpelRedirectPageP
   }
 
   const supabase = createServerSupabaseClient();
-  const selectableGrandPrix = await getCurrentSelectableGrandPrix(supabase);
+  const timeline = await getGrandPrixTimeline(supabase);
+  const gameplayGrandPrix = getGameplayGrandPrix(timeline);
 
-  redirect(`/leagues/${params.leagueId}/gp-spel/${selectableGrandPrix.id}`);
+  if (!gameplayGrandPrix) {
+    redirect(`/leagues/${params.leagueId}`);
+  }
+
+  redirect(`/leagues/${params.leagueId}/gp-spel/${gameplayGrandPrix.id}`);
 }
