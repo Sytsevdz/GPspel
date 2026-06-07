@@ -9,7 +9,7 @@ import {
   getActiveGrandPrixDisplayState,
   getCurrentSelectableGrandPrix,
   getGrandPrixTimeline,
-  getLatestFinishedGrandPrixFromTimeline,
+  getHomeGrandPrixDisplayFromTimeline,
   getNextGrandPrixFromTimeline,
 } from "@/lib/team-selection-data";
 import { isSessionPublished } from "@/lib/session-publication";
@@ -158,55 +158,57 @@ export default async function HomePage() {
   const activeGrandPrixIds = new Set(
     (activeGrandPrixRows ?? []).map((grandPrix) => grandPrix.id),
   );
-  const latestGrandPrix = getLatestFinishedGrandPrixFromTimeline(timeline);
-  const isLatestGrandPrixFinished = latestGrandPrix
-    ? latestGrandPrix.status === "finished"
-    : false;
-  const latestGrandPrixStatusLabel = isLatestGrandPrixFinished
-    ? "Afgelopen"
-    : "Bezig";
-  const userLatestScore = latestGrandPrix
+  const homeGrandPrixDisplay = getHomeGrandPrixDisplayFromTimeline(timeline);
+  const displayedGrandPrix = homeGrandPrixDisplay?.grandPrix ?? null;
+  const isDisplayedGrandPrixActive = homeGrandPrixDisplay?.source === "active";
+  const displayedGrandPrixHeading = isDisplayedGrandPrixActive
+    ? "Huidige Grand Prix"
+    : "Laatste Grand Prix";
+  const displayedGrandPrixStatusLabel = isDisplayedGrandPrixActive
+    ? "Raceweekend bezig"
+    : "Afgelopen";
+  const userDisplayedScore = displayedGrandPrix
     ? (
         await supabase
           .from("grand_prix_scores")
           .select(
             "team_points, prediction_points, total_points, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points, sprint_quali_prediction_points, sprint_race_prediction_points, quali_prediction_points, race_prediction_points, fastest_pitstop_prediction_points",
           )
-          .eq("grand_prix_id", latestGrandPrix.id)
+          .eq("grand_prix_id", displayedGrandPrix.id)
           .eq("user_id", user.id)
           .maybeSingle<UserGrandPrixScoreRow>()
       ).data
     : null;
 
-  const userLatestPrediction = latestGrandPrix
+  const userDisplayedPrediction = displayedGrandPrix
     ? (
         await supabase
           .from("predictions")
           .select("fastest_pitstop_team")
-          .eq("grand_prix_id", latestGrandPrix.id)
+          .eq("grand_prix_id", displayedGrandPrix.id)
           .eq("user_id", user.id)
           .maybeSingle<LatestPredictionRow>()
       ).data
     : null;
 
-  const latestBonusResult = latestGrandPrix
+  const displayedBonusResult = displayedGrandPrix
     ? (
         await supabase
           .from("grand_prix_bonus_results")
           .select("fastest_pitstop_team")
-          .eq("grand_prix_id", latestGrandPrix.id)
+          .eq("grand_prix_id", displayedGrandPrix.id)
           .maybeSingle<LatestBonusResultRow>()
       ).data
     : null;
 
-  const userLatestScoreDetails = latestGrandPrix
+  const userDisplayedScoreDetails = displayedGrandPrix
     ? ((
         await supabase
           .from("grand_prix_score_details")
           .select(
             "driver_id, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points, total_points, drivers(name, constructor_team)",
           )
-          .eq("grand_prix_id", latestGrandPrix.id)
+          .eq("grand_prix_id", displayedGrandPrix.id)
           .eq("user_id", user.id)
           .order("total_points", { ascending: false })
           .returns<GrandPrixScoreDetailRow[]>()
@@ -214,43 +216,53 @@ export default async function HomePage() {
     : [];
 
   const totalPointsByUserId = new Map<string, number>();
-  const isSprintWeekend = latestGrandPrix?.is_sprint_weekend ?? false;
+  const isSprintWeekend = displayedGrandPrix?.is_sprint_weekend ?? false;
   const hasPublishedSprintQualiTeamPoints = isSessionPublished(
-    userLatestScore,
+    userDisplayedScore,
     "team_sprint_quali_points",
   );
   const hasPublishedSprintRaceTeamPoints = isSessionPublished(
-    userLatestScore,
+    userDisplayedScore,
     "team_sprint_race_points",
   );
   const hasPublishedQualiTeamPoints = isSessionPublished(
-    userLatestScore,
+    userDisplayedScore,
     "team_quali_points",
   );
   const hasPublishedRaceTeamPoints = isSessionPublished(
-    userLatestScore,
+    userDisplayedScore,
     "team_race_points",
   );
   const hasPublishedSprintQualiPredictionPoints = isSessionPublished(
-    userLatestScore,
+    userDisplayedScore,
     "sprint_quali_prediction_points",
   );
   const hasPublishedSprintRacePredictionPoints = isSessionPublished(
-    userLatestScore,
+    userDisplayedScore,
     "sprint_race_prediction_points",
   );
   const hasPublishedQualiPredictionPoints = isSessionPublished(
-    userLatestScore,
+    userDisplayedScore,
     "quali_prediction_points",
   );
   const hasPublishedRacePredictionPoints = isSessionPublished(
-    userLatestScore,
+    userDisplayedScore,
     "race_prediction_points",
   );
   const hasPublishedFastestPitstopPoints = isSessionPublished(
-    userLatestScore,
+    userDisplayedScore,
     "fastest_pitstop_prediction_points",
   );
+  const hasAnyPublishedDisplayedScore =
+    hasPublishedSprintQualiTeamPoints ||
+    hasPublishedSprintRaceTeamPoints ||
+    hasPublishedQualiTeamPoints ||
+    hasPublishedRaceTeamPoints ||
+    hasPublishedSprintQualiPredictionPoints ||
+    hasPublishedSprintRacePredictionPoints ||
+    hasPublishedQualiPredictionPoints ||
+    hasPublishedRacePredictionPoints ||
+    hasPublishedFastestPitstopPoints;
 
   (allScoreRows ?? [])
     .filter((scoreRow) => activeGrandPrixIds.has(scoreRow.grand_prix_id))
@@ -294,35 +306,36 @@ export default async function HomePage() {
       <section className="dashboard-grid" aria-label="Dashboard-overzicht">
         <article className="dashboard-card dashboard-home-card dashboard-home-card--latest">
           <div className="dashboard-card-heading">
-            <h2>Laatste Grand Prix</h2>
-            {latestGrandPrix ? (
+            <h2>{displayedGrandPrixHeading}</h2>
+            {displayedGrandPrix ? (
               <span
                 className={`dashboard-gp-status-badge ${
-                  isLatestGrandPrixFinished
-                    ? "dashboard-gp-status-badge--finished"
-                    : "dashboard-gp-status-badge--ongoing"
+                  isDisplayedGrandPrixActive
+                    ? "dashboard-gp-status-badge--ongoing"
+                    : "dashboard-gp-status-badge--finished"
                 }`}
               >
-                {latestGrandPrixStatusLabel}
+                {displayedGrandPrixStatusLabel}
               </span>
             ) : null}
           </div>
-          {!latestGrandPrix ? (
+          {!displayedGrandPrix ? (
             <p className="league-list-empty">
-              Er is nog geen afgeronde Grand Prix beschikbaar.
+              Er is nog geen Grand Prix beschikbaar.
             </p>
           ) : (
             <div className="dashboard-latest-result-card">
               <p className="dashboard-result-kicker">Jouw resultaat</p>
-              <p className="dashboard-data-title">{latestGrandPrix.name}</p>
-              {userLatestScore ? (
+              <p className="dashboard-data-title">{displayedGrandPrix.name}</p>
+              {userDisplayedScore &&
+              (!isDisplayedGrandPrixActive || hasAnyPublishedDisplayedScore) ? (
                 <>
-                  {userLatestScoreDetails.length > 0 ? (
+                  {userDisplayedScoreDetails.length > 0 ? (
                     <ul
                       className="dashboard-result-driver-grid"
                       aria-label="Teampunten per coureur"
                     >
-                      {userLatestScoreDetails.map((detail) => {
+                      {userDisplayedScoreDetails.map((detail) => {
                         const driverName =
                           detail.drivers?.name ?? "Onbekende coureur";
                         const constructorTeam =
@@ -388,14 +401,15 @@ export default async function HomePage() {
                   <dl className="dashboard-result-summary">
                     <div className="dashboard-result-stat">
                       <dt>Team punten</dt>
-                      <dd>{userLatestScore.team_points ?? 0}</dd>
+                      <dd>{userDisplayedScore.team_points ?? 0}</dd>
                     </div>
                     {isSprintWeekend &&
                     hasPublishedSprintQualiPredictionPoints ? (
                       <div className="dashboard-result-stat">
                         <dt>Voorspelling sprint kwali</dt>
                         <dd>
-                          {userLatestScore.sprint_quali_prediction_points ?? 0}
+                          {userDisplayedScore.sprint_quali_prediction_points ??
+                            0}
                         </dd>
                       </div>
                     ) : null}
@@ -404,29 +418,34 @@ export default async function HomePage() {
                       <div className="dashboard-result-stat">
                         <dt>Voorspelling sprint race</dt>
                         <dd>
-                          {userLatestScore.sprint_race_prediction_points ?? 0}
+                          {userDisplayedScore.sprint_race_prediction_points ??
+                            0}
                         </dd>
                       </div>
                     ) : null}
                     {hasPublishedQualiPredictionPoints ? (
                       <div className="dashboard-result-stat">
                         <dt>Voorspelling kwalificatie</dt>
-                        <dd>{userLatestScore.quali_prediction_points ?? 0}</dd>
+                        <dd>
+                          {userDisplayedScore.quali_prediction_points ?? 0}
+                        </dd>
                       </div>
                     ) : null}
                     {hasPublishedRacePredictionPoints ? (
                       <div className="dashboard-result-stat">
                         <dt>Voorspelling race</dt>
-                        <dd>{userLatestScore.race_prediction_points ?? 0}</dd>
+                        <dd>{userDisplayedScore.race_prediction_points ?? 0}</dd>
                       </div>
                     ) : null}
 
                     {hasPublishedFastestPitstopPoints ? (
                       <FastestPitstopBonusCard
-                        selectedTeam={userLatestPrediction?.fastest_pitstop_team}
-                        actualTeam={latestBonusResult?.fastest_pitstop_team}
+                        selectedTeam={
+                          userDisplayedPrediction?.fastest_pitstop_team
+                        }
+                        actualTeam={displayedBonusResult?.fastest_pitstop_team}
                         points={
-                          userLatestScore.fastest_pitstop_prediction_points ?? 0
+                          userDisplayedScore.fastest_pitstop_prediction_points ?? 0
                         }
                         showActual
                         showPoints
@@ -435,17 +454,19 @@ export default async function HomePage() {
                     ) : null}
                     <div className="dashboard-result-stat">
                       <dt>Voorspelling punten</dt>
-                      <dd>{userLatestScore.prediction_points ?? 0}</dd>
+                      <dd>{userDisplayedScore.prediction_points ?? 0}</dd>
                     </div>
                     <div className="dashboard-result-stat dashboard-result-total-stat">
                       <dt>Totaal</dt>
-                      <dd>{userLatestScore.total_points ?? 0}</dd>
+                      <dd>{userDisplayedScore.total_points ?? 0}</dd>
                     </div>
                   </dl>
                 </>
               ) : (
                 <p className="league-list-empty">
-                  Je hebt voor deze Grand Prix nog geen score.
+                  {isDisplayedGrandPrixActive
+                    ? "Nog geen punten gepubliceerd"
+                    : "Je hebt voor deze Grand Prix nog geen score."}
                 </p>
               )}
             </div>
@@ -456,11 +477,11 @@ export default async function HomePage() {
           <h2>Algemeen klassement</h2>
           <GlobalStandingsPanel
             grandPrix={
-              latestGrandPrix
-                ? { id: latestGrandPrix.id, name: latestGrandPrix.name }
+              displayedGrandPrix
+                ? { id: displayedGrandPrix.id, name: displayedGrandPrix.name }
                 : null
             }
-            deadlinePassed={Boolean(latestGrandPrix?.id)}
+            deadlinePassed={Boolean(displayedGrandPrix?.id)}
             standings={globalStandings}
           />
         </article>
