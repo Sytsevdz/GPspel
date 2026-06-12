@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 
 import {
@@ -60,6 +60,12 @@ type PredictionsFormProps = {
   publishedSlotPoints?: PublishedSlotPoints;
   readOnly?: boolean;
   actualFastestPitstopTeam?: string | null;
+  standalone?: boolean;
+  savedVersion?: number;
+  teamHasUnsavedChanges?: boolean;
+  onDirtyChange?: (isDirty: boolean) => void;
+  onValidityChange?: (isValid: boolean) => void;
+  onInteracted?: () => void;
 };
 
 type PodiumSlotConfig = {
@@ -253,14 +259,44 @@ export function PredictionsForm({
   readOnly = false,
   isSprintWeekend = false,
   actualFastestPitstopTeam = null,
+  standalone = true,
+  savedVersion = 0,
+  teamHasUnsavedChanges = false,
+  onDirtyChange,
+  onValidityChange,
+  onInteracted,
 }: PredictionsFormProps) {
   const [state, formAction] = useFormState(savePrediction, INITIAL_STATE);
   const [values, setValues] = useState<PredictionValues>(initialValues);
+  const [savedValues, setSavedValues] =
+    useState<PredictionValues>(initialValues);
   const [activeField, setActiveField] = useState<PodiumPredictionField | null>(
     null,
   );
   const [isFastestPitstopPickerOpen, setIsFastestPitstopPickerOpen] =
     useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const lastSavedVersionRef = useRef(savedVersion);
+
+  const isDirty = useMemo(
+    () =>
+      (Object.keys(values) as Array<keyof PredictionValues>).some(
+        (field) => values[field] !== savedValues[field],
+      ),
+    [savedValues, values],
+  );
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
+  useEffect(() => {
+    if (savedVersion > lastSavedVersionRef.current) {
+      lastSavedVersionRef.current = savedVersion;
+      setSavedValues(values);
+      setHasInteracted(false);
+    }
+  }, [savedVersion, values]);
 
   const driversById = useMemo(
     () => new Map(drivers.map((driver) => [driver.id, driver])),
@@ -380,6 +416,10 @@ export function PredictionsForm({
   const canSave =
     hasAllSelections && validationErrors.length === 0 && !readOnly;
 
+  useEffect(() => {
+    onValidityChange?.(canSave);
+  }, [canSave, onValidityChange]);
+
   const activeSelection = useMemo(() => {
     if (!activeField) {
       return null;
@@ -411,13 +451,22 @@ export function PredictionsForm({
       return;
     }
 
+    setHasInteracted(true);
+    onInteracted?.();
     setValues((current) => ({ ...current, [field]: value }));
   };
 
-  return (
-    <form action={formAction} className="predictions-form">
+  const formContent = (
+    <>
       <input type="hidden" name="league_id" value={leagueId} />
       <input type="hidden" name="grand_prix_id" value={grandPrixId} />
+
+      {teamHasUnsavedChanges && hasInteracted ? (
+        <p className="form-message error" role="alert">
+          Je team is nog niet opgeslagen. Sla alles op om je deelname compleet
+          te maken.
+        </p>
+      ) : null}
 
       {PODIUM_SECTIONS.filter(
         (section) =>
@@ -681,6 +730,8 @@ export function PredictionsForm({
                     type="button"
                     className={`podium-driver-option fastest-pitstop-team-option ${isSelected ? "selected" : ""}`}
                     onClick={() => {
+                      setHasInteracted(true);
+                      onInteracted?.();
                       setValues((current) => ({
                         ...current,
                         fastestPitstopTeam: teamName,
@@ -699,7 +750,9 @@ export function PredictionsForm({
                     </div>
                     <div className="podium-driver-option-copy">
                       <strong>{team.name}</strong>
-                      <span>{isSelected ? "Geselecteerd" : "Kies dit team"}</span>
+                      <span>
+                        {isSelected ? "Geselecteerd" : "Kies dit team"}
+                      </span>
                     </div>
                   </button>
                 );
@@ -719,7 +772,7 @@ export function PredictionsForm({
         </div>
       )}
 
-      {state.status !== "idle" && state.message && (
+      {standalone && state.status !== "idle" && state.message && (
         <p
           className={`form-message ${state.status === "success" ? "success" : "error"}`}
         >
@@ -737,9 +790,19 @@ export function PredictionsForm({
         <p className="league-list-empty">
           Deze Grand Prix is gesloten. Je voorspelling is alleen-lezen.
         </p>
-      ) : (
+      ) : standalone ? (
         <SaveButton disabled={!canSave} />
-      )}
+      ) : null}
+    </>
+  );
+
+  if (!standalone) {
+    return <div className="predictions-form">{formContent}</div>;
+  }
+
+  return (
+    <form action={formAction} className="predictions-form">
+      {formContent}
     </form>
   );
 }

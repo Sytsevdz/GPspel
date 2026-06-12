@@ -15,8 +15,7 @@ import {
 
 import { getAccessibleLeague } from "../../league-access";
 import { GrandPrixSelector } from "../../grand-prix-selector";
-import { PredictionsForm } from "../../predictions/predictions-form";
-import { TeamSelectionCompactForm } from "../team-selection-compact-form";
+import { GPSpelParticipationForm } from "../gp-spel-participation-form";
 
 type GPSpelGrandPrixPageProps = {
   params: {
@@ -367,86 +366,59 @@ export default async function GPSpelGrandPrixPage({
               </p>
             </section>
           ) : (
-            <>
-              <section
-                className="gp-spel-section"
-                aria-labelledby="team-kiezen-title"
-              >
-                <div className="gp-spel-section-header">
-                  <h2 id="team-kiezen-title">Team kiezen</h2>
-                  {userScore ? (
-                    <p className="gp-spel-section-points">
-                      Team punten: {userScore.team_points ?? 0}
-                    </p>
-                  ) : null}
-                </div>
-                <TeamSelectionCompactForm
-                  leagueId={league.id}
-                  grandPrixId={gpData.grandPrix.id}
-                  drivers={gpData.drivers}
-                  initialSelectedDriverIds={initialSelectedDriverIds}
-                  publishedDriverScores={publishedDriverScores}
-                  hasPublishedSprintQualiPoints={
-                    hasPublishedSprintQualiTeamPoints
-                  }
-                  hasPublishedSprintRacePoints={
-                    hasPublishedSprintRaceTeamPoints
-                  }
-                  isSprintWeekend={gpData.grandPrix.is_sprint_weekend}
-                  hasPublishedQualiPoints={hasPublishedQualiTeamPoints}
-                  hasPublishedRacePoints={hasPublishedRaceTeamPoints}
-                  savingDisabled={false}
-                  readOnly={isReadOnly}
-                  showFallbackNotice={gpData.usesFallbackPrices}
-                />
-              </section>
-
-              <section
-                className="gp-spel-section"
-                aria-labelledby="voorspellingen-title"
-              >
-                <div className="gp-spel-section-header">
-                  <h2 id="voorspellingen-title">Voorspellingen</h2>
-                  {userScore ? (
-                    <p className="gp-spel-section-points">
-                      Voorspelling punten: {userScore.prediction_points ?? 0}
-                    </p>
-                  ) : null}
-                </div>
-                <PredictionsForm
-                  leagueId={league.id}
-                  grandPrixId={gpData.grandPrix.id}
-                  drivers={gpData.drivers}
-                  constructorTeams={constructorTeams}
-                  initialValues={initialPredictionValues}
-                  publishedPoints={{
-                    sprintQuali: hasPublishedPredictionSprintQualiPoints
-                      ? (userScore?.sprint_quali_prediction_points ?? 0)
-                      : null,
-                    sprintRace: hasPublishedPredictionSprintRacePoints
-                      ? (userScore?.sprint_race_prediction_points ?? 0)
-                      : null,
-                    quali: hasPublishedPredictionQualiPoints
-                      ? (userScore?.quali_prediction_points ?? 0)
-                      : null,
-                    race: hasPublishedPredictionRacePoints
-                      ? (userScore?.race_prediction_points ?? 0)
-                      : null,
-                    fastestPitstop: hasPublishedFastestPitstopPoints
-                      ? (userScore?.fastest_pitstop_prediction_points ?? 0)
-                      : null,
-                  }}
-                  isSprintWeekend={gpData.grandPrix.is_sprint_weekend}
-                  actualFastestPitstopTeam={
-                    hasPublishedFastestPitstopPoints
-                      ? (bonusResult?.fastest_pitstop_team ?? null)
-                      : null
-                  }
-                  publishedSlotPoints={slotPredictionPointsByField}
-                  readOnly={isReadOnly}
-                />
-              </section>
-            </>
+            <GPSpelParticipationForm
+              readOnly={isReadOnly}
+              teamPoints={userScore ? (userScore.team_points ?? 0) : null}
+              predictionPoints={
+                userScore ? (userScore.prediction_points ?? 0) : null
+              }
+              teamFormProps={{
+                leagueId: league.id,
+                grandPrixId: gpData.grandPrix.id,
+                drivers: gpData.drivers,
+                initialSelectedDriverIds,
+                publishedDriverScores,
+                hasPublishedSprintQualiPoints:
+                  hasPublishedSprintQualiTeamPoints,
+                hasPublishedSprintRacePoints: hasPublishedSprintRaceTeamPoints,
+                isSprintWeekend: gpData.grandPrix.is_sprint_weekend,
+                hasPublishedQualiPoints: hasPublishedQualiTeamPoints,
+                hasPublishedRacePoints: hasPublishedRaceTeamPoints,
+                savingDisabled: false,
+                readOnly: isReadOnly,
+                showFallbackNotice: gpData.usesFallbackPrices,
+              }}
+              predictionsFormProps={{
+                leagueId: league.id,
+                grandPrixId: gpData.grandPrix.id,
+                drivers: gpData.drivers,
+                constructorTeams,
+                initialValues: initialPredictionValues,
+                publishedPoints: {
+                  sprintQuali: hasPublishedPredictionSprintQualiPoints
+                    ? (userScore?.sprint_quali_prediction_points ?? 0)
+                    : null,
+                  sprintRace: hasPublishedPredictionSprintRacePoints
+                    ? (userScore?.sprint_race_prediction_points ?? 0)
+                    : null,
+                  quali: hasPublishedPredictionQualiPoints
+                    ? (userScore?.quali_prediction_points ?? 0)
+                    : null,
+                  race: hasPublishedPredictionRacePoints
+                    ? (userScore?.race_prediction_points ?? 0)
+                    : null,
+                  fastestPitstop: hasPublishedFastestPitstopPoints
+                    ? (userScore?.fastest_pitstop_prediction_points ?? 0)
+                    : null,
+                },
+                isSprintWeekend: gpData.grandPrix.is_sprint_weekend,
+                actualFastestPitstopTeam: hasPublishedFastestPitstopPoints
+                  ? (bonusResult?.fastest_pitstop_team ?? null)
+                  : null,
+                publishedSlotPoints: slotPredictionPointsByField,
+                readOnly: isReadOnly,
+              }}
+            />
           )}
           {!isCancelled && userScore ? (
             <section
