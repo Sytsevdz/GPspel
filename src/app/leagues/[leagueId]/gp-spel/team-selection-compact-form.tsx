@@ -1,10 +1,19 @@
 "use client";
 
 import Image from "next/image";
-import { type CSSProperties, useMemo, useState } from "react";
+import {
+  type CSSProperties,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useFormState, useFormStatus } from "react-dom";
 
-import { saveTeamSelection, type TeamSelectionActionState } from "@/app/actions/team-selection";
+import {
+  saveTeamSelection,
+  type TeamSelectionActionState,
+} from "@/app/actions/team-selection";
 import { compareDriverStandings } from "@/lib/driver-pricing";
 import { getConstructorTeamColors } from "@/lib/team-colors";
 import { getTeamSideImageSize } from "@/lib/team-side-view-images";
@@ -44,6 +53,10 @@ type TeamSelectionCompactFormProps = {
   savingDisabled?: boolean;
   readOnly?: boolean;
   showFallbackNotice?: boolean;
+  standalone?: boolean;
+  savedVersion?: number;
+  onDirtyChange?: (isDirty: boolean) => void;
+  onValidityChange?: (isValid: boolean) => void;
 };
 
 const MAX_BUDGET = 1000;
@@ -55,7 +68,11 @@ const formatPrice = (price: number) => `${(price / 10).toFixed(1)}M`;
 function SaveButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
 
-  return <button type="submit" disabled={disabled || pending}>{pending ? "Bezig met opslaan..." : "Team opslaan"}</button>;
+  return (
+    <button type="submit" disabled={disabled || pending}>
+      {pending ? "Bezig met opslaan..." : "Team opslaan"}
+    </button>
+  );
 }
 
 const slotIndexes = [0, 1, 2, 3] as const;
@@ -74,10 +91,41 @@ export function TeamSelectionCompactForm({
   savingDisabled = false,
   readOnly = false,
   showFallbackNotice = false,
+  standalone = true,
+  savedVersion = 0,
+  onDirtyChange,
+  onValidityChange,
 }: TeamSelectionCompactFormProps) {
-  const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>(initialSelectedDriverIds);
+  const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>(
+    initialSelectedDriverIds,
+  );
+  const [savedDriverIds, setSavedDriverIds] = useState<string[]>(
+    initialSelectedDriverIds,
+  );
   const [state, formAction] = useFormState(saveTeamSelection, INITIAL_STATE);
   const [activeSlotIndex, setActiveSlotIndex] = useState<number | null>(null);
+  const lastSavedVersionRef = useRef(savedVersion);
+
+  const isDirty = useMemo(() => {
+    const current = [...selectedDriverIds].sort();
+    const saved = [...savedDriverIds].sort();
+
+    return (
+      current.length !== saved.length ||
+      current.some((driverId, index) => driverId !== saved[index])
+    );
+  }, [savedDriverIds, selectedDriverIds]);
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
+  useEffect(() => {
+    if (savedVersion > lastSavedVersionRef.current) {
+      lastSavedVersionRef.current = savedVersion;
+      setSavedDriverIds(selectedDriverIds);
+    }
+  }, [savedVersion, selectedDriverIds]);
 
   const selectedDrivers = useMemo(
     () => drivers.filter((driver) => selectedDriverIds.includes(driver.id)),
@@ -109,7 +157,10 @@ export function TeamSelectionCompactForm({
     [selectedDrivers],
   );
 
-  const driversById = useMemo(() => new Map(drivers.map((driver) => [driver.id, driver])), [drivers]);
+  const driversById = useMemo(
+    () => new Map(drivers.map((driver) => [driver.id, driver])),
+    [drivers],
+  );
 
   const driversByTeam = useMemo(() => {
     const grouped = new Map<string, DriverWithPrice[]>();
@@ -134,7 +185,10 @@ export function TeamSelectionCompactForm({
 
             return left.name.localeCompare(right.name, "nl-NL");
           }),
-          teamScore: teamDrivers.reduce((total, driver) => total + (driver.seasonScore ?? 0), 0),
+          teamScore: teamDrivers.reduce(
+            (total, driver) => total + (driver.seasonScore ?? 0),
+            0,
+          ),
         };
       })
       .sort((left, right) => {
@@ -146,11 +200,19 @@ export function TeamSelectionCompactForm({
       });
   }, [drivers]);
 
-  const sortedDrivers = useMemo(() => driversByTeam.flatMap((team) => team.drivers), [driversByTeam]);
+  const sortedDrivers = useMemo(
+    () => driversByTeam.flatMap((team) => team.drivers),
+    [driversByTeam],
+  );
 
-  const totalPrice = selectedDrivers.reduce((sum, driver) => sum + driver.price, 0);
+  const totalPrice = selectedDrivers.reduce(
+    (sum, driver) => sum + driver.price,
+    0,
+  );
   const remainingBudget = MAX_BUDGET - totalPrice;
-  const constructorCount = new Set(selectedDrivers.map((driver) => driver.constructorTeam)).size;
+  const constructorCount = new Set(
+    selectedDrivers.map((driver) => driver.constructorTeam),
+  ).size;
 
   const validationErrors: string[] = [];
 
@@ -163,15 +225,27 @@ export function TeamSelectionCompactForm({
   }
 
   if (constructorCount !== selectedDrivers.length) {
-    validationErrors.push("Je mag geen twee coureurs uit hetzelfde team kiezen");
+    validationErrors.push(
+      "Je mag geen twee coureurs uit hetzelfde team kiezen",
+    );
   }
 
   const canSave = validationErrors.length === 0 && !savingDisabled && !readOnly;
 
-  const slots = slotIndexes.map((index) => selectedDriversForDisplay[index] ?? null);
-  const activeSlotDriverId = activeSlotIndex === null ? null : slots[activeSlotIndex]?.id ?? null;
+  useEffect(() => {
+    onValidityChange?.(canSave);
+  }, [canSave, onValidityChange]);
 
-  const candidateSelection = (slotDriverId: string | null, nextDriverId: string) => {
+  const slots = slotIndexes.map(
+    (index) => selectedDriversForDisplay[index] ?? null,
+  );
+  const activeSlotDriverId =
+    activeSlotIndex === null ? null : (slots[activeSlotIndex]?.id ?? null);
+
+  const candidateSelection = (
+    slotDriverId: string | null,
+    nextDriverId: string,
+  ) => {
     const withoutNext = selectedDriverIds.filter((id) => id !== nextDriverId);
 
     if (slotDriverId) {
@@ -193,14 +267,21 @@ export function TeamSelectionCompactForm({
   };
 
   const isCandidateValid = (candidateIds: string[]) => {
-    const candidateDrivers = candidateIds.map((driverId) => driversById.get(driverId)).filter(Boolean) as DriverWithPrice[];
-    const candidateTotalPrice = candidateDrivers.reduce((sum, driver) => sum + driver.price, 0);
+    const candidateDrivers = candidateIds
+      .map((driverId) => driversById.get(driverId))
+      .filter(Boolean) as DriverWithPrice[];
+    const candidateTotalPrice = candidateDrivers.reduce(
+      (sum, driver) => sum + driver.price,
+      0,
+    );
 
     if (candidateTotalPrice > MAX_BUDGET) {
       return false;
     }
 
-    const candidateConstructorCount = new Set(candidateDrivers.map((driver) => driver.constructorTeam)).size;
+    const candidateConstructorCount = new Set(
+      candidateDrivers.map((driver) => driver.constructorTeam),
+    ).size;
     if (candidateConstructorCount !== candidateDrivers.length) {
       return false;
     }
@@ -226,7 +307,10 @@ export function TeamSelectionCompactForm({
       return;
     }
 
-    const nextSelectedDriverIds = candidateSelection(activeSlotDriverId, driverId);
+    const nextSelectedDriverIds = candidateSelection(
+      activeSlotDriverId,
+      driverId,
+    );
     setSelectedDriverIds(nextSelectedDriverIds);
     setActiveSlotIndex(null);
   };
@@ -236,51 +320,89 @@ export function TeamSelectionCompactForm({
       return;
     }
 
-    setSelectedDriverIds((current) => current.filter((driverId) => driverId !== activeSlotDriverId));
+    setSelectedDriverIds((current) =>
+      current.filter((driverId) => driverId !== activeSlotDriverId),
+    );
     setActiveSlotIndex(null);
   };
 
-  return (
-    <form action={formAction} className="team-selection-form compact-team-selection-form">
+  const formContent = (
+    <>
       <input type="hidden" name="league_id" value={leagueId} />
       <input type="hidden" name="grand_prix_id" value={grandPrixId} />
-      <input type="hidden" name="selected_driver_ids" value={selectedDriverIds.join(",")} />
+      <input
+        type="hidden"
+        name="selected_driver_ids"
+        value={selectedDriverIds.join(",")}
+      />
 
       <section className="team-selection-summary compact-team-selection-summary">
-        <h3>{selectedDrivers.length === REQUIRED_DRIVERS ? "Geselecteerde coureurs" : "Kies 4 coureurs"}</h3>
+        <h3>
+          {selectedDrivers.length === REQUIRED_DRIVERS
+            ? "Geselecteerde coureurs"
+            : "Kies 4 coureurs"}
+        </h3>
 
-        <div className="gp-team-slot-grid" role="list" aria-label="Geselecteerde coureurs">
+        <div
+          className="gp-team-slot-grid"
+          role="list"
+          aria-label="Geselecteerde coureurs"
+        >
           {slots.map((slotDriver, index) => {
-            const slotTeam = slotDriver ? resolveTeamSelectionTeam(slotDriver.constructorTeam) : null;
+            const slotTeam = slotDriver
+              ? resolveTeamSelectionTeam(slotDriver.constructorTeam)
+              : null;
             const slotImageSize = getTeamSideImageSize("slot");
-            const slotScore = slotDriver ? publishedDriverScores[slotDriver.id] : null;
+            const slotScore = slotDriver
+              ? publishedDriverScores[slotDriver.id]
+              : null;
             const hasPublishedScore = Boolean(
               slotScore &&
-                (hasPublishedSprintQualiPoints ||
-                  hasPublishedSprintRacePoints ||
-                  hasPublishedQualiPoints ||
-                  hasPublishedRacePoints),
+              (hasPublishedSprintQualiPoints ||
+                hasPublishedSprintRacePoints ||
+                hasPublishedQualiPoints ||
+                hasPublishedRacePoints),
             );
             const slotTotalPoints =
               slotScore?.totalPoints ??
-              ((slotScore?.sprintQualiPoints ?? 0) +
+              (slotScore?.sprintQualiPoints ?? 0) +
                 (slotScore?.sprintRacePoints ?? 0) +
                 (slotScore?.qualiPoints ?? 0) +
-                (slotScore?.racePoints ?? 0));
+                (slotScore?.racePoints ?? 0);
             const pointRows = [
               {
                 label: "Sprint kwali",
-                value: isSprintWeekend && hasPublishedSprintQualiPoints ? (slotScore?.sprintQualiPoints ?? null) : null,
+                value:
+                  isSprintWeekend && hasPublishedSprintQualiPoints
+                    ? (slotScore?.sprintQualiPoints ?? null)
+                    : null,
               },
               {
                 label: "Sprint race",
-                value: isSprintWeekend && hasPublishedSprintRacePoints ? (slotScore?.sprintRacePoints ?? null) : null,
+                value:
+                  isSprintWeekend && hasPublishedSprintRacePoints
+                    ? (slotScore?.sprintRacePoints ?? null)
+                    : null,
               },
-              { label: "Kwali", value: hasPublishedQualiPoints ? (slotScore?.qualiPoints ?? null) : null },
-              { label: "Race", value: hasPublishedRacePoints ? (slotScore?.racePoints ?? null) : null },
-              { label: "Totaal", value: hasPublishedScore ? slotTotalPoints : null },
+              {
+                label: "Kwali",
+                value: hasPublishedQualiPoints
+                  ? (slotScore?.qualiPoints ?? null)
+                  : null,
+              },
+              {
+                label: "Race",
+                value: hasPublishedRacePoints
+                  ? (slotScore?.racePoints ?? null)
+                  : null,
+              },
+              {
+                label: "Totaal",
+                value: hasPublishedScore ? slotTotalPoints : null,
+              },
             ].filter((row) => row.value !== null);
-            const shouldRenderPointRows = hasPublishedScore && pointRows.length > 0;
+            const shouldRenderPointRows =
+              hasPublishedScore && pointRows.length > 0;
 
             return (
               <button
@@ -303,7 +425,9 @@ export function TeamSelectionCompactForm({
                     </div>
                     <p className="gp-team-slot-copy">
                       <strong>{slotDriver.name}</strong>
-                      <span className="gp-team-slot-team-name">{slotDriver.constructorTeam}</span>
+                      <span className="gp-team-slot-team-name">
+                        {slotDriver.constructorTeam}
+                      </span>
                       <span>{formatPrice(slotDriver.price)}</span>
                     </p>
                     {shouldRenderPointRows ? (
@@ -329,7 +453,10 @@ export function TeamSelectionCompactForm({
         </div>
 
         {showFallbackNotice ? (
-          <p className="form-message">Deze prijzen zijn onder voorbehoud en gebaseerd op de vorige Grand Prix.</p>
+          <p className="form-message">
+            Deze prijzen zijn onder voorbehoud en gebaseerd op de vorige Grand
+            Prix.
+          </p>
         ) : null}
 
         <p>
@@ -349,11 +476,21 @@ export function TeamSelectionCompactForm({
           </div>
         )}
 
-        {state.status !== "idle" && state.message && (
-          <p className={`form-message ${state.status === "success" ? "success" : "error"}`}>{state.message}</p>
+        {standalone && state.status !== "idle" && state.message && (
+          <p
+            className={`form-message ${state.status === "success" ? "success" : "error"}`}
+          >
+            {state.message}
+          </p>
         )}
 
-        {readOnly ? <p className="league-list-empty">Deze Grand Prix is gesloten. Je team is alleen-lezen.</p> : <SaveButton disabled={!canSave} />}
+        {readOnly ? (
+          <p className="league-list-empty">
+            Deze Grand Prix is gesloten. Je team is alleen-lezen.
+          </p>
+        ) : standalone ? (
+          <SaveButton disabled={!canSave} />
+        ) : null}
       </section>
 
       {activeSlotIndex !== null ? (
@@ -366,19 +503,32 @@ export function TeamSelectionCompactForm({
             }
           }}
         >
-          <div className="podium-selection-panel gp-team-selection-panel" role="dialog" aria-modal="true" aria-label="Coureur kiezen">
+          <div
+            className="podium-selection-panel gp-team-selection-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Coureur kiezen"
+          >
             <div className="podium-selection-panel-header">
               <div>
                 <h3>Kies coureur</h3>
                 <p>Team kiezen · 4 coureurs · Maximaal 100 miljoen</p>
               </div>
-              <button type="button" onClick={() => setActiveSlotIndex(null)} className="podium-selection-close">
+              <button
+                type="button"
+                onClick={() => setActiveSlotIndex(null)}
+                className="podium-selection-close"
+              >
                 Sluiten
               </button>
             </div>
 
             {activeSlotDriverId ? (
-              <button type="button" className="podium-selection-close gp-team-clear-button" onClick={clearSlot}>
+              <button
+                type="button"
+                className="podium-selection-close gp-team-clear-button"
+                onClick={clearSlot}
+              >
                 Slot leegmaken
               </button>
             ) : null}
@@ -386,7 +536,9 @@ export function TeamSelectionCompactForm({
             <div className="podium-driver-options gp-team-driver-options">
               {sortedDrivers.map((driver) => {
                 const team = resolveTeamSelectionTeam(driver.constructorTeam);
-                const teamColors = getConstructorTeamColors(driver.constructorTeam);
+                const teamColors = getConstructorTeamColors(
+                  driver.constructorTeam,
+                );
                 const imageSize = getTeamSideImageSize("modalOption");
                 const isSelected = selectedDriverIds.includes(driver.id);
                 const canSelect = isDriverSelectableForActiveSlot(driver.id);
@@ -417,8 +569,14 @@ export function TeamSelectionCompactForm({
                     <div className="podium-driver-option-copy">
                       <strong>{driver.name}</strong>
                       <span>{driver.constructorTeam}</span>
-                      <span className="gp-team-driver-option-price">{formatPrice(driver.price)}</span>
-                      {isUnavailable ? <span className="gp-team-driver-option-state">Niet beschikbaar binnen je huidige team</span> : null}
+                      <span className="gp-team-driver-option-price">
+                        {formatPrice(driver.price)}
+                      </span>
+                      {isUnavailable ? (
+                        <span className="gp-team-driver-option-state">
+                          Niet beschikbaar binnen je huidige team
+                        </span>
+                      ) : null}
                     </div>
                   </button>
                 );
@@ -427,6 +585,23 @@ export function TeamSelectionCompactForm({
           </div>
         </div>
       ) : null}
+    </>
+  );
+
+  if (!standalone) {
+    return (
+      <div className="team-selection-form compact-team-selection-form">
+        {formContent}
+      </div>
+    );
+  }
+
+  return (
+    <form
+      action={formAction}
+      className="team-selection-form compact-team-selection-form"
+    >
+      {formContent}
     </form>
   );
 }

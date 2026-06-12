@@ -11,7 +11,11 @@ type GrandPrixSelectorProps = {
   routeBase: string;
 };
 
-export function GrandPrixSelector({ timeline, selectedGrandPrixId, routeBase }: GrandPrixSelectorProps) {
+export function GrandPrixSelector({
+  timeline,
+  selectedGrandPrixId,
+  routeBase,
+}: GrandPrixSelectorProps) {
   const router = useRouter();
 
   return (
@@ -21,12 +25,29 @@ export function GrandPrixSelector({ timeline, selectedGrandPrixId, routeBase }: 
         id="grand-prix-selector"
         value={selectedGrandPrixId}
         onChange={(event) => {
-          router.push(`${routeBase}/${event.target.value}`);
+          const nextGrandPrixId = event.target.value;
+          const hasUnsavedChanges =
+            window.sessionStorage.getItem("gp-spel-has-unsaved-changes") ===
+            "true";
+
+          if (
+            hasUnsavedChanges &&
+            !window.confirm(
+              "Je hebt niet-opgeslagen wijzigingen. Weet je zeker dat je deze pagina wilt verlaten?",
+            )
+          ) {
+            return;
+          }
+
+          router.push(`${routeBase}/${nextGrandPrixId}`);
         }}
       >
         {timeline.map((grandPrix) => (
           <option key={grandPrix.id} value={grandPrix.id}>
-            {grandPrix.name} {grandPrix.status === "cancelled" ? `(${getGrandPrixStatusLabel(grandPrix.status)})` : ""}
+            {grandPrix.name}{" "}
+            {grandPrix.status === "cancelled"
+              ? `(${getGrandPrixStatusLabel(grandPrix.status)})`
+              : ""}
           </option>
         ))}
       </select>
