@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ComponentProps } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react";
 import { useFormState, useFormStatus } from "react-dom";
 
 import {
@@ -65,15 +71,40 @@ export function GPSpelParticipationForm({
   const [teamIsValid, setTeamIsValid] = useState(false);
   const [predictionsAreValid, setPredictionsAreValid] = useState(false);
   const [savedVersion, setSavedVersion] = useState(0);
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasUnsavedChanges = teamIsDirty || predictionsAreDirty;
+  const hasSaveError = state.status === "error";
+  const showSaveBar =
+    !readOnly && (hasUnsavedChanges || showSaveSuccess || hasSaveError);
   const canSave = !readOnly && teamIsValid && predictionsAreValid;
 
   useEffect(() => {
-    if (state.status === "success") {
-      setSavedVersion((current) => current + 1);
+    if (state.status !== "success") {
+      return;
     }
+
+    setSavedVersion((current) => current + 1);
+    setShowSaveSuccess(true);
+
+    if (successTimeoutRef.current) {
+      clearTimeout(successTimeoutRef.current);
+    }
+
+    successTimeoutRef.current = setTimeout(() => {
+      setShowSaveSuccess(false);
+      successTimeoutRef.current = null;
+    }, 1800);
   }, [state]);
+
+  useEffect(() => {
+    return () => {
+      if (successTimeoutRef.current) {
+        clearTimeout(successTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     window.sessionStorage.setItem(
@@ -148,27 +179,10 @@ export function GPSpelParticipationForm({
   }, []);
 
   return (
-    <form action={formAction} className="gp-spel-participation-form">
-      {!readOnly && hasUnsavedChanges ? (
-        <div className="form-message" role="status">
-          <strong>Je hebt niet-opgeslagen wijzigingen.</strong>
-          <ul>
-            {teamIsDirty ? <li>Team gewijzigd</li> : null}
-            {predictionsAreDirty ? <li>Voorspellingen gewijzigd</li> : null}
-          </ul>
-        </div>
-      ) : null}
-
-      {state.status !== "idle" && state.message ? (
-        <p
-          className={`form-message ${state.status === "success" ? "success" : "error"}`}
-        >
-          {state.message}
-        </p>
-      ) : null}
-
-      {!readOnly ? <SaveAllButton disabled={!canSave} /> : null}
-
+    <form
+      action={formAction}
+      className={`gp-spel-participation-form ${showSaveBar ? "gp-spel-participation-form--save-bar-visible" : ""}`.trim()}
+    >
       <section className="gp-spel-section" aria-labelledby="team-kiezen-title">
         <div className="gp-spel-section-header">
           <h2 id="team-kiezen-title">Team kiezen</h2>
@@ -206,6 +220,33 @@ export function GPSpelParticipationForm({
           onValidityChange={handlePredictionsValidityChange}
         />
       </section>
+
+      {showSaveBar ? (
+        <div
+          className={`gp-spel-save-bar ${hasSaveError ? "gp-spel-save-bar--error" : ""} ${showSaveSuccess ? "gp-spel-save-bar--success" : ""}`.trim()}
+          role="status"
+        >
+          <div className="gp-spel-save-bar-copy">
+            <strong>
+              {showSaveSuccess ? "Opgeslagen" : "Niet-opgeslagen wijzigingen"}
+            </strong>
+            {!showSaveSuccess ? (
+              <span>
+                {[
+                  teamIsDirty ? "Team gewijzigd" : null,
+                  predictionsAreDirty ? "Voorspellingen gewijzigd" : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+            ) : null}
+            {hasSaveError && state.message ? (
+              <span className="gp-spel-save-bar-message">{state.message}</span>
+            ) : null}
+          </div>
+          {!showSaveSuccess ? <SaveAllButton disabled={!canSave} /> : null}
+        </div>
+      ) : null}
     </form>
   );
 }
