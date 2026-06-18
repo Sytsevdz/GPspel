@@ -486,9 +486,20 @@ export default async function HomePage() {
 
                     {hasPublishedBonusPoints && displayedBonusQuestion ? (
                       <BonusPredictionCard
+                        questionType={displayedBonusQuestion.question_type}
                         questionText={displayedBonusQuestion.question_text}
-                        selectedPosition={displayedBonusPrediction.data?.answer_position ?? null}
-                        actualPosition={displayedBonusAnswer.data?.answer_position ?? null}
+                        selectedAnswer={
+                          displayedBonusPrediction.data?.answer_position !== null &&
+                          displayedBonusPrediction.data?.answer_position !== undefined
+                            ? String(displayedBonusPrediction.data.answer_position)
+                            : null
+                        }
+                        actualAnswer={
+                          displayedBonusAnswer.data?.answer_position !== null &&
+                          displayedBonusAnswer.data?.answer_position !== undefined
+                            ? String(displayedBonusAnswer.data.answer_position)
+                            : null
+                        }
                         points={userDisplayedScore.bonus_prediction_points ?? 0}
                         pointsAvailable={displayedBonusQuestion.points}
                         showActual

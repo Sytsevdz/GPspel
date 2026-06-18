@@ -599,9 +599,18 @@ export function PlayerGrandPrixDetail({
                       />
                       {snapshot.bonusPrediction ? (
                         <BonusPredictionCard
+                          questionType={snapshot.bonusPrediction.questionType}
                           questionText={snapshot.bonusPrediction.questionText}
-                          selectedPosition={snapshot.bonusPrediction.selectedPosition}
-                          actualPosition={snapshot.bonusPrediction.actualPosition}
+                          selectedAnswer={
+                            snapshot.bonusPrediction.selectedPosition !== null
+                              ? String(snapshot.bonusPrediction.selectedPosition)
+                              : null
+                          }
+                          actualAnswer={
+                            snapshot.bonusPrediction.actualPosition !== null
+                              ? String(snapshot.bonusPrediction.actualPosition)
+                              : null
+                          }
                           points={snapshot.bonusPrediction.points}
                           pointsAvailable={snapshot.bonusPrediction.pointsAvailable}
                           showActual

@@ -24,6 +24,7 @@ type TeamScoreDetail = {
 };
 
 type BonusPredictionResult = {
+  questionType: "driver_finish_position";
   questionText: string;
   selectedPosition: number | null;
   actualPosition: number | null;
@@ -257,9 +258,9 @@ async function loadPlayerGrandPrixViewData(
 
   const { data: bonusQuestion } = await supabase
     .from("grand_prix_bonus_questions")
-    .select("id, question_text, points")
+    .select("id, question_type, question_text, points")
     .eq("grand_prix_id", safeGrandPrixId)
-    .maybeSingle<{ id: string; question_text: string; points: number }>();
+    .maybeSingle<{ id: string; question_type: "driver_finish_position"; question_text: string; points: number }>();
 
   const [{ data: bonusPrediction }, { data: bonusAnswer }] = bonusQuestion
     ? await Promise.all([
@@ -359,6 +360,7 @@ async function loadPlayerGrandPrixViewData(
     bonusPrediction:
       workflowStatus === "finished" && bonusQuestion
         ? {
+            questionType: bonusQuestion.question_type,
             questionText: bonusQuestion.question_text,
             selectedPosition: bonusPrediction?.answer_position ?? null,
             actualPosition: bonusAnswer?.answer_position ?? null,

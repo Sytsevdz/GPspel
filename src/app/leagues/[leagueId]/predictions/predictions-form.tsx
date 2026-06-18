@@ -8,7 +8,7 @@ import {
   savePrediction,
   type PredictionsActionState,
 } from "@/app/actions/predictions";
-import { BonusPredictionCard } from "@/app/bonus-prediction-card";
+import { BonusPredictionCard, type BonusAnswerOption } from "@/app/bonus-prediction-card";
 import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 
@@ -348,6 +348,15 @@ export function PredictionsForm({
       .flatMap((team) => team.drivers);
   }, [drivers]);
 
+  const bonusAnswerOptions = useMemo<BonusAnswerOption[]>(
+    () =>
+      drivers.map((_, index) => ({
+        value: String(index + 1),
+        label: `P${index + 1}`,
+      })),
+    [drivers],
+  );
+
   const validationErrors = useMemo(() => {
     const errors: string[] = [];
     const sprintQualificationSelections = [
@@ -676,42 +685,43 @@ export function PredictionsForm({
 
       {bonusPrediction ? (
         <section className="predictions-section bonus-results-section">
-          <div className="predictions-section-header">
-            <h2>Bonusvraag</h2>
-            {!readOnly ? <p>Kies de eindpositie voor deze bonusvraag.</p> : null}
-          </div>
-          <input type="hidden" name="bonus_question_id" value={bonusPrediction.questionId} />
-          <label className="predictions-field">
-            <span>{bonusPrediction.questionText}</span>
-            <select
-              name="bonus_answer_position"
-              value={values.bonusAnswerPosition}
-              disabled={readOnly}
-              onChange={(event) => {
-                setHasInteracted(true);
-                onInteracted?.();
-                setValues((current) => ({
-                  ...current,
-                  bonusAnswerPosition: event.target.value,
-                }));
-              }}
-            >
-              <option value="">Kies plek</option>
-              {drivers.map((_, index) => (
-                <option key={index + 1} value={index + 1}>
-                  P{index + 1}
-                </option>
-              ))}
-            </select>
-          </label>
+          <input
+            type="hidden"
+            name="bonus_question_id"
+            value={bonusPrediction.questionId}
+          />
+          <input
+            type="hidden"
+            name="bonus_answer_position"
+            value={values.bonusAnswerPosition}
+          />
           <BonusPredictionCard
+            questionType={bonusPrediction.questionType}
             questionText={bonusPrediction.questionText}
-            selectedPosition={values.bonusAnswerPosition ? Number(values.bonusAnswerPosition) : null}
-            actualPosition={bonusPrediction.actualPosition}
+            answerOptions={bonusAnswerOptions}
+            selectedAnswer={values.bonusAnswerPosition || null}
+            actualAnswer={
+              bonusPrediction.actualPosition !== null
+                ? String(bonusPrediction.actualPosition)
+                : null
+            }
             points={publishedPoints?.bonus ?? bonusPrediction.points}
             pointsAvailable={bonusPrediction.pointsAvailable}
             showActual={publishedPoints !== undefined && publishedPoints.bonus !== null}
             showPoints={publishedPoints !== undefined && publishedPoints.bonus !== null}
+            disabled={readOnly}
+            onSelectAnswer={
+              readOnly
+                ? undefined
+                : (answer) => {
+                    setHasInteracted(true);
+                    onInteracted?.();
+                    setValues((current) => ({
+                      ...current,
+                      bonusAnswerPosition: answer,
+                    }));
+                  }
+            }
           />
         </section>
       ) : null}
