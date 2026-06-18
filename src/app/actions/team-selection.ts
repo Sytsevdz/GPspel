@@ -5,9 +5,11 @@ import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { isGrandPrixCancelled } from "@/lib/grand-prix-status";
 import { getGrandPrixAndDriversById } from "@/lib/team-selection-data";
-
-const MAX_BUDGET = 1000;
-const REQUIRED_DRIVERS = 4;
+import {
+  TEAM_SELECTION_MAX_BUDGET as MAX_BUDGET,
+  TEAM_SELECTION_REQUIRED_DRIVERS as REQUIRED_DRIVERS,
+  calculateTeamSelectionPriceTotal,
+} from "@/lib/team-selection-validity";
 
 export type TeamSelectionActionState = {
   status: "idle" | "success" | "error";
@@ -118,7 +120,9 @@ export async function saveTeamSelection(
     };
   }
 
-  const totalPrice = selectedDrivers.reduce((sum, row) => sum + row.price, 0);
+  const totalPrice = calculateTeamSelectionPriceTotal(
+    selectedDrivers.map((driver) => ({ driverId: driver.id, price: driver.price })),
+  );
   if (totalPrice > MAX_BUDGET) {
     return {
       status: "error",

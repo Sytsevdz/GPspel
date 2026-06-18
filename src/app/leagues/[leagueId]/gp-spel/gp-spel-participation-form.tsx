@@ -75,9 +75,13 @@ export function GPSpelParticipationForm({
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasUnsavedChanges = teamIsDirty || predictionsAreDirty;
+  const hasInvalidSavedTeam =
+    !teamIsDirty &&
+    teamFormProps.initialSelectedDriverIds.length > 0 &&
+    !teamIsValid;
   const hasSaveError = state.status === "error";
   const showSaveBar =
-    !readOnly && (hasUnsavedChanges || showSaveSuccess || hasSaveError);
+    !readOnly && (hasUnsavedChanges || hasInvalidSavedTeam || showSaveSuccess || hasSaveError);
   const canSave = !readOnly && teamIsValid && predictionsAreValid;
 
   useEffect(() => {
@@ -228,16 +232,22 @@ export function GPSpelParticipationForm({
         >
           <div className="gp-spel-save-bar-copy">
             <strong>
-              {showSaveSuccess ? "Opgeslagen" : "Niet-opgeslagen wijzigingen"}
+              {showSaveSuccess
+                ? "Opgeslagen"
+                : hasInvalidSavedTeam
+                  ? "Team boven budget"
+                  : "Niet-opgeslagen wijzigingen"}
             </strong>
             {!showSaveSuccess ? (
               <span>
-                {[
-                  teamIsDirty ? "Team gewijzigd" : null,
-                  predictionsAreDirty ? "Voorspellingen gewijzigd" : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
+                {hasInvalidSavedTeam
+                  ? "Je opgeslagen team is niet geldig met de huidige GP-prijzen. Pas je team aan en sla opnieuw op."
+                  : [
+                      teamIsDirty ? "Team gewijzigd" : null,
+                      predictionsAreDirty ? "Voorspellingen gewijzigd" : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
               </span>
             ) : null}
             {hasSaveError && state.message ? (
