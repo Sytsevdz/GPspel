@@ -18,6 +18,11 @@ import { compareDriverStandings } from "@/lib/driver-pricing";
 import { getConstructorTeamColors } from "@/lib/team-colors";
 import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
+import {
+  TEAM_SELECTION_MAX_BUDGET as MAX_BUDGET,
+  TEAM_SELECTION_REQUIRED_DRIVERS as REQUIRED_DRIVERS,
+  calculateTeamSelectionPriceTotal,
+} from "@/lib/team-selection-validity";
 
 type DriverWithPrice = {
   id: string;
@@ -59,8 +64,6 @@ type TeamSelectionCompactFormProps = {
   onValidityChange?: (isValid: boolean) => void;
 };
 
-const MAX_BUDGET = 1000;
-const REQUIRED_DRIVERS = 4;
 const INITIAL_STATE: TeamSelectionActionState = { status: "idle" };
 
 const formatPrice = (price: number) => `${(price / 10).toFixed(1)}M`;
@@ -205,9 +208,8 @@ export function TeamSelectionCompactForm({
     [driversByTeam],
   );
 
-  const totalPrice = selectedDrivers.reduce(
-    (sum, driver) => sum + driver.price,
-    0,
+  const totalPrice = calculateTeamSelectionPriceTotal(
+    selectedDrivers.map((driver) => ({ driverId: driver.id, price: driver.price })),
   );
   const remainingBudget = MAX_BUDGET - totalPrice;
   const constructorCount = new Set(
@@ -217,7 +219,7 @@ export function TeamSelectionCompactForm({
   const validationErrors: string[] = [];
 
   if (totalPrice > MAX_BUDGET) {
-    validationErrors.push("Je team mag maximaal 100 miljoen kosten");
+    validationErrors.push("Je opgeslagen team staat door de huidige coureurprijzen boven budget. Pas je team aan en sla opnieuw op.");
   }
 
   if (selectedDrivers.length !== REQUIRED_DRIVERS) {
@@ -460,7 +462,7 @@ export function TeamSelectionCompactForm({
         ) : null}
 
         <p>
-          Totale prijs: <strong>{formatPrice(totalPrice)}</strong>
+          Totale prijs volgens de huidige GP-prijzen: <strong>{formatPrice(totalPrice)}</strong>
         </p>
         <p>
           Overgebleven budget: <strong>{formatPrice(remainingBudget)}</strong>

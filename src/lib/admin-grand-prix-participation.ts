@@ -1,3 +1,5 @@
+import { getTeamSelectionValidity } from "@/lib/team-selection-validity";
+
 type ProfileRow = {
   id: string;
   display_name: string | null;
@@ -29,6 +31,8 @@ export type GrandPrixParticipationRow = {
   userId: string;
   displayName: string;
   hasTeam: boolean;
+  teamStatus: "valid" | "over_budget" | "missing";
+  teamPriceTotal: number;
   hasPrediction: boolean;
   isMissingTeam: boolean;
   isMissingPrediction: boolean;
@@ -66,6 +70,7 @@ export function buildGrandPrixParticipationOverview(params: {
   predictions: PredictionRow[];
   isSprintWeekend: boolean;
   includedUserIds?: string[];
+  driverPricesById?: Map<string, number>;
 }) {
   const includedUserIdsSet = params.includedUserIds ? new Set(params.includedUserIds) : null;
   const teamSelectionMap = new Map<string, TeamSelectionRow>();
@@ -85,14 +90,27 @@ export function buildGrandPrixParticipationOverview(params: {
       const teamSelection = teamSelectionMap.get(profile.id);
       const prediction = predictionMap.get(profile.id);
 
-      const selectedDriverCount = teamSelection?.team_selection_drivers?.length ?? 0;
-      const hasTeam = isTeamSelectionComplete(selectedDriverCount);
+      const selectedDriverIds = teamSelection?.team_selection_drivers?.map((driver) => driver.driver_id) ?? [];
+      const validity = getTeamSelectionValidity(
+        selectedDriverIds.map((driverId) => ({
+          driverId,
+          price: params.driverPricesById?.get(driverId),
+        })),
+      );
+      const hasTeam = validity.isValid;
+      const teamStatus = !validity.isComplete || validity.hasMissingPrice
+        ? "missing"
+        : validity.isWithinBudget
+          ? "valid"
+          : "over_budget";
       const hasPrediction = prediction ? isPredictionComplete(prediction, params.isSprintWeekend) : false;
 
       return {
         userId: profile.id,
         displayName: profile.display_name?.trim() || "Speler",
         hasTeam,
+        teamStatus,
+        teamPriceTotal: validity.totalPrice,
         hasPrediction,
         isMissingTeam: !hasTeam,
         isMissingPrediction: !hasPrediction,

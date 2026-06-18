@@ -88,6 +88,8 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
   }
 
   const managedGrandPrix = grandPrix;
+  const nowIso = new Date().toISOString();
+  const isAfterDeadline = managedGrandPrix.deadline <= nowIso;
 
   async function recalculatePrices(formData: FormData) {
     "use server";
@@ -99,6 +101,9 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     }
     if (isGrandPrixCancelled(managedGrandPrix.status)) {
       redirect(`/admin/grand-prix/${params.id}?error=Deze+Grand+Prix+is+geannuleerd.+Prijzen+kunnen+niet+worden+berekend`);
+    }
+    if (managedGrandPrix.deadline <= new Date().toISOString()) {
+      redirect(`/admin/grand-prix/${params.id}?error=De+deadline+is+verstreken.+Prijzen+niet+meer+herberekenen`);
     }
 
     try {
@@ -128,6 +133,9 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     }
     if (isGrandPrixCancelled(managedGrandPrix.status)) {
       redirect(`/admin/grand-prix/${params.id}?error=Deze+Grand+Prix+is+geannuleerd.+Prijzen+kunnen+niet+worden+beheerd`);
+    }
+    if (managedGrandPrix.deadline <= new Date().toISOString()) {
+      redirect(`/admin/grand-prix/${params.id}?error=De+deadline+is+verstreken.+Prijzen+niet+meer+resetten`);
     }
 
     try {
@@ -277,7 +285,14 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
   });
   const isCancelled = isGrandPrixCancelled(workflowStatus);
 
-  const [{ data: profiles }, { data: leagues }, { data: leagueMemberships }, { data: teamSelections }, { data: predictions }] = await Promise.all([
+  const [
+    { data: profiles },
+    { data: leagues },
+    { data: leagueMemberships },
+    { data: teamSelections },
+    { data: predictions },
+    { data: driverPrices },
+  ] = await Promise.all([
     supabase.from("profiles").select("id, display_name, role").returns<Array<{ id: string; display_name: string | null; role: string | null }>>(),
     supabase.from("leagues").select("id, name").order("name", { ascending: true }).returns<Array<{ id: string; name: string }>>(),
     supabase.from("league_members").select("league_id, user_id").returns<Array<{ league_id: string; user_id: string }>>(),
@@ -309,6 +324,11 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
           race_p3: string | null;
         }>
       >(),
+    supabase
+      .from("driver_prices")
+      .select("driver_id, price")
+      .eq("grand_prix_id", managedGrandPrix.id)
+      .returns<Array<{ driver_id: string; price: number }>>(),
   ]);
 
   const selectedLeagueId = typeof searchParams.league === "string" ? searchParams.league : "all";
@@ -323,12 +343,15 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
           .filter((membership) => membership.league_id === effectiveSelectedLeagueId)
           .map((membership) => membership.user_id);
 
+  const driverPricesById = new Map((driverPrices ?? []).map((driverPrice) => [driverPrice.driver_id, driverPrice.price]));
+
   const participationOverview = buildGrandPrixParticipationOverview({
     profiles: profiles ?? [],
     teamSelections: teamSelections ?? [],
     predictions: predictions ?? [],
     isSprintWeekend: managedGrandPrix.is_sprint_weekend,
     includedUserIds: filteredUserIds,
+    driverPricesById,
   });
 
   return (
@@ -442,7 +465,13 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
                 {participationOverview.rows.map((row) => (
                   <tr key={row.userId}>
                     <td className="standings-name-cell">{row.displayName}</td>
-                    <td>{row.hasTeam ? "✅ Team gekozen" : "❌ Geen team"}</td>
+                    <td>
+                      {row.teamStatus === "valid"
+                        ? "✅ Team gekozen en geldig"
+                        : row.teamStatus === "over_budget"
+                          ? "⚠️ Team gekozen maar boven budget"
+                          : "❌ Geen team"}
+                    </td>
                     <td>{row.hasPrediction ? "✅ Voorspelling ingevuld" : "❌ Geen voorspelling"}</td>
                   </tr>
                 ))}
@@ -453,10 +482,13 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
 
         <section className="predictions-section">
           <h2>D. Coureurs / prijzen</h2>
-          <p>Bereken of reset coureursprijzen voor deze GP.</p>
+          <p>Bereken of reset coureursprijzen voor deze GP. Doe dit alleen vóór de deadline.</p>
           {isCancelled ? <p className="league-list-empty">Deze GP is geannuleerd. Prijsbeheer is uitgeschakeld.</p> : null}
+          {!isCancelled && isAfterDeadline ? (
+            <p className="league-list-empty">De deadline is verstreken. Herbereken of reset prijzen niet meer na de deadline.</p>
+          ) : null}
           <div className="admin-action-stack">
-            {!isCancelled ? (
+            {!isCancelled && !isAfterDeadline ? (
               <>
                 <form action={recalculatePrices}>
                   <input type="hidden" name="grand_prix_id" value={managedGrandPrix.id} />
