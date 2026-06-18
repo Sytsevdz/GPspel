@@ -12,6 +12,9 @@ begin
   if not exists (select 1 from pg_type where typname = 'grand_prix_status') then
     create type grand_prix_status as enum ('upcoming', 'open', 'locked', 'finished', 'cancelled');
   end if;
+  if not exists (select 1 from pg_type where typname = 'grand_prix_bonus_question_type') then
+    create type grand_prix_bonus_question_type as enum ('driver_finish_position');
+  end if;
 end$$;
 
 -- -------------------------
@@ -23,6 +26,7 @@ end$$;
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   display_name text not null check (char_length(trim(display_name)) > 0),
+  role text null check (role in ('admin', 'player', 'member')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -145,16 +149,68 @@ create table if not exists public.predictions (
   race_p1 uuid not null references public.drivers(id) on delete restrict,
   race_p2 uuid not null references public.drivers(id) on delete restrict,
   race_p3 uuid not null references public.drivers(id) on delete restrict,
+  fastest_pitstop_team text null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (user_id, grand_prix_id),
   check (quali_p1 <> quali_p2 and quali_p1 <> quali_p3 and quali_p2 <> quali_p3),
   check (race_p1 <> race_p2 and race_p1 <> race_p3 and race_p2 <> race_p3)
 );
+
+-- 10) configurable GP bonus questions
+-- One configured bonus question per Grand Prix for now.
+create table if not exists public.grand_prix_bonus_questions (
+  id uuid primary key default gen_random_uuid(),
+  grand_prix_id uuid not null references public.grand_prix(id) on delete cascade,
+  question_type public.grand_prix_bonus_question_type not null,
+  question_text text not null check (char_length(trim(question_text)) > 0),
+  subject_driver_id uuid references public.drivers(id) on delete restrict,
+  points integer not null default 10 check (points > 0),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (grand_prix_id),
+  check (question_type <> 'driver_finish_position' or subject_driver_id is not null)
+);
+
+create table if not exists public.grand_prix_bonus_predictions (
+  id uuid primary key default gen_random_uuid(),
+  grand_prix_bonus_question_id uuid not null references public.grand_prix_bonus_questions(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  answer_position integer check (answer_position is null or answer_position >= 1),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (grand_prix_bonus_question_id, user_id)
+);
+
+create table if not exists public.grand_prix_bonus_answers (
+  id uuid primary key default gen_random_uuid(),
+  grand_prix_bonus_question_id uuid not null references public.grand_prix_bonus_questions(id) on delete cascade,
+  answer_position integer check (answer_position is null or answer_position >= 1),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (grand_prix_bonus_question_id)
+);
+
+create table if not exists public.grand_prix_bonus_prediction_scores (
+  id uuid primary key default gen_random_uuid(),
+  grand_prix_bonus_question_id uuid not null references public.grand_prix_bonus_questions(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  points integer not null default 0 check (points >= 0),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (grand_prix_bonus_question_id, user_id)
+);
+
+alter table if exists public.grand_prix_scores
+  add column if not exists bonus_prediction_points integer;
+
 -- Helpful indexes
 create index if not exists idx_league_members_user_id on public.league_members(user_id);
 create index if not exists idx_team_selections_gp on public.team_selections(grand_prix_id);
 create index if not exists idx_predictions_gp on public.predictions(grand_prix_id);
+create index if not exists idx_grand_prix_bonus_questions_gp on public.grand_prix_bonus_questions(grand_prix_id);
+create index if not exists idx_grand_prix_bonus_predictions_user on public.grand_prix_bonus_predictions(user_id);
+create index if not exists idx_grand_prix_bonus_prediction_scores_user on public.grand_prix_bonus_prediction_scores(user_id);
 
 -- -------------------------
 -- Row Level Security (release 1)
@@ -166,6 +222,10 @@ alter table public.league_members enable row level security;
 alter table public.team_selections enable row level security;
 alter table public.team_selection_drivers enable row level security;
 alter table public.predictions enable row level security;
+alter table public.grand_prix_bonus_questions enable row level security;
+alter table public.grand_prix_bonus_predictions enable row level security;
+alter table public.grand_prix_bonus_answers enable row level security;
+alter table public.grand_prix_bonus_prediction_scores enable row level security;
 
 -- release 1 note: grand_prix, drivers, and driver_prices are treated as public read-only tables,
 -- so RLS is intentionally not enabled on those tables yet.
@@ -379,6 +439,66 @@ on public.predictions
 for update
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
+
+
+-- Configurable bonus question policies
+drop policy if exists "grand_prix_bonus_questions_select_authenticated" on public.grand_prix_bonus_questions;
+create policy "grand_prix_bonus_questions_select_authenticated"
+on public.grand_prix_bonus_questions
+for select
+using (auth.uid() is not null);
+
+drop policy if exists "grand_prix_bonus_questions_admin_all" on public.grand_prix_bonus_questions;
+create policy "grand_prix_bonus_questions_admin_all"
+on public.grand_prix_bonus_questions
+for all
+using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'))
+with check (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'));
+
+drop policy if exists "grand_prix_bonus_predictions_select_own" on public.grand_prix_bonus_predictions;
+create policy "grand_prix_bonus_predictions_select_own"
+on public.grand_prix_bonus_predictions
+for select
+using (auth.uid() = user_id);
+
+drop policy if exists "grand_prix_bonus_predictions_insert_own" on public.grand_prix_bonus_predictions;
+create policy "grand_prix_bonus_predictions_insert_own"
+on public.grand_prix_bonus_predictions
+for insert
+with check (auth.uid() = user_id);
+
+drop policy if exists "grand_prix_bonus_predictions_update_own" on public.grand_prix_bonus_predictions;
+create policy "grand_prix_bonus_predictions_update_own"
+on public.grand_prix_bonus_predictions
+for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+drop policy if exists "grand_prix_bonus_answers_select_authenticated" on public.grand_prix_bonus_answers;
+create policy "grand_prix_bonus_answers_select_authenticated"
+on public.grand_prix_bonus_answers
+for select
+using (auth.uid() is not null);
+
+drop policy if exists "grand_prix_bonus_answers_admin_all" on public.grand_prix_bonus_answers;
+create policy "grand_prix_bonus_answers_admin_all"
+on public.grand_prix_bonus_answers
+for all
+using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'))
+with check (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'));
+
+drop policy if exists "grand_prix_bonus_prediction_scores_select_authenticated" on public.grand_prix_bonus_prediction_scores;
+create policy "grand_prix_bonus_prediction_scores_select_authenticated"
+on public.grand_prix_bonus_prediction_scores
+for select
+using (auth.uid() is not null);
+
+drop policy if exists "grand_prix_bonus_prediction_scores_admin_all" on public.grand_prix_bonus_prediction_scores;
+create policy "grand_prix_bonus_prediction_scores_admin_all"
+on public.grand_prix_bonus_prediction_scores
+for all
+using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'))
+with check (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'));
 
 -- release 1 note: insert policies for profiles, leagues, and league_members are intentionally omitted.
 -- account creation and league membership management are expected to run via trusted backend flows.

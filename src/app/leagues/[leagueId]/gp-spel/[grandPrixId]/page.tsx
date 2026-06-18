@@ -473,6 +473,9 @@ export default async function GPSpelGrandPrixPage({
                         : null,
                     }
                   : null,
+                actualFastestPitstopTeam: !bonusQuestion && hasPublishedFastestPitstopPoints
+                  ? (bonusResult?.fastest_pitstop_team ?? null)
+                  : null,
                 isSprintWeekend: gpData.grandPrix.is_sprint_weekend,
                 publishedSlotPoints: slotPredictionPointsByField,
                 readOnly: isReadOnly,

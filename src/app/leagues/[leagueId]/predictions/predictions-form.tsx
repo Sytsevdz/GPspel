@@ -9,6 +9,7 @@ import {
   type PredictionsActionState,
 } from "@/app/actions/predictions";
 import { BonusPredictionCard, type BonusAnswerOption } from "@/app/bonus-prediction-card";
+import { FastestPitstopBonusCard } from "@/app/fastest-pitstop-bonus-card";
 import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 
@@ -72,6 +73,7 @@ type PredictionsFormProps = {
   isSprintWeekend?: boolean;
   publishedSlotPoints?: PublishedSlotPoints;
   readOnly?: boolean;
+  actualFastestPitstopTeam?: string | null;
   standalone?: boolean;
   savedVersion?: number;
   teamHasUnsavedChanges?: boolean;
@@ -264,11 +266,13 @@ export function PredictionsForm({
   leagueId,
   grandPrixId,
   drivers,
+  constructorTeams,
   initialValues,
   publishedPoints,
   publishedSlotPoints,
   bonusPrediction = null,
   readOnly = false,
+  actualFastestPitstopTeam = null,
   isSprintWeekend = false,
   standalone = true,
   savedVersion = 0,
@@ -284,6 +288,8 @@ export function PredictionsForm({
   const [activeField, setActiveField] = useState<PodiumPredictionField | null>(
     null,
   );
+  const [isFastestPitstopPickerOpen, setIsFastestPitstopPickerOpen] =
+    useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const lastSavedVersionRef = useRef(savedVersion);
 
@@ -430,7 +436,9 @@ export function PredictionsForm({
 
   const hasAllSelections =
     requiredFields.every((field) => Boolean(values[field])) &&
-    (!bonusPrediction || Boolean(values.bonusAnswerPosition));
+    (bonusPrediction
+      ? Boolean(values.bonusAnswerPosition)
+      : Boolean(values.fastestPitstopTeam));
   const canSave =
     hasAllSelections && validationErrors.length === 0 && !readOnly;
 
@@ -724,6 +732,97 @@ export function PredictionsForm({
             }
           />
         </section>
+      ) : (
+        <section className="predictions-section bonus-results-section">
+          <input
+            type="hidden"
+            name="fastest_pitstop_team"
+            value={values.fastestPitstopTeam}
+          />
+          <FastestPitstopBonusCard
+            selectedTeam={values.fastestPitstopTeam}
+            actualTeam={actualFastestPitstopTeam}
+            points={publishedPoints?.fastestPitstop ?? null}
+            showActual={publishedPoints !== undefined && publishedPoints.fastestPitstop !== null}
+            showPoints={publishedPoints !== undefined && publishedPoints.fastestPitstop !== null}
+            disabled={readOnly}
+            onOpenPicker={
+              readOnly ? undefined : () => setIsFastestPitstopPickerOpen(true)
+            }
+          />
+        </section>
+      )}
+
+      {!bonusPrediction && !readOnly && isFastestPitstopPickerOpen ? (
+        <div
+          className="podium-selection-overlay"
+          role="presentation"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setIsFastestPitstopPickerOpen(false);
+            }
+          }}
+        >
+          <div
+            className="podium-selection-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Kies team voor snelste pitstop"
+          >
+            <div className="podium-selection-panel-header">
+              <div>
+                <h3>Kies snelste pitstop-team</h3>
+                <p>Snelste pitstop</p>
+              </div>
+              <button
+                type="button"
+                className="podium-selection-close"
+                onClick={() => setIsFastestPitstopPickerOpen(false)}
+              >
+                Sluiten
+              </button>
+            </div>
+
+            <div className="podium-driver-options fastest-pitstop-team-options">
+              {constructorTeams.map((teamName) => {
+                const team = resolveTeamSelectionTeam(teamName);
+                const imageSize = getTeamSideImageSize("modalOption");
+                const isSelected = values.fastestPitstopTeam === teamName;
+
+                return (
+                  <button
+                    key={teamName}
+                    type="button"
+                    className={`podium-driver-option fastest-pitstop-team-option ${isSelected ? "selected" : ""}`}
+                    onClick={() => {
+                      setHasInteracted(true);
+                      onInteracted?.();
+                      setValues((current) => ({
+                        ...current,
+                        fastestPitstopTeam: teamName,
+                      }));
+                      setIsFastestPitstopPickerOpen(false);
+                    }}
+                  >
+                    <div className="podium-driver-option-image">
+                      <Image
+                        src={team.image}
+                        alt={`${team.name} wagen`}
+                        width={imageSize.width}
+                        height={imageSize.height}
+                        className={imageSize.className}
+                      />
+                    </div>
+                    <div className="podium-driver-option-copy">
+                      <strong>{team.name}</strong>
+                      <span>{isSelected ? "Geselecteerd" : "Kies dit team"}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {validationErrors.length > 0 && (

@@ -35,6 +35,9 @@ export async function savePrediction(
   const raceP1 = String(formData.get("race_p1") ?? "").trim();
   const raceP2 = String(formData.get("race_p2") ?? "").trim();
   const raceP3 = String(formData.get("race_p3") ?? "").trim();
+  const fastestPitstopTeam = String(
+    formData.get("fastest_pitstop_team") ?? "",
+  ).trim();
   const bonusQuestionId = String(formData.get("bonus_question_id") ?? "").trim();
   const bonusAnswerPositionValue = String(
     formData.get("bonus_answer_position") ?? "",
@@ -51,7 +54,8 @@ export async function savePrediction(
     !qualiP3 ||
     !raceP1 ||
     !raceP2 ||
-    !raceP3
+    !raceP3 ||
+    (!bonusQuestionId && !fastestPitstopTeam)
   ) {
     return {
       status: "error",
@@ -165,6 +169,9 @@ export async function savePrediction(
   const allowedDriverIds = new Set(
     teamSelectionData.drivers.map((driver) => driver.id),
   );
+  const allowedConstructorTeams = new Set(
+    teamSelectionData.drivers.map((driver) => driver.constructorTeam),
+  );
   const selectedIds = [
     qualiP1,
     qualiP2,
@@ -181,7 +188,8 @@ export async function savePrediction(
   ].filter(Boolean);
 
   if (
-    selectedIds.some((driverId) => !allowedDriverIds.has(driverId))
+    selectedIds.some((driverId) => !allowedDriverIds.has(driverId)) ||
+    (!bonusQuestionId && !allowedConstructorTeams.has(fastestPitstopTeam))
   ) {
     return {
       status: "error",
@@ -189,23 +197,29 @@ export async function savePrediction(
     };
   }
 
+  const predictionRow: Record<string, string | null> = {
+    user_id: user.id,
+    grand_prix_id: grandPrixId,
+    quali_p1: qualiP1,
+    quali_p2: qualiP2,
+    quali_p3: qualiP3,
+    race_p1: raceP1,
+    race_p2: raceP2,
+    race_p3: raceP3,
+    sprint_quali_p1: isSprintWeekend ? sprintQualiP1 : null,
+    sprint_quali_p2: isSprintWeekend ? sprintQualiP2 : null,
+    sprint_quali_p3: isSprintWeekend ? sprintQualiP3 : null,
+    sprint_race_p1: isSprintWeekend ? sprintRaceP1 : null,
+    sprint_race_p2: isSprintWeekend ? sprintRaceP2 : null,
+    sprint_race_p3: isSprintWeekend ? sprintRaceP3 : null,
+  };
+
+  if (!bonusQuestionId) {
+    predictionRow.fastest_pitstop_team = fastestPitstopTeam;
+  }
+
   const { error: upsertError } = await supabase.from("predictions").upsert(
-    {
-      user_id: user.id,
-      grand_prix_id: grandPrixId,
-      quali_p1: qualiP1,
-      quali_p2: qualiP2,
-      quali_p3: qualiP3,
-      race_p1: raceP1,
-      race_p2: raceP2,
-      race_p3: raceP3,
-      sprint_quali_p1: isSprintWeekend ? sprintQualiP1 : null,
-      sprint_quali_p2: isSprintWeekend ? sprintQualiP2 : null,
-      sprint_quali_p3: isSprintWeekend ? sprintQualiP3 : null,
-      sprint_race_p1: isSprintWeekend ? sprintRaceP1 : null,
-      sprint_race_p2: isSprintWeekend ? sprintRaceP2 : null,
-      sprint_race_p3: isSprintWeekend ? sprintRaceP3 : null,
-    },
+    predictionRow,
     { onConflict: "user_id,grand_prix_id" },
   );
 
