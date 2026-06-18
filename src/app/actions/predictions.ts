@@ -35,9 +35,13 @@ export async function savePrediction(
   const raceP1 = String(formData.get("race_p1") ?? "").trim();
   const raceP2 = String(formData.get("race_p2") ?? "").trim();
   const raceP3 = String(formData.get("race_p3") ?? "").trim();
-  const fastestPitstopTeam = String(
-    formData.get("fastest_pitstop_team") ?? "",
+  const bonusQuestionId = String(formData.get("bonus_question_id") ?? "").trim();
+  const bonusAnswerPositionValue = String(
+    formData.get("bonus_answer_position") ?? "",
   ).trim();
+  const bonusAnswerPosition = bonusAnswerPositionValue
+    ? Number(bonusAnswerPositionValue)
+    : null;
 
   if (
     !leagueId ||
@@ -47,8 +51,7 @@ export async function savePrediction(
     !qualiP3 ||
     !raceP1 ||
     !raceP2 ||
-    !raceP3 ||
-    !fastestPitstopTeam
+    !raceP3
   ) {
     return {
       status: "error",
@@ -162,9 +165,6 @@ export async function savePrediction(
   const allowedDriverIds = new Set(
     teamSelectionData.drivers.map((driver) => driver.id),
   );
-  const allowedConstructorTeams = new Set(
-    teamSelectionData.drivers.map((driver) => driver.constructorTeam),
-  );
   const selectedIds = [
     qualiP1,
     qualiP2,
@@ -181,8 +181,7 @@ export async function savePrediction(
   ].filter(Boolean);
 
   if (
-    selectedIds.some((driverId) => !allowedDriverIds.has(driverId)) ||
-    !allowedConstructorTeams.has(fastestPitstopTeam)
+    selectedIds.some((driverId) => !allowedDriverIds.has(driverId))
   ) {
     return {
       status: "error",
@@ -200,7 +199,6 @@ export async function savePrediction(
       race_p1: raceP1,
       race_p2: raceP2,
       race_p3: raceP3,
-      fastest_pitstop_team: fastestPitstopTeam,
       sprint_quali_p1: isSprintWeekend ? sprintQualiP1 : null,
       sprint_quali_p2: isSprintWeekend ? sprintQualiP2 : null,
       sprint_quali_p3: isSprintWeekend ? sprintQualiP3 : null,
@@ -219,6 +217,52 @@ export async function savePrediction(
   }
 
   revalidatePath(`/leagues/${leagueId}/gp-spel`);
+  if (bonusQuestionId) {
+    if (
+      !Number.isInteger(bonusAnswerPosition) ||
+      bonusAnswerPosition === null ||
+      bonusAnswerPosition < 1 ||
+      bonusAnswerPosition > teamSelectionData.drivers.length
+    ) {
+      return {
+        status: "error",
+        message: "Kies een geldige plek voor de bonusvraag",
+      };
+    }
+
+    const { data: bonusQuestion, error: bonusQuestionError } = await supabase
+      .from("grand_prix_bonus_questions")
+      .select("id, grand_prix_id, question_type")
+      .eq("id", bonusQuestionId)
+      .eq("grand_prix_id", grandPrixId)
+      .maybeSingle<{ id: string; grand_prix_id: string; question_type: string }>();
+
+    if (bonusQuestionError || bonusQuestion?.question_type !== "driver_finish_position") {
+      return {
+        status: "error",
+        message: "Er ging iets mis bij het opslaan van je bonusvoorspelling",
+      };
+    }
+
+    const { error: bonusUpsertError } = await supabase
+      .from("grand_prix_bonus_predictions")
+      .upsert(
+        {
+          grand_prix_bonus_question_id: bonusQuestionId,
+          user_id: user.id,
+          answer_position: bonusAnswerPosition,
+        },
+        { onConflict: "grand_prix_bonus_question_id,user_id" },
+      );
+
+    if (bonusUpsertError) {
+      return {
+        status: "error",
+        message: "Je voorspelling is opgeslagen, maar de bonusvraag opslaan mislukte",
+      };
+    }
+  }
+
   revalidatePath(`/leagues/${leagueId}/gp-spel/${grandPrixId}`);
 
   return {

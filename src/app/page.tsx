@@ -16,6 +16,8 @@ import { isSessionPublished } from "@/lib/session-publication";
 import { GlobalStandingsPanel } from "./dashboard/global-standings-panel";
 import { DriverScoreCard } from "./driver-score-card";
 import { FastestPitstopBonusCard } from "./fastest-pitstop-bonus-card";
+import { BonusPredictionCard } from "./bonus-prediction-card";
+import type { BonusQuestion } from "@/lib/bonus-predictions";
 
 type LeagueMembershipRow = {
   league_id: string;
@@ -39,6 +41,7 @@ type UserGrandPrixScoreRow = {
   quali_prediction_points: number | null;
   race_prediction_points: number | null;
   fastest_pitstop_prediction_points: number | null;
+  bonus_prediction_points: number | null;
 };
 
 type LatestPredictionRow = {
@@ -48,6 +51,9 @@ type LatestPredictionRow = {
 type LatestBonusResultRow = {
   fastest_pitstop_team: string | null;
 };
+
+type LatestBonusPredictionRow = { answer_position: number | null };
+type LatestBonusAnswerRow = { answer_position: number | null };
 
 type GrandPrixScoreDetailRow = {
   driver_id: string;
@@ -180,7 +186,7 @@ export default async function HomePage() {
         await supabase
           .from("grand_prix_scores")
           .select(
-            "team_points, prediction_points, total_points, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points, sprint_quali_prediction_points, sprint_race_prediction_points, quali_prediction_points, race_prediction_points, fastest_pitstop_prediction_points",
+            "team_points, prediction_points, total_points, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points, sprint_quali_prediction_points, sprint_race_prediction_points, quali_prediction_points, race_prediction_points, fastest_pitstop_prediction_points, bonus_prediction_points",
           )
           .eq("grand_prix_id", displayedGrandPrix.id)
           .eq("user_id", user.id)
@@ -208,6 +214,32 @@ export default async function HomePage() {
           .maybeSingle<LatestBonusResultRow>()
       ).data
     : null;
+
+  const displayedBonusQuestion = displayedGrandPrix
+    ? (
+        await supabase
+          .from("grand_prix_bonus_questions")
+          .select("id, grand_prix_id, question_type, question_text, subject_driver_id, points")
+          .eq("grand_prix_id", displayedGrandPrix.id)
+          .maybeSingle<BonusQuestion>()
+      ).data
+    : null;
+
+  const [displayedBonusPrediction, displayedBonusAnswer] = displayedBonusQuestion
+    ? await Promise.all([
+        supabase
+          .from("grand_prix_bonus_predictions")
+          .select("answer_position")
+          .eq("grand_prix_bonus_question_id", displayedBonusQuestion.id)
+          .eq("user_id", user.id)
+          .maybeSingle<LatestBonusPredictionRow>(),
+        supabase
+          .from("grand_prix_bonus_answers")
+          .select("answer_position")
+          .eq("grand_prix_bonus_question_id", displayedBonusQuestion.id)
+          .maybeSingle<LatestBonusAnswerRow>(),
+      ])
+    : [{ data: null }, { data: null }];
 
   const userDisplayedScoreDetails = displayedGrandPrix
     ? ((
@@ -261,6 +293,10 @@ export default async function HomePage() {
     userDisplayedScore,
     "fastest_pitstop_prediction_points",
   );
+  const hasPublishedBonusPoints = isSessionPublished(
+    userDisplayedScore,
+    "bonus_prediction_points",
+  );
   const hasAnyPublishedDisplayedScore =
     hasPublishedSprintQualiTeamPoints ||
     hasPublishedSprintRaceTeamPoints ||
@@ -270,7 +306,8 @@ export default async function HomePage() {
     hasPublishedSprintRacePredictionPoints ||
     hasPublishedQualiPredictionPoints ||
     hasPublishedRacePredictionPoints ||
-    hasPublishedFastestPitstopPoints;
+    hasPublishedFastestPitstopPoints ||
+    hasPublishedBonusPoints;
 
   (allScoreRows ?? [])
     .filter((scoreRow) => activeGrandPrixIds.has(scoreRow.grand_prix_id))
@@ -447,7 +484,18 @@ export default async function HomePage() {
                       </div>
                     ) : null}
 
-                    {hasPublishedFastestPitstopPoints ? (
+                    {hasPublishedBonusPoints && displayedBonusQuestion ? (
+                      <BonusPredictionCard
+                        questionText={displayedBonusQuestion.question_text}
+                        selectedPosition={displayedBonusPrediction.data?.answer_position ?? null}
+                        actualPosition={displayedBonusAnswer.data?.answer_position ?? null}
+                        points={userDisplayedScore.bonus_prediction_points ?? 0}
+                        pointsAvailable={displayedBonusQuestion.points}
+                        showActual
+                        showPoints
+                        className="dashboard-bonus-card"
+                      />
+                    ) : hasPublishedFastestPitstopPoints ? (
                       <FastestPitstopBonusCard
                         selectedTeam={
                           userDisplayedPrediction?.fastest_pitstop_team

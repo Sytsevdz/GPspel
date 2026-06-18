@@ -19,6 +19,7 @@ import {
   type GrandPrixStatus,
 } from "@/lib/grand-prix-status";
 import { createServerSupabaseClient } from "@/lib/supabase";
+import type { BonusQuestion } from "@/lib/bonus-predictions";
 
 type GrandPrixManagementPageProps = {
   params: {
@@ -279,6 +280,54 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     redirect(`/admin/grand-prix/${params.id}?message=Weekendtype+bijgewerkt`);
   }
 
+  async function saveBonusQuestion(formData: FormData) {
+    "use server";
+
+    const grandPrixId = String(formData.get("grand_prix_id") ?? "").trim();
+    const questionType = String(formData.get("question_type") ?? "").trim();
+    const questionText = String(formData.get("question_text") ?? "").trim();
+    const subjectDriverId = String(formData.get("subject_driver_id") ?? "").trim();
+    const points = Number(String(formData.get("points") ?? "").trim());
+
+    if (
+      !grandPrixId ||
+      questionType !== "driver_finish_position" ||
+      !questionText ||
+      !subjectDriverId ||
+      !Number.isInteger(points) ||
+      points < 1
+    ) {
+      redirect(`/admin/grand-prix/${params.id}?error=Vul+een+geldige+bonusvraag+in`);
+    }
+
+    const actionSupabase = createServerSupabaseClient();
+    const { data: { user: actionUser }, error: actionUserError } = await actionSupabase.auth.getUser();
+    if (actionUserError || !actionUser) {
+      redirect(`/admin/grand-prix/${params.id}?error=Je+hebt+geen+toegang+tot+deze+actie`);
+    }
+    const { data: actionProfile } = await actionSupabase.from("profiles").select("role").eq("id", actionUser.id).maybeSingle<{ role: string | null }>();
+    if (actionProfile?.role !== "admin") {
+      redirect(`/admin/grand-prix/${params.id}?error=Je+hebt+geen+toegang+tot+deze+actie`);
+    }
+
+    const { error } = await actionSupabase.from("grand_prix_bonus_questions").upsert(
+      {
+        grand_prix_id: grandPrixId,
+        question_type: questionType,
+        question_text: questionText,
+        subject_driver_id: subjectDriverId,
+        points,
+      },
+      { onConflict: "grand_prix_id" },
+    );
+
+    if (error) {
+      redirect(`/admin/grand-prix/${params.id}?error=Bonusvraag+opslaan+mislukt`);
+    }
+
+    redirect(`/admin/grand-prix/${params.id}?message=Bonusvraag+opgeslagen`);
+  }
+
   const workflowStatus = resolveGrandPrixWorkflowStatus({
     status: managedGrandPrix.status,
     deadline: managedGrandPrix.deadline,
@@ -292,6 +341,8 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     { data: teamSelections },
     { data: predictions },
     { data: driverPrices },
+    { data: drivers },
+    { data: bonusQuestion },
   ] = await Promise.all([
     supabase.from("profiles").select("id, display_name, role").returns<Array<{ id: string; display_name: string | null; role: string | null }>>(),
     supabase.from("leagues").select("id, name").order("name", { ascending: true }).returns<Array<{ id: string; name: string }>>(),
@@ -329,6 +380,17 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
       .select("driver_id, price")
       .eq("grand_prix_id", managedGrandPrix.id)
       .returns<Array<{ driver_id: string; price: number }>>(),
+    supabase
+      .from("drivers")
+      .select("id, name")
+      .eq("active", true)
+      .order("name", { ascending: true })
+      .returns<Array<{ id: string; name: string }>>(),
+    supabase
+      .from("grand_prix_bonus_questions")
+      .select("id, grand_prix_id, question_type, question_text, subject_driver_id, points")
+      .eq("grand_prix_id", managedGrandPrix.id)
+      .maybeSingle<BonusQuestion>(),
   ]);
 
   const selectedLeagueId = typeof searchParams.league === "string" ? searchParams.league : "all";
@@ -422,7 +484,44 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
         </section>
 
         <section className="predictions-section">
-          <h2>B. Resultaten</h2>
+          <h2>B. Bonusvraag</h2>
+          <p>Configureer één bonusvraag voor deze Grand Prix.</p>
+          <form action={saveBonusQuestion} className="predictions-form">
+            <input type="hidden" name="grand_prix_id" value={managedGrandPrix.id} />
+            <label className="predictions-field">
+              <span>Type bonusvraag</span>
+              <select name="question_type" defaultValue={bonusQuestion?.question_type ?? "driver_finish_position"}>
+                <option value="driver_finish_position">Welke positie eindigt coureur?</option>
+              </select>
+            </label>
+            <label className="predictions-field">
+              <span>Vraagtekst</span>
+              <input
+                name="question_text"
+                defaultValue={bonusQuestion?.question_text ?? ""}
+                placeholder="Welke plek eindigt Max Verstappen?"
+                required
+              />
+            </label>
+            <label className="predictions-field">
+              <span>Subject coureur</span>
+              <select name="subject_driver_id" defaultValue={bonusQuestion?.subject_driver_id ?? ""} required>
+                <option value="">Kies coureur</option>
+                {(drivers ?? []).map((driver) => (
+                  <option key={driver.id} value={driver.id}>{driver.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="predictions-field">
+              <span>Punten</span>
+              <input name="points" type="number" min="1" step="1" defaultValue={bonusQuestion?.points ?? 10} required />
+            </label>
+            <button type="submit">Bonusvraag opslaan</button>
+          </form>
+        </section>
+
+        <section className="predictions-section">
+          <h2>C. Resultaten</h2>
           <p>Voer de uitslag in en beheer alleen de resultaatdata van deze GP.</p>
           {isCancelled ? <p className="league-list-empty">Deze GP is geannuleerd. Resultaatbeheer is uitgeschakeld.</p> : null}
           <div className="admin-action-stack">
@@ -445,7 +544,7 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
         <PublishScoreActions grandPrixId={managedGrandPrix.id} disabled={isCancelled} />
 
         <section className="predictions-section">
-          <h2>C. Deelname-overzicht</h2>
+          <h2>D. Deelname-overzicht</h2>
           <LeagueParticipationFilter selectedLeagueId={effectiveSelectedLeagueId} leagues={availableLeagues} />
           <p>
             Inzendingen per speler (zonder team- of voorspellingdetails).
@@ -481,7 +580,7 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
         </section>
 
         <section className="predictions-section">
-          <h2>D. Coureurs / prijzen</h2>
+          <h2>E. Coureurs / prijzen</h2>
           <p>Bereken of reset coureursprijzen voor deze GP. Doe dit alleen vóór de deadline.</p>
           {isCancelled ? <p className="league-list-empty">Deze GP is geannuleerd. Prijsbeheer is uitgeschakeld.</p> : null}
           {!isCancelled && isAfterDeadline ? (
