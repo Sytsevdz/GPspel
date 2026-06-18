@@ -98,11 +98,16 @@ export function buildGrandPrixParticipationOverview(params: {
         })),
       );
       const hasTeam = validity.isValid;
-      const teamStatus = !validity.isComplete || validity.hasMissingPrice
-        ? "missing"
-        : validity.isWithinBudget
-          ? "valid"
-          : "over_budget";
+      let teamStatus: GrandPrixParticipationRow["teamStatus"];
+
+      if (!validity.isComplete || validity.hasMissingPrice) {
+        teamStatus = "missing";
+      } else if (!validity.isWithinBudget) {
+        teamStatus = "over_budget";
+      } else {
+        teamStatus = "valid";
+      }
+
       const hasPrediction = prediction ? isPredictionComplete(prediction, params.isSprintWeekend) : false;
 
       return {
