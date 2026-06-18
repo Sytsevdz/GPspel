@@ -8,7 +8,7 @@ import {
   type PlayerGrandPrixViewResult,
 } from "@/app/actions/player-grand-prix-view";
 import { DriverScoreCard } from "@/app/driver-score-card";
-import { FastestPitstopBonusCard } from "@/app/fastest-pitstop-bonus-card";
+import { BonusPredictionCard } from "@/app/bonus-prediction-card";
 import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 
@@ -598,10 +598,21 @@ export function PlayerGrandPrixDetail({
                         }
                       />
                       {snapshot.bonusPrediction ? (
-                        <FastestPitstopBonusCard
-                          selectedTeam={snapshot.bonusPrediction.selectedTeam}
-                          actualTeam={snapshot.bonusPrediction.actualTeam}
+                        <BonusPredictionCard
+                          questionType={snapshot.bonusPrediction.questionType}
+                          questionText={snapshot.bonusPrediction.questionText}
+                          selectedAnswer={
+                            snapshot.bonusPrediction.selectedPosition !== null
+                              ? String(snapshot.bonusPrediction.selectedPosition)
+                              : null
+                          }
+                          actualAnswer={
+                            snapshot.bonusPrediction.actualPosition !== null
+                              ? String(snapshot.bonusPrediction.actualPosition)
+                              : null
+                          }
                           points={snapshot.bonusPrediction.points}
+                          pointsAvailable={snapshot.bonusPrediction.pointsAvailable}
                           showActual
                           showPoints
                         />

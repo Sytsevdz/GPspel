@@ -8,6 +8,7 @@ import {
   savePrediction,
   type PredictionsActionState,
 } from "@/app/actions/predictions";
+import { BonusPredictionCard, type BonusAnswerOption } from "@/app/bonus-prediction-card";
 import { FastestPitstopBonusCard } from "@/app/fastest-pitstop-bonus-card";
 import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
@@ -34,12 +35,23 @@ type PredictionValues = {
   raceP2: string;
   raceP3: string;
   fastestPitstopTeam: string;
+  bonusAnswerPosition: string;
 };
 
 type PodiumPredictionField = Exclude<
   keyof PredictionValues,
-  "fastestPitstopTeam"
+  "fastestPitstopTeam" | "bonusAnswerPosition"
 >;
+
+type BonusPredictionFormData = {
+  questionId: string;
+  questionType: "driver_finish_position";
+  questionText: string;
+  pointsAvailable: number;
+  selectedPosition: number | null;
+  actualPosition: number | null;
+  points: number | null;
+};
 
 type PublishedSlotPoints = Record<PodiumPredictionField, number | null>;
 
@@ -55,7 +67,9 @@ type PredictionsFormProps = {
     quali: number | null;
     race: number | null;
     fastestPitstop: number | null;
+    bonus: number | null;
   };
+  bonusPrediction?: BonusPredictionFormData | null;
   isSprintWeekend?: boolean;
   publishedSlotPoints?: PublishedSlotPoints;
   readOnly?: boolean;
@@ -256,9 +270,10 @@ export function PredictionsForm({
   initialValues,
   publishedPoints,
   publishedSlotPoints,
+  bonusPrediction = null,
   readOnly = false,
-  isSprintWeekend = false,
   actualFastestPitstopTeam = null,
+  isSprintWeekend = false,
   standalone = true,
   savedVersion = 0,
   teamHasUnsavedChanges = false,
@@ -339,6 +354,15 @@ export function PredictionsForm({
       .flatMap((team) => team.drivers);
   }, [drivers]);
 
+  const bonusAnswerOptions = useMemo<BonusAnswerOption[]>(
+    () =>
+      drivers.map((_, index) => ({
+        value: String(index + 1),
+        label: `P${index + 1}`,
+      })),
+    [drivers],
+  );
+
   const validationErrors = useMemo(() => {
     const errors: string[] = [];
     const sprintQualificationSelections = [
@@ -412,7 +436,9 @@ export function PredictionsForm({
 
   const hasAllSelections =
     requiredFields.every((field) => Boolean(values[field])) &&
-    Boolean(values.fastestPitstopTeam);
+    (bonusPrediction
+      ? Boolean(values.bonusAnswerPosition)
+      : Boolean(values.fastestPitstopTeam));
   const canSave =
     hasAllSelections && validationErrors.length === 0 && !readOnly;
 
@@ -665,30 +691,69 @@ export function PredictionsForm({
         </div>
       ) : null}
 
-      <input
-        type="hidden"
-        name="fastest_pitstop_team"
-        value={values.fastestPitstopTeam}
-      />
-      <FastestPitstopBonusCard
-        selectedTeam={values.fastestPitstopTeam}
-        actualTeam={actualFastestPitstopTeam}
-        points={publishedPoints?.fastestPitstop ?? null}
-        showActual={
-          publishedPoints?.fastestPitstop !== null &&
-          publishedPoints !== undefined
-        }
-        showPoints={
-          publishedPoints?.fastestPitstop !== null &&
-          publishedPoints !== undefined
-        }
-        disabled={readOnly}
-        onOpenPicker={
-          readOnly ? undefined : () => setIsFastestPitstopPickerOpen(true)
-        }
-      />
+      {bonusPrediction ? (
+        <section className="predictions-section bonus-results-section">
+          <input
+            type="hidden"
+            name="bonus_question_id"
+            value={bonusPrediction.questionId}
+          />
+          <input
+            type="hidden"
+            name="bonus_answer_position"
+            value={values.bonusAnswerPosition}
+          />
+          <BonusPredictionCard
+            questionType={bonusPrediction.questionType}
+            questionText={bonusPrediction.questionText}
+            answerOptions={bonusAnswerOptions}
+            selectedAnswer={values.bonusAnswerPosition || null}
+            actualAnswer={
+              bonusPrediction.actualPosition !== null
+                ? String(bonusPrediction.actualPosition)
+                : null
+            }
+            points={publishedPoints?.bonus ?? bonusPrediction.points}
+            pointsAvailable={bonusPrediction.pointsAvailable}
+            showActual={publishedPoints !== undefined && publishedPoints.bonus !== null}
+            showPoints={publishedPoints !== undefined && publishedPoints.bonus !== null}
+            disabled={readOnly}
+            onSelectAnswer={
+              readOnly
+                ? undefined
+                : (answer) => {
+                    setHasInteracted(true);
+                    onInteracted?.();
+                    setValues((current) => ({
+                      ...current,
+                      bonusAnswerPosition: answer,
+                    }));
+                  }
+            }
+          />
+        </section>
+      ) : (
+        <section className="predictions-section bonus-results-section">
+          <input
+            type="hidden"
+            name="fastest_pitstop_team"
+            value={values.fastestPitstopTeam}
+          />
+          <FastestPitstopBonusCard
+            selectedTeam={values.fastestPitstopTeam}
+            actualTeam={actualFastestPitstopTeam}
+            points={publishedPoints?.fastestPitstop ?? null}
+            showActual={publishedPoints !== undefined && publishedPoints.fastestPitstop !== null}
+            showPoints={publishedPoints !== undefined && publishedPoints.fastestPitstop !== null}
+            disabled={readOnly}
+            onOpenPicker={
+              readOnly ? undefined : () => setIsFastestPitstopPickerOpen(true)
+            }
+          />
+        </section>
+      )}
 
-      {!readOnly && isFastestPitstopPickerOpen ? (
+      {!bonusPrediction && !readOnly && isFastestPitstopPickerOpen ? (
         <div
           className="podium-selection-overlay"
           role="presentation"
@@ -750,9 +815,7 @@ export function PredictionsForm({
                     </div>
                     <div className="podium-driver-option-copy">
                       <strong>{team.name}</strong>
-                      <span>
-                        {isSelected ? "Geselecteerd" : "Kies dit team"}
-                      </span>
+                      <span>{isSelected ? "Geselecteerd" : "Kies dit team"}</span>
                     </div>
                   </button>
                 );

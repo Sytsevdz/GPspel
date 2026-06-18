@@ -611,6 +611,42 @@ export async function saveGrandPrixResult(
     };
   }
 
+
+  const { data: bonusQuestion, error: bonusQuestionError } = await adminCheck.supabase
+    .from("grand_prix_bonus_questions")
+    .select("id, question_type, subject_driver_id")
+    .eq("grand_prix_id", grandPrixId)
+    .maybeSingle<{ id: string; question_type: string; subject_driver_id: string | null }>();
+
+  if (bonusQuestionError) {
+    return {
+      status: "error",
+      message: "Uitslag opgeslagen, maar bonusvraag laden mislukte",
+    };
+  }
+
+  if (bonusQuestion?.question_type === "driver_finish_position") {
+    const answerPosition = bonusQuestion.subject_driver_id
+      ? (racePositionByDriverId.get(bonusQuestion.subject_driver_id) ?? null)
+      : null;
+    const { error: bonusAnswerError } = await adminCheck.supabase
+      .from("grand_prix_bonus_answers")
+      .upsert(
+        {
+          grand_prix_bonus_question_id: bonusQuestion.id,
+          answer_position: answerPosition,
+        },
+        { onConflict: "grand_prix_bonus_question_id" },
+      );
+
+    if (bonusAnswerError) {
+      return {
+        status: "error",
+        message: "Uitslag opgeslagen, maar bonusantwoord opslaan mislukte",
+      };
+    }
+  }
+
   const { error: bonusUpsertError } = await adminCheck.supabase
     .from("grand_prix_bonus_results")
     .upsert(

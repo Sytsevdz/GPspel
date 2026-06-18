@@ -16,6 +16,7 @@ import {
 import { getAccessibleLeague } from "../../league-access";
 import { GrandPrixSelector } from "../../grand-prix-selector";
 import { GPSpelParticipationForm } from "../gp-spel-participation-form";
+import type { BonusQuestion } from "@/lib/bonus-predictions";
 
 type GPSpelGrandPrixPageProps = {
   params: {
@@ -56,6 +57,7 @@ type UserGrandPrixScoreRow = {
   quali_prediction_points: number | null;
   race_prediction_points: number | null;
   fastest_pitstop_prediction_points: number | null;
+  bonus_prediction_points: number | null;
   team_sprint_quali_points: number | null;
   team_sprint_race_points: number | null;
   team_quali_points: number | null;
@@ -83,6 +85,14 @@ type UserGrandPrixPredictionScoreDetailRow = {
 
 type BonusResultRow = {
   fastest_pitstop_team: string | null;
+};
+
+type BonusPredictionRow = {
+  answer_position: number | null;
+};
+
+type BonusAnswerRow = {
+  answer_position: number | null;
 };
 
 type PredictionSlotPoints = {
@@ -146,6 +156,7 @@ export default async function GPSpelGrandPrixPage({
       { data: userScoreDetails },
       { data: predictionScoreDetails },
       { data: bonusResult },
+      { data: bonusQuestion },
     ] = await Promise.all([
       supabase
         .from("team_selections")
@@ -164,7 +175,7 @@ export default async function GPSpelGrandPrixPage({
       supabase
         .from("grand_prix_scores")
         .select(
-          "team_points, prediction_points, total_points, sprint_quali_prediction_points, sprint_race_prediction_points, quali_prediction_points, race_prediction_points, fastest_pitstop_prediction_points, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points",
+          "team_points, prediction_points, total_points, sprint_quali_prediction_points, sprint_race_prediction_points, quali_prediction_points, race_prediction_points, fastest_pitstop_prediction_points, bonus_prediction_points, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points",
         )
         .eq("user_id", user.id)
         .eq("grand_prix_id", gpData.grandPrix.id)
@@ -189,6 +200,11 @@ export default async function GPSpelGrandPrixPage({
         .select("fastest_pitstop_team")
         .eq("grand_prix_id", gpData.grandPrix.id)
         .maybeSingle<BonusResultRow>(),
+      supabase
+        .from("grand_prix_bonus_questions")
+        .select("id, grand_prix_id, question_type, question_text, subject_driver_id, points")
+        .eq("grand_prix_id", gpData.grandPrix.id)
+        .maybeSingle<BonusQuestion>(),
     ]);
 
     const initialSelectedDriverIds =
@@ -210,7 +226,31 @@ export default async function GPSpelGrandPrixPage({
       raceP2: existingPrediction?.race_p2 ?? "",
       raceP3: existingPrediction?.race_p3 ?? "",
       fastestPitstopTeam: existingPrediction?.fastest_pitstop_team ?? "",
+      bonusAnswerPosition: "",
     };
+
+    const [{ data: existingBonusPrediction }, { data: bonusAnswer }] =
+      bonusQuestion
+        ? await Promise.all([
+            supabase
+              .from("grand_prix_bonus_predictions")
+              .select("answer_position")
+              .eq("grand_prix_bonus_question_id", bonusQuestion.id)
+              .eq("user_id", user.id)
+              .maybeSingle<BonusPredictionRow>(),
+            supabase
+              .from("grand_prix_bonus_answers")
+              .select("answer_position")
+              .eq("grand_prix_bonus_question_id", bonusQuestion.id)
+              .maybeSingle<BonusAnswerRow>(),
+          ])
+        : [{ data: null }, { data: null }];
+
+    initialPredictionValues.bonusAnswerPosition =
+      existingBonusPrediction?.answer_position !== null &&
+      existingBonusPrediction?.answer_position !== undefined
+        ? String(existingBonusPrediction.answer_position)
+        : "";
     const slotPredictionPointsByField: PredictionSlotPoints = {
       sprintQualiP1: null,
       sprintQualiP2: null,
@@ -286,6 +326,10 @@ export default async function GPSpelGrandPrixPage({
     const hasPublishedFastestPitstopPoints = isSessionPublished(
       userScore,
       "fastest_pitstop_prediction_points",
+    );
+    const hasPublishedBonusPoints = isSessionPublished(
+      userScore,
+      "bonus_prediction_points",
     );
     const constructorTeams = Array.from(
       new Set(gpData.drivers.map((driver) => driver.constructorTeam)),
@@ -410,11 +454,29 @@ export default async function GPSpelGrandPrixPage({
                   fastestPitstop: hasPublishedFastestPitstopPoints
                     ? (userScore?.fastest_pitstop_prediction_points ?? 0)
                     : null,
+                  bonus: hasPublishedBonusPoints
+                    ? (userScore?.bonus_prediction_points ?? 0)
+                    : null,
                 },
-                isSprintWeekend: gpData.grandPrix.is_sprint_weekend,
-                actualFastestPitstopTeam: hasPublishedFastestPitstopPoints
+                bonusPrediction: bonusQuestion
+                  ? {
+                      questionId: bonusQuestion.id,
+                      questionType: "driver_finish_position",
+                      questionText: bonusQuestion.question_text,
+                      pointsAvailable: bonusQuestion.points,
+                      selectedPosition: existingBonusPrediction?.answer_position ?? null,
+                      actualPosition: hasPublishedBonusPoints
+                        ? (bonusAnswer?.answer_position ?? null)
+                        : null,
+                      points: hasPublishedBonusPoints
+                        ? (userScore?.bonus_prediction_points ?? 0)
+                        : null,
+                    }
+                  : null,
+                actualFastestPitstopTeam: !bonusQuestion && hasPublishedFastestPitstopPoints
                   ? (bonusResult?.fastest_pitstop_team ?? null)
                   : null,
+                isSprintWeekend: gpData.grandPrix.is_sprint_weekend,
                 publishedSlotPoints: slotPredictionPointsByField,
                 readOnly: isReadOnly,
               }}

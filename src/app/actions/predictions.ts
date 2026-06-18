@@ -38,6 +38,13 @@ export async function savePrediction(
   const fastestPitstopTeam = String(
     formData.get("fastest_pitstop_team") ?? "",
   ).trim();
+  const bonusQuestionId = String(formData.get("bonus_question_id") ?? "").trim();
+  const bonusAnswerPositionValue = String(
+    formData.get("bonus_answer_position") ?? "",
+  ).trim();
+  const bonusAnswerPosition = bonusAnswerPositionValue
+    ? Number(bonusAnswerPositionValue)
+    : null;
 
   if (
     !leagueId ||
@@ -48,7 +55,7 @@ export async function savePrediction(
     !raceP1 ||
     !raceP2 ||
     !raceP3 ||
-    !fastestPitstopTeam
+    (!bonusQuestionId && !fastestPitstopTeam)
   ) {
     return {
       status: "error",
@@ -182,7 +189,7 @@ export async function savePrediction(
 
   if (
     selectedIds.some((driverId) => !allowedDriverIds.has(driverId)) ||
-    !allowedConstructorTeams.has(fastestPitstopTeam)
+    (!bonusQuestionId && !allowedConstructorTeams.has(fastestPitstopTeam))
   ) {
     return {
       status: "error",
@@ -190,24 +197,29 @@ export async function savePrediction(
     };
   }
 
+  const predictionRow: Record<string, string | null> = {
+    user_id: user.id,
+    grand_prix_id: grandPrixId,
+    quali_p1: qualiP1,
+    quali_p2: qualiP2,
+    quali_p3: qualiP3,
+    race_p1: raceP1,
+    race_p2: raceP2,
+    race_p3: raceP3,
+    sprint_quali_p1: isSprintWeekend ? sprintQualiP1 : null,
+    sprint_quali_p2: isSprintWeekend ? sprintQualiP2 : null,
+    sprint_quali_p3: isSprintWeekend ? sprintQualiP3 : null,
+    sprint_race_p1: isSprintWeekend ? sprintRaceP1 : null,
+    sprint_race_p2: isSprintWeekend ? sprintRaceP2 : null,
+    sprint_race_p3: isSprintWeekend ? sprintRaceP3 : null,
+  };
+
+  if (!bonusQuestionId) {
+    predictionRow.fastest_pitstop_team = fastestPitstopTeam;
+  }
+
   const { error: upsertError } = await supabase.from("predictions").upsert(
-    {
-      user_id: user.id,
-      grand_prix_id: grandPrixId,
-      quali_p1: qualiP1,
-      quali_p2: qualiP2,
-      quali_p3: qualiP3,
-      race_p1: raceP1,
-      race_p2: raceP2,
-      race_p3: raceP3,
-      fastest_pitstop_team: fastestPitstopTeam,
-      sprint_quali_p1: isSprintWeekend ? sprintQualiP1 : null,
-      sprint_quali_p2: isSprintWeekend ? sprintQualiP2 : null,
-      sprint_quali_p3: isSprintWeekend ? sprintQualiP3 : null,
-      sprint_race_p1: isSprintWeekend ? sprintRaceP1 : null,
-      sprint_race_p2: isSprintWeekend ? sprintRaceP2 : null,
-      sprint_race_p3: isSprintWeekend ? sprintRaceP3 : null,
-    },
+    predictionRow,
     { onConflict: "user_id,grand_prix_id" },
   );
 
@@ -219,6 +231,52 @@ export async function savePrediction(
   }
 
   revalidatePath(`/leagues/${leagueId}/gp-spel`);
+  if (bonusQuestionId) {
+    if (
+      !Number.isInteger(bonusAnswerPosition) ||
+      bonusAnswerPosition === null ||
+      bonusAnswerPosition < 1 ||
+      bonusAnswerPosition > teamSelectionData.drivers.length
+    ) {
+      return {
+        status: "error",
+        message: "Kies een geldige plek voor de bonusvraag",
+      };
+    }
+
+    const { data: bonusQuestion, error: bonusQuestionError } = await supabase
+      .from("grand_prix_bonus_questions")
+      .select("id, grand_prix_id, question_type")
+      .eq("id", bonusQuestionId)
+      .eq("grand_prix_id", grandPrixId)
+      .maybeSingle<{ id: string; grand_prix_id: string; question_type: string }>();
+
+    if (bonusQuestionError || bonusQuestion?.question_type !== "driver_finish_position") {
+      return {
+        status: "error",
+        message: "Er ging iets mis bij het opslaan van je bonusvoorspelling",
+      };
+    }
+
+    const { error: bonusUpsertError } = await supabase
+      .from("grand_prix_bonus_predictions")
+      .upsert(
+        {
+          grand_prix_bonus_question_id: bonusQuestionId,
+          user_id: user.id,
+          answer_position: bonusAnswerPosition,
+        },
+        { onConflict: "grand_prix_bonus_question_id,user_id" },
+      );
+
+    if (bonusUpsertError) {
+      return {
+        status: "error",
+        message: "Je voorspelling is opgeslagen, maar de bonusvraag opslaan mislukte",
+      };
+    }
+  }
+
   revalidatePath(`/leagues/${leagueId}/gp-spel/${grandPrixId}`);
 
   return {
