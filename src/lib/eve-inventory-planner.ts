@@ -4,8 +4,10 @@ export type InventoryLine = {
   raw: string;
   itemName: string;
   quantity: number;
-  item?: EveItem;
+  item: EveItem | undefined;
 };
+
+type ParsedInventoryLine = Pick<InventoryLine, "itemName" | "quantity">;
 
 export type InventoryParseResult = {
   lines: InventoryLine[];
@@ -23,7 +25,7 @@ const parseQuantity = (value: string) => {
   return Number.isFinite(parsed) ? Math.floor(parsed) : null;
 };
 
-export const parseInventoryLine = (line: string) => {
+export const parseInventoryLine = (line: string): ParsedInventoryLine | null => {
   const raw = line.trim();
   if (!raw) return null;
 
@@ -50,14 +52,16 @@ export const parseInventoryLine = (line: string) => {
 
 export const parseInventory = (pastedInventory: string, items: EveItem[]): InventoryParseResult => {
   const itemByName = new Map(items.map((item) => [normalizeItemName(item.name), item]));
-  const lines = pastedInventory
+  const parsedLines = pastedInventory
     .split(/\r?\n/)
-    .map((line) => {
-      const parsed = parseInventoryLine(line);
-      if (!parsed) return null;
-      return { raw: line, ...parsed, item: itemByName.get(normalizeItemName(parsed.itemName)) } satisfies InventoryLine;
-    })
-    .filter((line): line is InventoryLine => Boolean(line));
+    .map((raw) => ({ raw, parsed: parseInventoryLine(raw) }))
+    .filter((line): line is { raw: string; parsed: ParsedInventoryLine } => line.parsed !== null);
+
+  const lines: InventoryLine[] = parsedLines.map(({ raw, parsed }) => ({
+    raw,
+    ...parsed,
+    item: itemByName.get(normalizeItemName(parsed.itemName)),
+  }));
 
   const inventoryByItemId = new Map<EveItem["id"], number>();
   for (const line of lines) {
