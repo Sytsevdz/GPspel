@@ -481,6 +481,7 @@ export async function saveGrandPrixResult(
   const fastestPitstopTeam = String(
     formData.get("fastest_pitstop_team") ?? "",
   ).trim();
+  const fastestLapDriverId = String(formData.get("fastest_lap_driver_id") ?? "").trim();
 
   if (
     !grandPrixId ||
@@ -561,6 +562,7 @@ export async function saveGrandPrixResult(
       message: "Er ging iets mis bij het opslaan",
     };
   }
+  if (fastestLapDriverId && !activeDriverSet.has(fastestLapDriverId)) return { status: "error", message: "Kies een geldige coureur voor de snelste ronde" };
 
   const qualiPositionByDriverId = new Map(
     qualificationOrder.map((driverId, index) => [driverId, index + 1]),
@@ -645,6 +647,11 @@ export async function saveGrandPrixResult(
         message: "Uitslag opgeslagen, maar bonusantwoord opslaan mislukte",
       };
     }
+  }
+  if (bonusQuestion?.question_type === "fastest_lap_driver") {
+    if (!fastestLapDriverId) return { status: "error", message: "Kies de coureur met de snelste ronde" };
+    const { error } = await adminCheck.supabase.from("grand_prix_bonus_answers").upsert({ grand_prix_bonus_question_id: bonusQuestion.id, answer_position: null, answer_driver_id: fastestLapDriverId }, { onConflict: "grand_prix_bonus_question_id" });
+    if (error) return { status: "error", message: "Uitslag opgeslagen, maar snelste ronde opslaan mislukte" };
   }
 
   const { error: bonusUpsertError } = await adminCheck.supabase

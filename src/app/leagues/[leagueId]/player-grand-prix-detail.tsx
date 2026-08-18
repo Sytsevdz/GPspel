@@ -601,15 +601,12 @@ export function PlayerGrandPrixDetail({
                         <BonusPredictionCard
                           questionType={snapshot.bonusPrediction.questionType}
                           questionText={snapshot.bonusPrediction.questionText}
+                          answerOptions={snapshot.bonusPrediction.answerOptions}
                           selectedAnswer={
-                            snapshot.bonusPrediction.selectedPosition !== null
-                              ? String(snapshot.bonusPrediction.selectedPosition)
-                              : null
+                            snapshot.bonusPrediction.questionType === "fastest_lap_driver" ? snapshot.bonusPrediction.selectedDriverId : snapshot.bonusPrediction.selectedPosition !== null ? String(snapshot.bonusPrediction.selectedPosition) : null
                           }
                           actualAnswer={
-                            snapshot.bonusPrediction.actualPosition !== null
-                              ? String(snapshot.bonusPrediction.actualPosition)
-                              : null
+                            snapshot.bonusPrediction.questionType === "fastest_lap_driver" ? snapshot.bonusPrediction.actualDriverId : snapshot.bonusPrediction.actualPosition !== null ? String(snapshot.bonusPrediction.actualPosition) : null
                           }
                           points={snapshot.bonusPrediction.points}
                           pointsAvailable={snapshot.bonusPrediction.pointsAvailable}

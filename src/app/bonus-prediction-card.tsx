@@ -106,7 +106,7 @@ export function BonusPredictionCard({
           </div>
           {showActual ? (
             <div>
-              <dt>Werkelijke plek</dt>
+              <dt>{questionType === "driver_finish_position" ? "Werkelijke plek" : "Officieel antwoord"}</dt>
               <dd>{formatAnswer(actualAnswer, answerOptions)}</dd>
             </div>
           ) : null}

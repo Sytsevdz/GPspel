@@ -17,7 +17,7 @@ import { GlobalStandingsPanel } from "./dashboard/global-standings-panel";
 import { DriverScoreCard } from "./driver-score-card";
 import { FastestPitstopBonusCard } from "./fastest-pitstop-bonus-card";
 import { BonusPredictionCard } from "./bonus-prediction-card";
-import type { BonusQuestion } from "@/lib/bonus-predictions";
+import { getBonusQuestionText, type BonusQuestion } from "@/lib/bonus-predictions";
 
 type LeagueMembershipRow = {
   league_id: string;
@@ -52,8 +52,8 @@ type LatestBonusResultRow = {
   fastest_pitstop_team: string | null;
 };
 
-type LatestBonusPredictionRow = { answer_position: number | null };
-type LatestBonusAnswerRow = { answer_position: number | null };
+type LatestBonusPredictionRow = { answer_position: number | null; answer_driver_id: string | null };
+type LatestBonusAnswerRow = { answer_position: number | null; answer_driver_id: string | null };
 
 type GrandPrixScoreDetailRow = {
   driver_id: string;
@@ -219,23 +219,26 @@ export default async function HomePage() {
     ? (
         await supabase
           .from("grand_prix_bonus_questions")
-          .select("id, grand_prix_id, question_type, question_text, subject_driver_id, points")
+          .select("id, grand_prix_id, question_type, subject_driver_id, points")
           .eq("grand_prix_id", displayedGrandPrix.id)
           .maybeSingle<BonusQuestion>()
       ).data
     : null;
 
+  const bonusDrivers = displayedBonusQuestion ? ((await supabase.from("drivers").select("id, name, constructor_team").eq("active", true)).data ?? []) : [];
+  const bonusAnswerOptions = bonusDrivers.map(driver => ({ value: driver.id, label: driver.name, description: driver.constructor_team }));
+
   const [displayedBonusPrediction, displayedBonusAnswer] = displayedBonusQuestion
     ? await Promise.all([
         supabase
           .from("grand_prix_bonus_predictions")
-          .select("answer_position")
+          .select("answer_position, answer_driver_id")
           .eq("grand_prix_bonus_question_id", displayedBonusQuestion.id)
           .eq("user_id", user.id)
           .maybeSingle<LatestBonusPredictionRow>(),
         supabase
           .from("grand_prix_bonus_answers")
-          .select("answer_position")
+          .select("answer_position, answer_driver_id")
           .eq("grand_prix_bonus_question_id", displayedBonusQuestion.id)
           .maybeSingle<LatestBonusAnswerRow>(),
       ])
@@ -487,18 +490,13 @@ export default async function HomePage() {
                     {hasPublishedBonusPoints && displayedBonusQuestion ? (
                       <BonusPredictionCard
                         questionType={displayedBonusQuestion.question_type}
-                        questionText={displayedBonusQuestion.question_text}
+                        questionText={getBonusQuestionText(displayedBonusQuestion.question_type, bonusDrivers.find(driver => driver.id === displayedBonusQuestion.subject_driver_id)?.name)}
+                        answerOptions={displayedBonusQuestion.question_type === "fastest_lap_driver" ? bonusAnswerOptions : []}
                         selectedAnswer={
-                          displayedBonusPrediction.data?.answer_position !== null &&
-                          displayedBonusPrediction.data?.answer_position !== undefined
-                            ? String(displayedBonusPrediction.data.answer_position)
-                            : null
+                          displayedBonusQuestion.question_type === "fastest_lap_driver" ? displayedBonusPrediction.data?.answer_driver_id ?? null : displayedBonusPrediction.data?.answer_position != null ? String(displayedBonusPrediction.data.answer_position) : null
                         }
                         actualAnswer={
-                          displayedBonusAnswer.data?.answer_position !== null &&
-                          displayedBonusAnswer.data?.answer_position !== undefined
-                            ? String(displayedBonusAnswer.data.answer_position)
-                            : null
+                          displayedBonusQuestion.question_type === "fastest_lap_driver" ? displayedBonusAnswer.data?.answer_driver_id ?? null : displayedBonusAnswer.data?.answer_position != null ? String(displayedBonusAnswer.data.answer_position) : null
                         }
                         points={userDisplayedScore.bonus_prediction_points ?? 0}
                         pointsAvailable={displayedBonusQuestion.points}

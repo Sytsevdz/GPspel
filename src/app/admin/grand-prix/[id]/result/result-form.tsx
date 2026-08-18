@@ -24,9 +24,10 @@ type ResultValues = {
   sprintRaceOrder: string[];
   raceOrder: string[];
   fastestPitstopTeam: string;
+  fastestLapDriverId: string;
 };
 
-type ResultField = Exclude<keyof ResultValues, "fastestPitstopTeam">;
+type ResultField = Exclude<keyof ResultValues, "fastestPitstopTeam" | "fastestLapDriverId">;
 
 type ResultFormProps = {
   grandPrixId: string;
@@ -34,6 +35,7 @@ type ResultFormProps = {
   drivers: DriverOption[];
   initialValues: ResultValues;
   constructorTeams: string[];
+  bonusQuestionType: string | null;
 };
 
 const INITIAL_STATE: GrandPrixResultActionState = { status: "idle" };
@@ -140,6 +142,7 @@ export function ResultForm({
   drivers,
   initialValues,
   constructorTeams,
+  bonusQuestionType,
 }: ResultFormProps) {
   const [state, formAction] = useFormState(saveGrandPrixResult, INITIAL_STATE);
   const [values, setValues] = useState<ResultValues>(initialValues);
@@ -322,6 +325,13 @@ export function ResultForm({
         name="race_order"
         value={values.raceOrder.join(",")}
       />
+      {bonusQuestionType === "fastest_lap_driver" ? <section className="predictions-section bonus-results-section">
+        <div className="predictions-section-header"><h2>Snelste ronde</h2><p>Selecteer de coureur die de snelste ronde reed.</p></div>
+        <input type="hidden" name="fastest_lap_driver_id" value={values.fastestLapDriverId}/>
+        <div className="bonus-answer-grid" role="group" aria-label="Snelste ronde">
+          {drivers.map(driver => <button type="button" key={driver.id} aria-pressed={values.fastestLapDriverId === driver.id} className={`bonus-answer-tile ${values.fastestLapDriverId === driver.id ? "selected" : ""}`} onClick={()=>setValues(current=>({...current, fastestLapDriverId: driver.id}))}><strong>{driver.name}</strong><span>{driver.constructorTeam}</span></button>)}
+        </div>
+      </section> : null}
 
       <section className="predictions-section bonus-results-section">
         <div className="predictions-section-header">

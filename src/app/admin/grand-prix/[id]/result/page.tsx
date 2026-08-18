@@ -114,7 +114,7 @@ export default async function GrandPrixResultPage({
     );
   }
 
-  const [{ data: existingResultRows }, { data: existingBonusResult }] =
+  const [{ data: existingResultRows }, { data: existingBonusResult }, { data: bonusQuestion }] =
     await Promise.all([
       supabase
         .from("grand_prix_driver_results")
@@ -128,7 +128,9 @@ export default async function GrandPrixResultPage({
         .select("fastest_pitstop_team")
         .eq("grand_prix_id", grandPrix.id)
         .maybeSingle<ExistingBonusResult>(),
+      supabase.from("grand_prix_bonus_questions").select("id, question_type").eq("grand_prix_id", grandPrix.id).maybeSingle<{id:string;question_type:string}>(),
     ]);
+  const bonusAnswer = bonusQuestion ? (await supabase.from("grand_prix_bonus_answers").select("answer_driver_id").eq("grand_prix_bonus_question_id", bonusQuestion.id).maybeSingle<{answer_driver_id:string|null}>()).data : null;
 
   const driverIds = drivers.map((driver) => driver.id);
   const existingRows = existingResultRows ?? [];
@@ -162,6 +164,7 @@ export default async function GrandPrixResultPage({
     sprintRaceOrder: toOrderedIds("sprint_race_position"),
     raceOrder: toOrderedIds("race_position"),
     fastestPitstopTeam: existingBonusResult?.fastest_pitstop_team ?? "",
+    fastestLapDriverId: bonusAnswer?.answer_driver_id ?? "",
   };
 
   const constructorTeams = Array.from(
@@ -208,6 +211,7 @@ export default async function GrandPrixResultPage({
             }))}
             initialValues={initialValues}
             constructorTeams={constructorTeams}
+            bonusQuestionType={bonusQuestion?.question_type ?? null}
           />
         )}
 

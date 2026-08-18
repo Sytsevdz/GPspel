@@ -12,6 +12,7 @@ import { BonusPredictionCard, type BonusAnswerOption } from "@/app/bonus-predict
 import { FastestPitstopBonusCard } from "@/app/fastest-pitstop-bonus-card";
 import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
+import type { BonusQuestionType } from "@/lib/bonus-predictions";
 
 type DriverOption = {
   id: string;
@@ -45,11 +46,13 @@ type PodiumPredictionField = Exclude<
 
 type BonusPredictionFormData = {
   questionId: string;
-  questionType: "driver_finish_position";
+  questionType: BonusQuestionType;
   questionText: string;
   pointsAvailable: number;
   selectedPosition: number | null;
   actualPosition: number | null;
+  selectedDriverId: string | null;
+  actualDriverId: string | null;
   points: number | null;
 };
 
@@ -700,18 +703,18 @@ export function PredictionsForm({
           />
           <input
             type="hidden"
-            name="bonus_answer_position"
+            name={bonusPrediction.questionType === "driver_finish_position" ? "bonus_answer_position" : "bonus_answer_driver_id"}
             value={values.bonusAnswerPosition}
           />
           <BonusPredictionCard
             questionType={bonusPrediction.questionType}
             questionText={bonusPrediction.questionText}
-            answerOptions={bonusAnswerOptions}
+            answerOptions={bonusPrediction.questionType === "driver_finish_position" ? bonusAnswerOptions : drivers.map((driver) => ({ value: driver.id, label: driver.name, description: driver.constructorTeam }))}
             selectedAnswer={values.bonusAnswerPosition || null}
             actualAnswer={
-              bonusPrediction.actualPosition !== null
-                ? String(bonusPrediction.actualPosition)
-                : null
+              bonusPrediction.questionType === "driver_finish_position"
+                ? (bonusPrediction.actualPosition !== null ? String(bonusPrediction.actualPosition) : null)
+                : bonusPrediction.actualDriverId
             }
             points={publishedPoints?.bonus ?? bonusPrediction.points}
             pointsAvailable={bonusPrediction.pointsAvailable}
