@@ -21,7 +21,9 @@ create table if not exists public.grand_prix_bonus_questions (
   id uuid primary key default gen_random_uuid(),
   grand_prix_id uuid not null references public.grand_prix(id) on delete cascade,
   question_type public.grand_prix_bonus_question_type not null,
-  question_text text not null check (char_length(trim(question_text)) > 0),
+  -- Kept only for backwards compatibility; displayed copy is generated from
+  -- question_type and its configuration.
+  question_text text,
   subject_driver_id uuid references public.drivers(id) on delete restrict,
   points integer not null default 10 check (points > 0),
   created_at timestamptz not null default now(),
