@@ -265,6 +265,43 @@ const getSectionSelections = (
   return [values.raceP1, values.raceP2, values.raceP3];
 };
 
+type DriverPickerProps = {
+  title: string;
+  subtitle: string;
+  drivers: DriverOption[];
+  selectedDriverId: string | null;
+  disabledDriverIds?: Set<string>;
+  onSelect: (driverId: string) => void;
+  onClose: () => void;
+};
+
+function DriverPicker({ title, subtitle, drivers, selectedDriverId, disabledDriverIds = new Set<string>(), onSelect, onClose }: DriverPickerProps) {
+  return (
+    <div className="podium-selection-overlay" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="podium-selection-panel" role="dialog" aria-modal="true" aria-label={title}>
+        <div className="podium-selection-panel-header">
+          <div><h3>{title}</h3><p>{subtitle}</p></div>
+          <button type="button" className="podium-selection-close" onClick={onClose}>Sluiten</button>
+        </div>
+        <div className="podium-driver-options">
+          {drivers.map((driver) => {
+            const team = resolveTeamSelectionTeam(driver.constructorTeam);
+            const imageSize = getTeamSideImageSize("modalOption");
+            const isSelected = selectedDriverId === driver.id;
+            const isDisabled = disabledDriverIds.has(driver.id) && !isSelected;
+            return (
+              <button key={driver.id} type="button" className={`podium-driver-option ${isSelected ? "selected" : ""}`} disabled={isDisabled} onClick={() => onSelect(driver.id)}>
+                <div className="podium-driver-option-image"><Image src={team.image} alt={`${team.name} wagen`} width={imageSize.width} height={imageSize.height} className={imageSize.className} /></div>
+                <div className="podium-driver-option-copy"><strong>{driver.name}</strong><span>{driver.constructorTeam}</span>{isDisabled ? <span>Al gekozen in dit podium</span> : null}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PredictionsForm({
   leagueId,
   grandPrixId,
@@ -293,6 +330,7 @@ export function PredictionsForm({
   );
   const [isFastestPitstopPickerOpen, setIsFastestPitstopPickerOpen] =
     useState(false);
+  const [isFastestLapPickerOpen, setIsFastestLapPickerOpen] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const lastSavedVersionRef = useRef(savedVersion);
 
@@ -485,6 +523,14 @@ export function PredictionsForm({
     setValues((current) => ({ ...current, [field]: value }));
   };
 
+  const selectedFastestLapDriver =
+    bonusPrediction?.questionType === "fastest_lap_driver" && values.bonusAnswerPosition
+      ? driversById.get(values.bonusAnswerPosition) ?? null
+      : null;
+  const selectedFastestLapTeam = selectedFastestLapDriver
+    ? resolveTeamSelectionTeam(selectedFastestLapDriver.constructorTeam)
+    : null;
+
   const formContent = (
     <>
       <input type="hidden" name="league_id" value={leagueId} />
@@ -620,78 +666,18 @@ export function PredictionsForm({
       ))}
 
       {!readOnly && activeSelection ? (
-        <div
-          className="podium-selection-overlay"
-          role="presentation"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              setActiveField(null);
-            }
+        <DriverPicker
+          title={`Kies coureur voor ${activeSelection.slot.position}`}
+          subtitle={activeSelection.section.title}
+          drivers={sortedDrivers}
+          selectedDriverId={values[activeSelection.slot.field] || null}
+          disabledDriverIds={new Set(activeSelection.sectionSelections)}
+          onClose={() => setActiveField(null)}
+          onSelect={(driverId) => {
+            onChangeValue(activeSelection.slot.field, driverId);
+            setActiveField(null);
           }}
-        >
-          <div
-            className="podium-selection-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-label={`Kies coureur voor ${activeSelection.slot.position}`}
-          >
-            <div className="podium-selection-panel-header">
-              <div>
-                <h3>{`Kies coureur voor ${activeSelection.slot.position}`}</h3>
-                <p>{activeSelection.section.title}</p>
-              </div>
-              <button
-                type="button"
-                className="podium-selection-close"
-                onClick={() => setActiveField(null)}
-              >
-                Sluiten
-              </button>
-            </div>
-
-            <div className="podium-driver-options">
-              {sortedDrivers.map((driver) => {
-                const team = resolveTeamSelectionTeam(driver.constructorTeam);
-                const imageSize = getTeamSideImageSize("modalOption");
-                const currentSelection = values[activeSelection.slot.field];
-                const selectedElsewhere =
-                  activeSelection.sectionSelections.includes(driver.id) &&
-                  currentSelection !== driver.id;
-                const isSelected = currentSelection === driver.id;
-
-                return (
-                  <button
-                    key={`${activeSelection.slot.field}-${driver.id}`}
-                    type="button"
-                    className={`podium-driver-option ${isSelected ? "selected" : ""}`}
-                    onClick={() => {
-                      onChangeValue(activeSelection.slot.field, driver.id);
-                      setActiveField(null);
-                    }}
-                    disabled={selectedElsewhere}
-                  >
-                    <div className="podium-driver-option-image">
-                      <Image
-                        src={team.image}
-                        alt={`${team.name} wagen`}
-                        width={imageSize.width}
-                        height={imageSize.height}
-                        className={imageSize.className}
-                      />
-                    </div>
-                    <div className="podium-driver-option-copy">
-                      <strong>{driver.name}</strong>
-                      <span>{driver.constructorTeam}</span>
-                      {selectedElsewhere ? (
-                        <span>Al gekozen in dit podium</span>
-                      ) : null}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+        />
       ) : null}
 
       {bonusPrediction ? (
@@ -710,6 +696,7 @@ export function PredictionsForm({
             questionType={bonusPrediction.questionType}
             questionText={bonusPrediction.questionText}
             answerOptions={bonusPrediction.questionType === "driver_finish_position" ? bonusAnswerOptions : drivers.map((driver) => ({ value: driver.id, label: driver.name, description: driver.constructorTeam }))}
+            showAnswerOptions={bonusPrediction.questionType === "driver_finish_position"}
             selectedAnswer={values.bonusAnswerPosition || null}
             actualAnswer={
               bonusPrediction.questionType === "driver_finish_position"
@@ -722,7 +709,7 @@ export function PredictionsForm({
             showPoints={publishedPoints !== undefined && publishedPoints.bonus !== null}
             disabled={readOnly}
             onSelectAnswer={
-              readOnly
+              readOnly || bonusPrediction.questionType === "fastest_lap_driver"
                 ? undefined
                 : (answer) => {
                     setHasInteracted(true);
@@ -734,6 +721,25 @@ export function PredictionsForm({
                   }
             }
           />
+          {bonusPrediction.questionType === "fastest_lap_driver" ? (
+            <button
+              type="button"
+              className={`podium-slot podium-slot--p1 bonus-driver-slot ${selectedFastestLapDriver ? "filled" : "empty"}`}
+              disabled={readOnly}
+              onClick={() => setIsFastestLapPickerOpen(true)}
+              aria-label={selectedFastestLapDriver ? "Coureur voor snelste ronde wijzigen" : "Coureur voor snelste ronde kiezen"}
+            >
+              <div className="podium-slot-content">
+                <div className="podium-slot-heading"><span className="podium-slot-position">FL</span><div className="podium-slot-meta"><span className="podium-slot-rank-label">Snelste ronde</span></div></div>
+                <div className="podium-slot-visual">
+                  {selectedFastestLapDriver && selectedFastestLapTeam ? <>
+                    <div className="podium-car-image-wrapper"><Image src={selectedFastestLapTeam.image} alt={`${selectedFastestLapTeam.name} wagen`} width={getTeamSideImageSize("selectedCard").width} height={getTeamSideImageSize("selectedCard").height} className={getTeamSideImageSize("selectedCard").className}/></div>
+                    <div className="podium-slot-copy"><strong>{selectedFastestLapDriver.name}</strong><span>{selectedFastestLapDriver.constructorTeam}</span></div>
+                  </> : <div className="podium-slot-placeholder"><strong>Kies een coureur</strong><span>Nog geen coureur gekozen</span></div>}
+                </div>
+              </div>
+            </button>
+          ) : null}
         </section>
       ) : (
         <section className="predictions-section bonus-results-section">
@@ -755,6 +761,22 @@ export function PredictionsForm({
           />
         </section>
       )}
+
+      {bonusPrediction?.questionType === "fastest_lap_driver" && !readOnly && isFastestLapPickerOpen ? (
+        <DriverPicker
+          title="Kies coureur voor snelste ronde"
+          subtitle="Bonusvraag"
+          drivers={sortedDrivers}
+          selectedDriverId={values.bonusAnswerPosition || null}
+          onClose={() => setIsFastestLapPickerOpen(false)}
+          onSelect={(driverId) => {
+            setHasInteracted(true);
+            onInteracted?.();
+            setValues((current) => ({ ...current, bonusAnswerPosition: driverId }));
+            setIsFastestLapPickerOpen(false);
+          }}
+        />
+      ) : null}
 
       {!bonusPrediction && !readOnly && isFastestPitstopPickerOpen ? (
         <div
