@@ -69,6 +69,7 @@ type ScoreComponentValues = {
 type BonusPredictionRow = {
   user_id: string;
   answer_position: number | null;
+  answer_driver_id: string | null;
 };
 
 const F1_RACE_POINTS_BY_POSITION: Record<number, number> = {
