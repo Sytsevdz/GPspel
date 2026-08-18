@@ -45,6 +45,7 @@ export async function savePrediction(
   const bonusAnswerPosition = bonusAnswerPositionValue
     ? Number(bonusAnswerPositionValue)
     : null;
+  const bonusAnswerDriverId = String(formData.get("bonus_answer_driver_id") ?? "").trim();
 
   if (
     !leagueId ||
@@ -232,18 +233,6 @@ export async function savePrediction(
 
   revalidatePath(`/leagues/${leagueId}/gp-spel`);
   if (bonusQuestionId) {
-    if (
-      !Number.isInteger(bonusAnswerPosition) ||
-      bonusAnswerPosition === null ||
-      bonusAnswerPosition < 1 ||
-      bonusAnswerPosition > teamSelectionData.drivers.length
-    ) {
-      return {
-        status: "error",
-        message: "Kies een geldige plek voor de bonusvraag",
-      };
-    }
-
     const { data: bonusQuestion, error: bonusQuestionError } = await supabase
       .from("grand_prix_bonus_questions")
       .select("id, grand_prix_id, question_type")
@@ -251,12 +240,26 @@ export async function savePrediction(
       .eq("grand_prix_id", grandPrixId)
       .maybeSingle<{ id: string; grand_prix_id: string; question_type: string }>();
 
-    if (bonusQuestionError || bonusQuestion?.question_type !== "driver_finish_position") {
+    if (bonusQuestionError || !bonusQuestion) {
       return {
         status: "error",
         message: "Er ging iets mis bij het opslaan van je bonusvoorspelling",
       };
     }
+
+    const answer = (() => {
+      switch (bonusQuestion.question_type) {
+        case "driver_finish_position":
+          return Number.isInteger(bonusAnswerPosition) && bonusAnswerPosition! >= 1 && bonusAnswerPosition! <= teamSelectionData.drivers.length
+            ? { answer_position: bonusAnswerPosition, answer_driver_id: null } : null;
+        case "fastest_lap_driver":
+          return teamSelectionData.drivers.some((driver) => driver.id === bonusAnswerDriverId)
+            ? { answer_position: null, answer_driver_id: bonusAnswerDriverId } : null;
+        default:
+          return null;
+      }
+    })();
+    if (!answer) return { status: "error", message: "Kies een geldig antwoord voor de bonusvraag" };
 
     const { error: bonusUpsertError } = await supabase
       .from("grand_prix_bonus_predictions")
@@ -264,7 +267,7 @@ export async function savePrediction(
         {
           grand_prix_bonus_question_id: bonusQuestionId,
           user_id: user.id,
-          answer_position: bonusAnswerPosition,
+          ...answer,
         },
         { onConflict: "grand_prix_bonus_question_id,user_id" },
       );

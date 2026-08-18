@@ -19,7 +19,8 @@ import {
   type GrandPrixStatus,
 } from "@/lib/grand-prix-status";
 import { createServerSupabaseClient } from "@/lib/supabase";
-import type { BonusQuestion } from "@/lib/bonus-predictions";
+import { isSupportedBonusQuestionType, type BonusQuestion } from "@/lib/bonus-predictions";
+import { BonusQuestionForm } from "./bonus-question-form";
 
 type GrandPrixManagementPageProps = {
   params: {
@@ -285,15 +286,13 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
 
     const grandPrixId = String(formData.get("grand_prix_id") ?? "").trim();
     const questionType = String(formData.get("question_type") ?? "").trim();
-    const questionText = String(formData.get("question_text") ?? "").trim();
     const subjectDriverId = String(formData.get("subject_driver_id") ?? "").trim();
     const points = Number(String(formData.get("points") ?? "").trim());
 
     if (
       !grandPrixId ||
-      questionType !== "driver_finish_position" ||
-      !questionText ||
-      !subjectDriverId ||
+      !isSupportedBonusQuestionType(questionType) ||
+      (questionType === "driver_finish_position" && !subjectDriverId) ||
       !Number.isInteger(points) ||
       points < 1
     ) {
@@ -314,8 +313,7 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
       {
         grand_prix_id: grandPrixId,
         question_type: questionType,
-        question_text: questionText,
-        subject_driver_id: subjectDriverId,
+        subject_driver_id: questionType === "driver_finish_position" ? subjectDriverId : null,
         points,
       },
       { onConflict: "grand_prix_id" },
@@ -388,7 +386,7 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
       .returns<Array<{ id: string; name: string }>>(),
     supabase
       .from("grand_prix_bonus_questions")
-      .select("id, grand_prix_id, question_type, question_text, subject_driver_id, points")
+      .select("id, grand_prix_id, question_type, subject_driver_id, points")
       .eq("grand_prix_id", managedGrandPrix.id)
       .maybeSingle<BonusQuestion>(),
   ]);
@@ -486,38 +484,14 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
         <section className="predictions-section">
           <h2>B. Bonusvraag</h2>
           <p>Configureer één bonusvraag voor deze Grand Prix.</p>
-          <form action={saveBonusQuestion} className="predictions-form">
-            <input type="hidden" name="grand_prix_id" value={managedGrandPrix.id} />
-            <label className="predictions-field">
-              <span>Type bonusvraag</span>
-              <select name="question_type" defaultValue={bonusQuestion?.question_type ?? "driver_finish_position"}>
-                <option value="driver_finish_position">Welke positie eindigt coureur?</option>
-              </select>
-            </label>
-            <label className="predictions-field">
-              <span>Vraagtekst</span>
-              <input
-                name="question_text"
-                defaultValue={bonusQuestion?.question_text ?? ""}
-                placeholder="Welke plek eindigt Max Verstappen?"
-                required
-              />
-            </label>
-            <label className="predictions-field">
-              <span>Subject coureur</span>
-              <select name="subject_driver_id" defaultValue={bonusQuestion?.subject_driver_id ?? ""} required>
-                <option value="">Kies coureur</option>
-                {(drivers ?? []).map((driver) => (
-                  <option key={driver.id} value={driver.id}>{driver.name}</option>
-                ))}
-              </select>
-            </label>
-            <label className="predictions-field">
-              <span>Punten</span>
-              <input name="points" type="number" min="1" step="1" defaultValue={bonusQuestion?.points ?? 10} required />
-            </label>
-            <button type="submit">Bonusvraag opslaan</button>
-          </form>
+          <BonusQuestionForm
+            action={saveBonusQuestion}
+            grandPrixId={managedGrandPrix.id}
+            initialType={bonusQuestion?.question_type ?? "driver_finish_position"}
+            initialDriverId={bonusQuestion?.subject_driver_id ?? ""}
+            initialPoints={bonusQuestion?.points ?? 10}
+            drivers={drivers ?? []}
+          />
         </section>
 
         <section className="predictions-section">

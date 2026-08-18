@@ -16,7 +16,7 @@ import {
 import { getAccessibleLeague } from "../../league-access";
 import { GrandPrixSelector } from "../../grand-prix-selector";
 import { GPSpelParticipationForm } from "../gp-spel-participation-form";
-import type { BonusQuestion } from "@/lib/bonus-predictions";
+import { getBonusQuestionText, type BonusQuestion } from "@/lib/bonus-predictions";
 
 type GPSpelGrandPrixPageProps = {
   params: {
@@ -87,13 +87,9 @@ type BonusResultRow = {
   fastest_pitstop_team: string | null;
 };
 
-type BonusPredictionRow = {
-  answer_position: number | null;
-};
+type BonusPredictionRow = { answer_position: number | null; answer_driver_id: string | null };
 
-type BonusAnswerRow = {
-  answer_position: number | null;
-};
+type BonusAnswerRow = { answer_position: number | null; answer_driver_id: string | null };
 
 type PredictionSlotPoints = {
   sprintQualiP1: number | null;
@@ -202,7 +198,7 @@ export default async function GPSpelGrandPrixPage({
         .maybeSingle<BonusResultRow>(),
       supabase
         .from("grand_prix_bonus_questions")
-        .select("id, grand_prix_id, question_type, question_text, subject_driver_id, points")
+        .select("id, grand_prix_id, question_type, subject_driver_id, points")
         .eq("grand_prix_id", gpData.grandPrix.id)
         .maybeSingle<BonusQuestion>(),
     ]);
@@ -234,23 +230,21 @@ export default async function GPSpelGrandPrixPage({
         ? await Promise.all([
             supabase
               .from("grand_prix_bonus_predictions")
-              .select("answer_position")
+              .select("answer_position, answer_driver_id")
               .eq("grand_prix_bonus_question_id", bonusQuestion.id)
               .eq("user_id", user.id)
               .maybeSingle<BonusPredictionRow>(),
             supabase
               .from("grand_prix_bonus_answers")
-              .select("answer_position")
+              .select("answer_position, answer_driver_id")
               .eq("grand_prix_bonus_question_id", bonusQuestion.id)
               .maybeSingle<BonusAnswerRow>(),
           ])
         : [{ data: null }, { data: null }];
 
-    initialPredictionValues.bonusAnswerPosition =
-      existingBonusPrediction?.answer_position !== null &&
-      existingBonusPrediction?.answer_position !== undefined
-        ? String(existingBonusPrediction.answer_position)
-        : "";
+    initialPredictionValues.bonusAnswerPosition = bonusQuestion?.question_type === "fastest_lap_driver"
+      ? (existingBonusPrediction?.answer_driver_id ?? "")
+      : existingBonusPrediction?.answer_position != null ? String(existingBonusPrediction.answer_position) : "";
     const slotPredictionPointsByField: PredictionSlotPoints = {
       sprintQualiP1: null,
       sprintQualiP2: null,
@@ -461,13 +455,13 @@ export default async function GPSpelGrandPrixPage({
                 bonusPrediction: bonusQuestion
                   ? {
                       questionId: bonusQuestion.id,
-                      questionType: "driver_finish_position",
-                      questionText: bonusQuestion.question_text,
+                      questionType: bonusQuestion.question_type,
+                      questionText: getBonusQuestionText(bonusQuestion.question_type, gpData.drivers.find(driver => driver.id === bonusQuestion.subject_driver_id)?.name),
                       pointsAvailable: bonusQuestion.points,
                       selectedPosition: existingBonusPrediction?.answer_position ?? null,
-                      actualPosition: hasPublishedBonusPoints
-                        ? (bonusAnswer?.answer_position ?? null)
-                        : null,
+                      selectedDriverId: existingBonusPrediction?.answer_driver_id ?? null,
+                      actualPosition: hasPublishedBonusPoints ? (bonusAnswer?.answer_position ?? null) : null,
+                      actualDriverId: hasPublishedBonusPoints ? (bonusAnswer?.answer_driver_id ?? null) : null,
                       points: hasPublishedBonusPoints
                         ? (userScore?.bonus_prediction_points ?? 0)
                         : null,

@@ -10,6 +10,7 @@ type BonusPredictionCardProps = {
   questionType: BonusQuestionType;
   questionText: string;
   answerOptions?: BonusAnswerOption[];
+  showAnswerOptions?: boolean;
   selectedAnswer?: string | null;
   actualAnswer?: string | null;
   points?: number | null;
@@ -43,6 +44,7 @@ export function BonusPredictionCard({
   questionType,
   questionText,
   answerOptions = [],
+  showAnswerOptions = true,
   selectedAnswer,
   actualAnswer,
   points,
@@ -77,7 +79,7 @@ export function BonusPredictionCard({
         </p>
       ) : null}
 
-      {answerOptions.length > 0 ? (
+      {showAnswerOptions && answerOptions.length > 0 ? (
         <div className="bonus-answer-grid" role="group" aria-label={questionText}>
           {answerOptions.map((option) => {
             const isSelected = selectedAnswer === option.value;
@@ -106,7 +108,7 @@ export function BonusPredictionCard({
           </div>
           {showActual ? (
             <div>
-              <dt>Werkelijke plek</dt>
+              <dt>{questionType === "driver_finish_position" ? "Werkelijke plek" : "Officieel antwoord"}</dt>
               <dd>{formatAnswer(actualAnswer, answerOptions)}</dd>
             </div>
           ) : null}

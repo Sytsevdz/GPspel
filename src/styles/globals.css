@@ -2801,6 +2801,17 @@ button.fastest-pitstop-pick-card.interactive:hover {
   gap: 0.55rem;
 }
 
+.bonus-driver-slot {
+  width: min(100%, 24rem);
+  min-height: 12rem;
+  margin-top: 1rem;
+}
+
+button.bonus-driver-slot:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
 .bonus-answer-tile {
   min-height: 3.4rem;
   border: 1px solid #3a3a3a;

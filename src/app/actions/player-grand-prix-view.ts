@@ -2,6 +2,7 @@
 
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { isSessionPublished } from "@/lib/session-publication";
+import { getBonusQuestionText, type BonusQuestionType } from "@/lib/bonus-predictions";
 import {
   isGrandPrixCancelled,
   resolveGrandPrixWorkflowStatus,
@@ -24,12 +25,15 @@ type TeamScoreDetail = {
 };
 
 type BonusPredictionResult = {
-  questionType: "driver_finish_position";
+  questionType: BonusQuestionType;
   questionText: string;
   selectedPosition: number | null;
   actualPosition: number | null;
+  selectedDriverId: string | null;
+  actualDriverId: string | null;
   points: number | null;
   pointsAvailable: number;
+  answerOptions: Array<{ value: string; label: string; description?: string }>;
 };
 
 type PredictionSlotScore = {
@@ -258,23 +262,24 @@ async function loadPlayerGrandPrixViewData(
 
   const { data: bonusQuestion } = await supabase
     .from("grand_prix_bonus_questions")
-    .select("id, question_type, question_text, points")
+    .select("id, question_type, subject_driver_id, points")
     .eq("grand_prix_id", safeGrandPrixId)
-    .maybeSingle<{ id: string; question_type: "driver_finish_position"; question_text: string; points: number }>();
+    .maybeSingle<{ id: string; question_type: BonusQuestionType; subject_driver_id: string | null; points: number }>();
 
+  const bonusDrivers = bonusQuestion?.question_type === "fastest_lap_driver" ? ((await supabase.from("drivers").select("id, name, constructor_team").eq("active", true)).data ?? []) : [];
   const [{ data: bonusPrediction }, { data: bonusAnswer }] = bonusQuestion
     ? await Promise.all([
         supabase
           .from("grand_prix_bonus_predictions")
-          .select("answer_position")
+          .select("answer_position, answer_driver_id")
           .eq("grand_prix_bonus_question_id", bonusQuestion.id)
           .eq("user_id", safePlayerId)
-          .maybeSingle<{ answer_position: number | null }>(),
+          .maybeSingle<{ answer_position: number | null; answer_driver_id: string | null }>(),
         supabase
           .from("grand_prix_bonus_answers")
-          .select("answer_position")
+          .select("answer_position, answer_driver_id")
           .eq("grand_prix_bonus_question_id", bonusQuestion.id)
-          .maybeSingle<{ answer_position: number | null }>(),
+          .maybeSingle<{ answer_position: number | null; answer_driver_id: string | null }>(),
       ])
     : [{ data: null }, { data: null }];
 
@@ -361,11 +366,14 @@ async function loadPlayerGrandPrixViewData(
       workflowStatus === "finished" && bonusQuestion
         ? {
             questionType: bonusQuestion.question_type,
-            questionText: bonusQuestion.question_text,
+            questionText: getBonusQuestionText(bonusQuestion.question_type, teamSelectionDrivers.find(driver => driver.id === bonusQuestion.subject_driver_id)?.name),
             selectedPosition: bonusPrediction?.answer_position ?? null,
+            selectedDriverId: bonusPrediction?.answer_driver_id ?? null,
             actualPosition: bonusAnswer?.answer_position ?? null,
+            actualDriverId: bonusAnswer?.answer_driver_id ?? null,
             points: totals?.bonus_prediction_points ?? null,
             pointsAvailable: bonusQuestion.points,
+            answerOptions: bonusDrivers.map(driver => ({ value: driver.id, label: driver.name, description: driver.constructor_team })),
           }
         : null,
     hasPredictions: hasAnyPredictionSection,

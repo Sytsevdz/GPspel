@@ -1,7 +1,7 @@
 "use server";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
-import { calculateDriverFinishPositionBonusPoints, type BonusQuestion } from "@/lib/bonus-predictions";
+import { calculateDriverFinishPositionBonusPoints, calculateFastestLapDriverBonusPoints, type BonusQuestion } from "@/lib/bonus-predictions";
 
 type GrandPrixDriverResultRow = {
   driver_id: string;
@@ -69,6 +69,7 @@ type ScoreComponentValues = {
 type BonusPredictionRow = {
   user_id: string;
   answer_position: number | null;
+  answer_driver_id: string | null;
 };
 
 const F1_RACE_POINTS_BY_POSITION: Record<number, number> = {
@@ -374,7 +375,7 @@ const loadBonusQuestion = async (grandPrixId: string) => {
   const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
     .from("grand_prix_bonus_questions")
-    .select("id, grand_prix_id, question_type, question_text, subject_driver_id, points")
+    .select("id, grand_prix_id, question_type, subject_driver_id, points")
     .eq("grand_prix_id", grandPrixId)
     .maybeSingle<BonusQuestion>();
 
@@ -389,7 +390,7 @@ const loadBonusPredictions = async (questionId: string) => {
   const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
     .from("grand_prix_bonus_predictions")
-    .select("user_id, answer_position")
+    .select("user_id, answer_position, answer_driver_id")
     .eq("grand_prix_bonus_question_id", questionId)
     .returns<BonusPredictionRow[]>();
 
@@ -872,31 +873,26 @@ async function upsertBonusAnswerAndScores({
   question: BonusQuestion | null;
   driverResults: GrandPrixDriverResultRow[];
 }) {
-  if (!question || question.question_type !== "driver_finish_position") {
+  if (!question) {
     return new Map<string, number>();
   }
 
-  const actualPosition =
-    driverResults.find((row) => row.driver_id === question.subject_driver_id)
-      ?.race_position ?? null;
   const supabase = createServerSupabaseClient();
-
-  await supabase.from("grand_prix_bonus_answers").upsert(
-    {
-      grand_prix_bonus_question_id: question.id,
-      answer_position: actualPosition,
-    },
-    { onConflict: "grand_prix_bonus_question_id" },
-  );
+  const existingAnswer = (await supabase.from("grand_prix_bonus_answers").select("answer_driver_id").eq("grand_prix_bonus_question_id", question.id).maybeSingle<{answer_driver_id:string|null}>()).data;
+  const actualPosition = question.question_type === "driver_finish_position"
+    ? driverResults.find((row) => row.driver_id === question.subject_driver_id)?.race_position ?? null : null;
+  const actualDriverId = question.question_type === "fastest_lap_driver" ? existingAnswer?.answer_driver_id ?? null : null;
+  if (question.question_type === "driver_finish_position") await supabase.from("grand_prix_bonus_answers").upsert(
+    { grand_prix_bonus_question_id: question.id, answer_position: actualPosition, answer_driver_id: null },
+    { onConflict: "grand_prix_bonus_question_id" });
 
   const bonusPredictions = await loadBonusPredictions(question.id);
   const pointsByUserId = new Map<string, number>();
   const scoreRows = bonusPredictions.map((prediction) => {
-    const points = calculateDriverFinishPositionBonusPoints({
-      predictedPosition: prediction.answer_position,
-      actualPosition,
-      pointsAvailable: question.points,
-    });
+    const points = (() => { switch (question.question_type) {
+      case "driver_finish_position": return calculateDriverFinishPositionBonusPoints({ predictedPosition: prediction.answer_position, actualPosition, pointsAvailable: question.points });
+      case "fastest_lap_driver": return calculateFastestLapDriverBonusPoints({ predictedDriverId: prediction.answer_driver_id, actualDriverId, pointsAvailable: question.points });
+    }})();
     pointsByUserId.set(prediction.user_id, points);
     return {
       grand_prix_bonus_question_id: question.id,

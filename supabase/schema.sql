@@ -13,7 +13,7 @@ begin
     create type grand_prix_status as enum ('upcoming', 'open', 'locked', 'finished', 'cancelled');
   end if;
   if not exists (select 1 from pg_type where typname = 'grand_prix_bonus_question_type') then
-    create type grand_prix_bonus_question_type as enum ('driver_finish_position');
+    create type grand_prix_bonus_question_type as enum ('driver_finish_position', 'fastest_lap_driver');
   end if;
 end$$;
 
@@ -163,7 +163,7 @@ create table if not exists public.grand_prix_bonus_questions (
   id uuid primary key default gen_random_uuid(),
   grand_prix_id uuid not null references public.grand_prix(id) on delete cascade,
   question_type public.grand_prix_bonus_question_type not null,
-  question_text text not null check (char_length(trim(question_text)) > 0),
+  question_text text,
   subject_driver_id uuid references public.drivers(id) on delete restrict,
   points integer not null default 10 check (points > 0),
   created_at timestamptz not null default now(),
@@ -177,6 +177,7 @@ create table if not exists public.grand_prix_bonus_predictions (
   grand_prix_bonus_question_id uuid not null references public.grand_prix_bonus_questions(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
   answer_position integer check (answer_position is null or answer_position >= 1),
+  answer_driver_id uuid references public.drivers(id) on delete restrict,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (grand_prix_bonus_question_id, user_id)
@@ -186,6 +187,7 @@ create table if not exists public.grand_prix_bonus_answers (
   id uuid primary key default gen_random_uuid(),
   grand_prix_bonus_question_id uuid not null references public.grand_prix_bonus_questions(id) on delete cascade,
   answer_position integer check (answer_position is null or answer_position >= 1),
+  answer_driver_id uuid references public.drivers(id) on delete restrict,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (grand_prix_bonus_question_id)
