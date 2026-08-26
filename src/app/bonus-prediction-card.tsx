@@ -1,3 +1,5 @@
+"use client";
+
 import { formatFinishPosition, type BonusQuestionType } from "@/lib/bonus-predictions";
 
 export type BonusAnswerOption = {
