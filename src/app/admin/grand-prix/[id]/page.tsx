@@ -341,14 +341,39 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
       if (error) redirect(`/admin/grand-prix/${params.id}?error=GP-deelnemers+opslaan+mislukt`);
       redirect(`/admin/grand-prix/${params.id}?message=Automatische+standaarddeelnemers+hersteld`);
     }
-    const constructorTeams = String(formData.get("constructor_teams") ?? "").split("\n").filter(Boolean);
-    const participants = constructorTeams.flatMap((constructorTeam) => [1, 2].map((slot) => ({
-      grand_prix_id: managedGrandPrix.id,
-      constructor_team: constructorTeam,
-      driver_id: String(formData.get(`driver_${constructorTeam}_${slot}`) ?? "").trim(),
-    })));
-    if (participants.some((participant) => !participant.driver_id)) {
-      redirect(`/admin/grand-prix/${params.id}?error=Kies+voor+ieder+team+twee+coureurs`);
+    const constructorTeamsRaw = String(formData.get("constructor_teams") ?? "");
+    const constructorTeams = constructorTeamsRaw.split("\n").filter(Boolean);
+    const participants = constructorTeams.flatMap((constructorTeam) => [1, 2].map((slot) => {
+      const fieldName = `driver_${constructorTeam}_${slot}`;
+      return {
+        grand_prix_id: managedGrandPrix.id,
+        constructor_team: constructorTeam,
+        driver_id: String(formData.get(fieldName) ?? "").trim(),
+        slot,
+        field_name: fieldName,
+      };
+    }));
+    const emptyParticipants = participants.filter(
+      (participant) => !participant.driver_id,
+    );
+    if (emptyParticipants.length > 0) {
+      const submittedDriverFields = Array.from(formData.entries())
+        .filter(([fieldName]) => fieldName.startsWith("driver_"))
+        .map(([fieldName, value]) => ({
+          fieldName,
+          value: typeof value === "string" ? value : `[File: ${value.name}]`,
+        }));
+      console.error("[saveDriverEntries] Empty GP participant slots", {
+        grandPrixId: managedGrandPrix.id,
+        constructorTeamsRaw,
+        constructorTeams,
+        emptyParticipants,
+        submittedDriverFields,
+      });
+      const emptyFieldNames = emptyParticipants
+        .map((participant) => participant.field_name)
+        .join(", ");
+      redirect(`/admin/grand-prix/${params.id}?error=${encodeURIComponent(`Kies voor ieder team twee coureurs. Ontbrekende velden: ${emptyFieldNames}`)}`);
     }
     const driverIds = participants.map((participant) => participant.driver_id);
     if (new Set(driverIds).size !== driverIds.length) {
