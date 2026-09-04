@@ -1,6 +1,7 @@
 "use server";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { getGrandPrixDrivers } from "@/lib/grand-prix-drivers";
 import { isSessionPublished } from "@/lib/session-publication";
 import { getBonusQuestionText, type BonusQuestionType } from "@/lib/bonus-predictions";
 import {
@@ -119,6 +120,8 @@ async function loadPlayerGrandPrixViewData(
     };
   }
 
+  const effectiveGrandPrixDrivers = await getGrandPrixDrivers(safeGrandPrixId);
+  const effectiveDriverById = new Map(effectiveGrandPrixDrivers.map((driver) => [driver.id, driver]));
   const [
     { data: teamSelection },
     { data: prediction },
@@ -130,7 +133,7 @@ async function loadPlayerGrandPrixViewData(
     supabase
       .from("team_selections")
       .select(
-        "id, team_selection_drivers(driver_id, drivers(id, name, constructor_team))",
+        "id, team_selection_drivers(driver_id)",
       )
       .eq("user_id", safePlayerId)
       .eq("grand_prix_id", safeGrandPrixId)
@@ -138,11 +141,6 @@ async function loadPlayerGrandPrixViewData(
         id: string;
         team_selection_drivers: Array<{
           driver_id: string;
-          drivers: {
-            id: string;
-            name: string;
-            constructor_team: string;
-          } | null;
         }>;
       }>(),
     supabase
@@ -224,11 +222,10 @@ async function loadPlayerGrandPrixViewData(
   const teamSelectionRows = teamSelection?.team_selection_drivers ?? [];
 
   const teamSelectionDrivers = teamSelectionRows
-    .map((row) => row.drivers)
-    .filter(
-      (row): row is { id: string; name: string; constructor_team: string } =>
-        Boolean(row),
-    )
+    .flatMap((row) => {
+      const driver = effectiveDriverById.get(row.driver_id);
+      return driver ? [driver] : [];
+    })
     .map((driver) => ({
       id: driver.id,
       name: driver.name,
@@ -266,7 +263,7 @@ async function loadPlayerGrandPrixViewData(
     .eq("grand_prix_id", safeGrandPrixId)
     .maybeSingle<{ id: string; question_type: BonusQuestionType; subject_driver_id: string | null; points: number }>();
 
-  const bonusDrivers = bonusQuestion?.question_type === "fastest_lap_driver" ? ((await supabase.from("drivers").select("id, name, constructor_team").eq("active", true)).data ?? []) : [];
+  const bonusDrivers = bonusQuestion?.question_type === "fastest_lap_driver" ? effectiveGrandPrixDrivers.filter(driver => driver.active) : [];
   const [{ data: bonusPrediction }, { data: bonusAnswer }] = bonusQuestion
     ? await Promise.all([
         supabase
@@ -301,11 +298,7 @@ async function loadPlayerGrandPrixViewData(
 
     const uniqueDriverIds = Array.from(new Set(predictionDriverIds));
 
-    const { data: predictionDrivers } = await supabase
-      .from("drivers")
-      .select("id, name, constructor_team")
-      .in("id", uniqueDriverIds)
-      .returns<Array<{ id: string; name: string; constructor_team: string }>>();
+    const predictionDrivers = effectiveGrandPrixDrivers.filter((driver) => uniqueDriverIds.includes(driver.id));
 
   const driversById = new Map(
       (predictionDrivers ?? []).map((driver) => [

@@ -21,6 +21,7 @@ import {
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { isSupportedBonusQuestionType, type BonusQuestion } from "@/lib/bonus-predictions";
 import { BonusQuestionForm } from "./bonus-question-form";
+import { getGrandPrixDrivers } from "@/lib/grand-prix-drivers";
 
 type GrandPrixManagementPageProps = {
   params: {
@@ -326,12 +327,35 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     redirect(`/admin/grand-prix/${params.id}?message=Bonusvraag+opgeslagen`);
   }
 
+  async function saveDriverEntries(formData: FormData) {
+    "use server";
+    const actionSupabase = createServerSupabaseClient();
+    const { data: { user: actionUser } } = await actionSupabase.auth.getUser();
+    const { data: actionProfile } = actionUser ? await actionSupabase.from("profiles").select("role").eq("id", actionUser.id).maybeSingle<{ role: string | null }>() : { data: null };
+    if (actionProfile?.role !== "admin") redirect(`/admin/grand-prix/${params.id}?error=Geen+toegang`);
+
+    const defaults = await getGrandPrixDrivers(managedGrandPrix.id);
+    const overrides = defaults.flatMap((driver) => {
+      const constructorTeam = String(formData.get(`team_${driver.id}`) ?? "").trim();
+      const isActive = formData.get(`active_${driver.id}`) === "on";
+      return constructorTeam && (constructorTeam !== driver.default_constructor_team || isActive !== driver.default_active)
+        ? [{ grand_prix_id: managedGrandPrix.id, driver_id: driver.id, constructor_team: constructorTeam, is_active: isActive }]
+        : [];
+    });
+    const { error: deleteError } = await actionSupabase.from("grand_prix_driver_entries").delete().eq("grand_prix_id", managedGrandPrix.id);
+    const { error: insertError } = overrides.length ? await actionSupabase.from("grand_prix_driver_entries").insert(overrides) : { error: null };
+    if (deleteError || insertError) redirect(`/admin/grand-prix/${params.id}?error=Driver+entries+opslaan+mislukt`);
+    redirect(`/admin/grand-prix/${params.id}?message=Driver+entries+opgeslagen`);
+  }
+
   const workflowStatus = resolveGrandPrixWorkflowStatus({
     status: managedGrandPrix.status,
     deadline: managedGrandPrix.deadline,
   });
   const isCancelled = isGrandPrixCancelled(workflowStatus);
 
+  const effectiveDrivers = await getGrandPrixDrivers(managedGrandPrix.id);
+  const constructorTeams = Array.from(new Set(effectiveDrivers.flatMap((driver) => [driver.constructor_team, driver.default_constructor_team]))).sort();
   const [
     { data: profiles },
     { data: leagues },
@@ -339,7 +363,6 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     { data: teamSelections },
     { data: predictions },
     { data: driverPrices },
-    { data: drivers },
     { data: bonusQuestion },
   ] = await Promise.all([
     supabase.from("profiles").select("id, display_name, role").returns<Array<{ id: string; display_name: string | null; role: string | null }>>(),
@@ -378,12 +401,6 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
       .select("driver_id, price")
       .eq("grand_prix_id", managedGrandPrix.id)
       .returns<Array<{ driver_id: string; price: number }>>(),
-    supabase
-      .from("drivers")
-      .select("id, name")
-      .eq("active", true)
-      .order("name", { ascending: true })
-      .returns<Array<{ id: string; name: string }>>(),
     supabase
       .from("grand_prix_bonus_questions")
       .select("id, grand_prix_id, question_type, subject_driver_id, points")
@@ -490,8 +507,27 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
             initialType={bonusQuestion?.question_type ?? "driver_finish_position"}
             initialDriverId={bonusQuestion?.subject_driver_id ?? ""}
             initialPoints={bonusQuestion?.points ?? 10}
-            drivers={drivers ?? []}
+            drivers={effectiveDrivers.filter((driver) => driver.active).map(({ id, name }) => ({ id, name }))}
           />
+        </section>
+
+        <section className="predictions-section">
+          <h2>Driver entries</h2>
+          <p>Wijzig het team of de beschikbaarheid alleen voor deze Grand Prix. Gelijke waarden herstellen automatisch de standaard.</p>
+          <form action={saveDriverEntries} className="predictions-form">
+            {effectiveDrivers.map((driver) => (
+              <fieldset key={driver.id} className="predictions-section">
+                <legend><strong>{driver.name}</strong>{driver.has_override ? " — override" : ""}</legend>
+                <label className="predictions-field"><span>Team</span>
+                  <select name={`team_${driver.id}`} defaultValue={driver.constructor_team} required>
+                    {constructorTeams.map((team) => <option key={team} value={team}>{team}</option>)}
+                  </select>
+                </label>
+                <label><input type="checkbox" name={`active_${driver.id}`} defaultChecked={driver.active} /> Actief</label>
+              </fieldset>
+            ))}
+            <button type="submit">Driver entries opslaan</button>
+          </form>
         </section>
 
         <section className="predictions-section">

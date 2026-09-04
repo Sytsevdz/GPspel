@@ -3,6 +3,7 @@ import Image from "next/image";
 
 import { formatUtcIsoInAmsterdamShort } from "@/lib/datetime";
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { getGrandPrixDrivers } from "@/lib/grand-prix-drivers";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 import {
   getActiveGrandPrixDisplayLabel,
@@ -52,8 +53,8 @@ type LatestBonusResultRow = {
   fastest_pitstop_team: string | null;
 };
 
-type LatestBonusPredictionRow = { answer_position: number | null; answer_driver_id: string | null };
-type LatestBonusAnswerRow = { answer_position: number | null; answer_driver_id: string | null };
+type LatestBonusPredictionRow = { answer_position: number | null; answer_driver_id: string | null; answer_team: string | null };
+type LatestBonusAnswerRow = { answer_position: number | null; answer_driver_id: string | null; answer_team: string | null };
 
 type GrandPrixScoreDetailRow = {
   driver_id: string;
@@ -64,7 +65,6 @@ type GrandPrixScoreDetailRow = {
   total_points: number | null;
   drivers: {
     name: string;
-    constructor_team: string;
   } | null;
 };
 
@@ -225,20 +225,22 @@ export default async function HomePage() {
       ).data
     : null;
 
-  const bonusDrivers = displayedBonusQuestion ? ((await supabase.from("drivers").select("id, name, constructor_team").eq("active", true)).data ?? []) : [];
+  const displayedGrandPrixDrivers = displayedGrandPrix ? await getGrandPrixDrivers(displayedGrandPrix.id) : [];
+  const displayedDriverById = new Map(displayedGrandPrixDrivers.map((driver) => [driver.id, driver]));
+  const bonusDrivers = displayedBonusQuestion ? displayedGrandPrixDrivers.filter(driver => driver.active) : [];
   const bonusAnswerOptions = bonusDrivers.map(driver => ({ value: driver.id, label: driver.name, description: driver.constructor_team }));
 
   const [displayedBonusPrediction, displayedBonusAnswer] = displayedBonusQuestion
     ? await Promise.all([
         supabase
           .from("grand_prix_bonus_predictions")
-          .select("answer_position, answer_driver_id")
+          .select("answer_position, answer_driver_id, answer_team")
           .eq("grand_prix_bonus_question_id", displayedBonusQuestion.id)
           .eq("user_id", user.id)
           .maybeSingle<LatestBonusPredictionRow>(),
         supabase
           .from("grand_prix_bonus_answers")
-          .select("answer_position, answer_driver_id")
+          .select("answer_position, answer_driver_id, answer_team")
           .eq("grand_prix_bonus_question_id", displayedBonusQuestion.id)
           .maybeSingle<LatestBonusAnswerRow>(),
       ])
@@ -249,7 +251,7 @@ export default async function HomePage() {
         await supabase
           .from("grand_prix_score_details")
           .select(
-            "driver_id, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points, total_points, drivers(name, constructor_team)",
+            "driver_id, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points, total_points, drivers(name)",
           )
           .eq("grand_prix_id", displayedGrandPrix.id)
           .eq("user_id", user.id)
@@ -388,7 +390,7 @@ export default async function HomePage() {
                         const driverName =
                           detail.drivers?.name ?? "Onbekende coureur";
                         const constructorTeam =
-                          detail.drivers?.constructor_team ?? "Onbekend team";
+                          displayedDriverById.get(detail.driver_id)?.constructor_team ?? "Onbekend team";
                         const team = resolveTeamSelectionTeam(constructorTeam);
                         const pointRows = [
                           ...(isSprintWeekend &&
@@ -493,10 +495,10 @@ export default async function HomePage() {
                         questionText={getBonusQuestionText(displayedBonusQuestion.question_type, bonusDrivers.find(driver => driver.id === displayedBonusQuestion.subject_driver_id)?.name)}
                         answerOptions={displayedBonusQuestion.question_type === "fastest_lap_driver" ? bonusAnswerOptions : []}
                         selectedAnswer={
-                          displayedBonusQuestion.question_type === "fastest_lap_driver" ? displayedBonusPrediction.data?.answer_driver_id ?? null : displayedBonusPrediction.data?.answer_position != null ? String(displayedBonusPrediction.data.answer_position) : null
+                          displayedBonusQuestion.question_type === "fastest_lap_driver" ? displayedBonusPrediction.data?.answer_driver_id ?? null : displayedBonusQuestion.question_type === "best_team" ? displayedBonusPrediction.data?.answer_team ?? null : displayedBonusPrediction.data?.answer_position != null ? String(displayedBonusPrediction.data.answer_position) : null
                         }
                         actualAnswer={
-                          displayedBonusQuestion.question_type === "fastest_lap_driver" ? displayedBonusAnswer.data?.answer_driver_id ?? null : displayedBonusAnswer.data?.answer_position != null ? String(displayedBonusAnswer.data.answer_position) : null
+                          displayedBonusQuestion.question_type === "fastest_lap_driver" ? displayedBonusAnswer.data?.answer_driver_id ?? null : displayedBonusQuestion.question_type === "best_team" ? displayedBonusAnswer.data?.answer_team ?? null : displayedBonusAnswer.data?.answer_position != null ? String(displayedBonusAnswer.data.answer_position) : null
                         }
                         points={userDisplayedScore.bonus_prediction_points ?? 0}
                         pointsAvailable={displayedBonusQuestion.points}

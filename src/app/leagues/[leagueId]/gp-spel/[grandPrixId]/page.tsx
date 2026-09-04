@@ -73,7 +73,6 @@ type UserGrandPrixScoreDetailRow = {
   total_points: number | null;
   drivers: {
     name: string;
-    constructor_team: string;
   } | null;
 };
 
@@ -87,9 +86,9 @@ type BonusResultRow = {
   fastest_pitstop_team: string | null;
 };
 
-type BonusPredictionRow = { answer_position: number | null; answer_driver_id: string | null };
+type BonusPredictionRow = { answer_position: number | null; answer_driver_id: string | null; answer_team: string | null };
 
-type BonusAnswerRow = { answer_position: number | null; answer_driver_id: string | null };
+type BonusAnswerRow = { answer_position: number | null; answer_driver_id: string | null; answer_team: string | null };
 
 type PredictionSlotPoints = {
   sprintQualiP1: number | null;
@@ -179,7 +178,7 @@ export default async function GPSpelGrandPrixPage({
       supabase
         .from("grand_prix_score_details")
         .select(
-          "driver_id, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points, total_points, drivers(name, constructor_team)",
+          "driver_id, team_sprint_quali_points, team_sprint_race_points, team_quali_points, team_race_points, total_points, drivers(name)",
         )
         .eq("user_id", user.id)
         .eq("grand_prix_id", gpData.grandPrix.id)
@@ -230,20 +229,20 @@ export default async function GPSpelGrandPrixPage({
         ? await Promise.all([
             supabase
               .from("grand_prix_bonus_predictions")
-              .select("answer_position, answer_driver_id")
+              .select("answer_position, answer_driver_id, answer_team")
               .eq("grand_prix_bonus_question_id", bonusQuestion.id)
               .eq("user_id", user.id)
               .maybeSingle<BonusPredictionRow>(),
             supabase
               .from("grand_prix_bonus_answers")
-              .select("answer_position, answer_driver_id")
+              .select("answer_position, answer_driver_id, answer_team")
               .eq("grand_prix_bonus_question_id", bonusQuestion.id)
               .maybeSingle<BonusAnswerRow>(),
           ])
         : [{ data: null }, { data: null }];
 
     initialPredictionValues.bonusAnswerPosition = bonusQuestion?.question_type === "fastest_lap_driver"
-      ? (existingBonusPrediction?.answer_driver_id ?? "")
+      ? (existingBonusPrediction?.answer_driver_id ?? "") : bonusQuestion?.question_type === "best_team" ? (existingBonusPrediction?.answer_team ?? "")
       : existingBonusPrediction?.answer_position != null ? String(existingBonusPrediction.answer_position) : "";
     const slotPredictionPointsByField: PredictionSlotPoints = {
       sprintQualiP1: null,
@@ -462,6 +461,8 @@ export default async function GPSpelGrandPrixPage({
                       selectedDriverId: existingBonusPrediction?.answer_driver_id ?? null,
                       actualPosition: hasPublishedBonusPoints ? (bonusAnswer?.answer_position ?? null) : null,
                       actualDriverId: hasPublishedBonusPoints ? (bonusAnswer?.answer_driver_id ?? null) : null,
+                      selectedTeam: existingBonusPrediction?.answer_team ?? null,
+                      actualTeam: hasPublishedBonusPoints ? (bonusAnswer?.answer_team ?? null) : null,
                       points: hasPublishedBonusPoints
                         ? (userScore?.bonus_prediction_points ?? 0)
                         : null,

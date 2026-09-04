@@ -46,6 +46,7 @@ export async function savePrediction(
     ? Number(bonusAnswerPositionValue)
     : null;
   const bonusAnswerDriverId = String(formData.get("bonus_answer_driver_id") ?? "").trim();
+  const bonusAnswerTeam = String(formData.get("bonus_answer_team") ?? "").trim();
 
   if (
     !leagueId ||
@@ -251,10 +252,13 @@ export async function savePrediction(
       switch (bonusQuestion.question_type) {
         case "driver_finish_position":
           return Number.isInteger(bonusAnswerPosition) && bonusAnswerPosition! >= 1 && bonusAnswerPosition! <= teamSelectionData.drivers.length
-            ? { answer_position: bonusAnswerPosition, answer_driver_id: null } : null;
+            ? { answer_position: bonusAnswerPosition, answer_driver_id: null, answer_team: null } : null;
         case "fastest_lap_driver":
           return teamSelectionData.drivers.some((driver) => driver.id === bonusAnswerDriverId)
-            ? { answer_position: null, answer_driver_id: bonusAnswerDriverId } : null;
+            ? { answer_position: null, answer_driver_id: bonusAnswerDriverId, answer_team: null } : null;
+        case "best_team":
+          return allowedConstructorTeams.has(bonusAnswerTeam)
+            ? { answer_position: null, answer_driver_id: null, answer_team: bonusAnswerTeam } : null;
         default:
           return null;
       }

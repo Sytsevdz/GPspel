@@ -53,6 +53,8 @@ type BonusPredictionFormData = {
   actualPosition: number | null;
   selectedDriverId: string | null;
   actualDriverId: string | null;
+  selectedTeam?: string | null;
+  actualTeam?: string | null;
   points: number | null;
 };
 
@@ -689,7 +691,7 @@ export function PredictionsForm({
           />
           <input
             type="hidden"
-            name={bonusPrediction.questionType === "driver_finish_position" ? "bonus_answer_position" : "bonus_answer_driver_id"}
+            name={bonusPrediction.questionType === "driver_finish_position" ? "bonus_answer_position" : bonusPrediction.questionType === "best_team" ? "bonus_answer_team" : "bonus_answer_driver_id"}
             value={values.bonusAnswerPosition}
           />
           <BonusPredictionCard
@@ -740,6 +742,9 @@ export function PredictionsForm({
               </div>
             </button>
           ) : null}
+          {bonusPrediction.questionType === "best_team" ? (
+            <FastestPitstopBonusCard selectedTeam={values.bonusAnswerPosition} actualTeam={bonusPrediction.actualTeam} points={publishedPoints?.bonus ?? null} showActual={publishedPoints !== undefined && publishedPoints.bonus !== null} showPoints={publishedPoints !== undefined && publishedPoints.bonus !== null} disabled={readOnly} onOpenPicker={readOnly ? undefined : () => setIsFastestPitstopPickerOpen(true)} />
+          ) : null}
         </section>
       ) : (
         <section className="predictions-section bonus-results-section">
@@ -778,7 +783,7 @@ export function PredictionsForm({
         />
       ) : null}
 
-      {!bonusPrediction && !readOnly && isFastestPitstopPickerOpen ? (
+      {(!bonusPrediction || bonusPrediction.questionType === "best_team") && !readOnly && isFastestPitstopPickerOpen ? (
         <div
           className="podium-selection-overlay"
           role="presentation"
@@ -792,12 +797,12 @@ export function PredictionsForm({
             className="podium-selection-panel"
             role="dialog"
             aria-modal="true"
-            aria-label="Kies team voor snelste pitstop"
+            aria-label={bonusPrediction?.questionType === "best_team" ? "Kies beste team" : "Kies team voor snelste pitstop"}
           >
             <div className="podium-selection-panel-header">
               <div>
-                <h3>Kies snelste pitstop-team</h3>
-                <p>Snelste pitstop</p>
+                <h3>{bonusPrediction?.questionType === "best_team" ? "Kies een team" : "Kies snelste pitstop-team"}</h3>
+                <p>{bonusPrediction?.questionType === "best_team" ? "Beste team" : "Snelste pitstop"}</p>
               </div>
               <button
                 type="button"
@@ -812,7 +817,7 @@ export function PredictionsForm({
               {constructorTeams.map((teamName) => {
                 const team = resolveTeamSelectionTeam(teamName);
                 const imageSize = getTeamSideImageSize("modalOption");
-                const isSelected = values.fastestPitstopTeam === teamName;
+                const isSelected = (bonusPrediction?.questionType === "best_team" ? values.bonusAnswerPosition : values.fastestPitstopTeam) === teamName;
 
                 return (
                   <button
@@ -824,7 +829,7 @@ export function PredictionsForm({
                       onInteracted?.();
                       setValues((current) => ({
                         ...current,
-                        fastestPitstopTeam: teamName,
+                        ...(bonusPrediction?.questionType === "best_team" ? { bonusAnswerPosition: teamName } : { fastestPitstopTeam: teamName }),
                       }));
                       setIsFastestPitstopPickerOpen(false);
                     }}

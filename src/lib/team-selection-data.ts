@@ -4,6 +4,7 @@ import {
 } from "@/lib/driver-pricing";
 import { resolveGrandPrixWorkflowStatus, type GrandPrixStatus, type GrandPrixWorkflowStatus } from "@/lib/grand-prix-status";
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { getGrandPrixDrivers } from "@/lib/grand-prix-drivers";
 
 export type SelectableGrandPrix = {
   id: string;
@@ -45,11 +46,7 @@ export type SelectableDriver = {
 
 type DriverPriceRow = {
   price: number;
-  drivers: {
-    id: string;
-    name: string;
-    constructor_team: string;
-  } | null;
+  driver_id: string;
 };
 
 type DriverResultRow = {
@@ -67,12 +64,13 @@ export type TeamSelectionDataResult = {
 
 async function loadDriverPrices(
   supabase: ReturnType<typeof createServerSupabaseClient>,
-  grandPrixId: string,
+  priceGrandPrixId: string,
+  rosterGrandPrixId: string = priceGrandPrixId,
 ): Promise<SelectableDriver[]> {
   const { data: driverPriceRows, error: driversError } = await supabase
     .from("driver_prices")
-    .select("price, drivers!inner(id, name, constructor_team)")
-    .eq("grand_prix_id", grandPrixId)
+    .select("price, driver_id")
+    .eq("grand_prix_id", priceGrandPrixId)
     .order("price", { ascending: true })
     .returns<DriverPriceRow[]>();
 
@@ -80,19 +78,23 @@ async function loadDriverPrices(
     throw new Error(driversError.message);
   }
 
+  const effectiveDrivers = await getGrandPrixDrivers(rosterGrandPrixId);
+  const effectiveById = new Map(effectiveDrivers.filter((driver) => driver.active).map((driver) => [driver.id, driver]));
   return (
     driverPriceRows
-      ?.filter((row) => row.drivers)
-      .map((row) => ({
-        id: row.drivers!.id,
-        name: row.drivers!.name,
-        constructorTeam: row.drivers!.constructor_team,
+      ?.filter((row) => effectiveById.has(row.driver_id))
+      .map((row) => {
+        const driver = effectiveById.get(row.driver_id)!;
+        return ({
+        id: driver.id,
+        name: driver.name,
+        constructorTeam: driver.constructor_team,
         price: row.price,
         seasonScore: 0,
         racePoints: 0,
         mostRecentRacePosition: Number.POSITIVE_INFINITY,
         performanceRank: Number.POSITIVE_INFINITY,
-      })) ?? []
+      });}) ?? []
   );
 }
 
@@ -345,7 +347,7 @@ export async function getGrandPrixAndDriversById(
   }
 
   for (const earlierGrandPrix of earlierGrandPrixRows ?? []) {
-    const fallbackDrivers = await loadDriverPrices(supabase, earlierGrandPrix.id);
+    const fallbackDrivers = await loadDriverPrices(supabase, earlierGrandPrix.id, grandPrix.id);
 
     if (fallbackDrivers.length > 0) {
       return {
