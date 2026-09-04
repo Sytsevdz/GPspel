@@ -22,6 +22,7 @@ import { createServerSupabaseClient } from "@/lib/supabase";
 import { isSupportedBonusQuestionType, type BonusQuestion } from "@/lib/bonus-predictions";
 import { BonusQuestionForm } from "./bonus-question-form";
 import { getGrandPrixDrivers } from "@/lib/grand-prix-drivers";
+import { GrandPrixDriverParticipantsEditor } from "@/components/admin/grand-prix-driver-participants-editor";
 
 type GrandPrixManagementPageProps = {
   params: {
@@ -346,8 +347,17 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
       constructor_team: constructorTeam,
       driver_id: String(formData.get(`driver_${constructorTeam}_${slot}`) ?? "").trim(),
     })));
-    if (participants.some((participant) => !participant.driver_id) || new Set(participants.map((participant) => participant.driver_id)).size !== participants.length) {
-      redirect(`/admin/grand-prix/${params.id}?error=Kies+voor+ieder+team+twee+verschillende+coureurs`);
+    if (participants.some((participant) => !participant.driver_id)) {
+      redirect(`/admin/grand-prix/${params.id}?error=Kies+voor+ieder+team+twee+coureurs`);
+    }
+    const driverIds = participants.map((participant) => participant.driver_id);
+    if (new Set(driverIds).size !== driverIds.length) {
+      const duplicateDriverId = driverIds.find((driverId, index) => driverIds.indexOf(driverId) !== index);
+      const { data: duplicateDriver } = await actionSupabase.from("drivers").select("name").eq("id", duplicateDriverId ?? "").maybeSingle<{ name: string }>();
+      const message = duplicateDriver?.name
+        ? `${duplicateDriver.name} is meerdere keren geselecteerd.`
+        : "Een coureur is meerdere keren geselecteerd.";
+      redirect(`/admin/grand-prix/${params.id}?error=${encodeURIComponent(message)}`);
     }
     const { error: insertError } = await actionSupabase.rpc("replace_grand_prix_driver_entries", { target_grand_prix_id: managedGrandPrix.id, participants });
     if (insertError) redirect(`/admin/grand-prix/${params.id}?error=GP-deelnemers+opslaan+mislukt`);
@@ -521,25 +531,19 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
         <section className="predictions-section">
           <h2>GP-deelnemers</h2>
           <p>Kies voor iedere constructor de twee coureurs die deze Grand Prix rijden.</p>
-          <form action={saveDriverEntries} className="predictions-form">
-            <input type="hidden" name="constructor_teams" value={constructorTeams.join("\n")} />
-            {constructorTeams.map((constructorTeam) => {
-              const participants = effectiveDrivers.filter((driver) => driver.constructor_team === constructorTeam);
-              return <fieldset key={constructorTeam} className="predictions-section">
-                <legend><strong>{constructorTeam}</strong></legend>
-                {[1, 2].map((slot) => <label key={slot} className="predictions-field"><span>Driver {slot}</span>
-                  <select name={`driver_${constructorTeam}_${slot}`} defaultValue={participants[slot - 1]?.id ?? ""} required>
-                    <option value="">Kies coureur</option>
-                    {(allDrivers ?? []).map((driver) => <option key={driver.id} value={driver.id}>{driver.name}</option>)}
-                  </select>
-                </label>)}
-              </fieldset>
-            })}
-            <div className="admin-action-stack">
-              <button type="submit" name="intent" value="save">GP-deelnemers opslaan</button>
-              <button type="submit" name="intent" value="clear" formNoValidate>Automatische standaard herstellen</button>
-            </div>
-          </form>
+          <GrandPrixDriverParticipantsEditor
+            action={saveDriverEntries}
+            assignments={constructorTeams.map((constructorTeam) => ({
+              constructorTeam,
+              driverIds: effectiveDrivers
+                .filter((driver) => driver.constructor_team === constructorTeam)
+                .map((driver) => driver.id)
+                .slice(0, 2)
+                .concat(["", ""])
+                .slice(0, 2) as [string, string],
+            }))}
+            drivers={allDrivers ?? []}
+          />
         </section>
 
         <section className="predictions-section">
