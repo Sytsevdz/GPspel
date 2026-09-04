@@ -263,7 +263,7 @@ async function loadPlayerGrandPrixViewData(
     .eq("grand_prix_id", safeGrandPrixId)
     .maybeSingle<{ id: string; question_type: BonusQuestionType; subject_driver_id: string | null; points: number }>();
 
-  const bonusDrivers = bonusQuestion?.question_type === "fastest_lap_driver" ? effectiveGrandPrixDrivers.filter(driver => driver.active) : [];
+  const bonusDrivers = bonusQuestion?.question_type === "fastest_lap_driver" ? effectiveGrandPrixDrivers : [];
   const [{ data: bonusPrediction }, { data: bonusAnswer }] = bonusQuestion
     ? await Promise.all([
         supabase

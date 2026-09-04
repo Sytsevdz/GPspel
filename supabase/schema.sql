@@ -121,11 +121,43 @@ create table if not exists public.grand_prix_driver_entries (
   grand_prix_id uuid not null references public.grand_prix(id) on delete cascade,
   driver_id uuid not null references public.drivers(id) on delete cascade,
   constructor_team text not null,
-  is_active boolean not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (grand_prix_id, driver_id)
 );
+
+create or replace function public.enforce_two_grand_prix_drivers_per_constructor()
+returns trigger language plpgsql set search_path = public as $$
+begin
+  perform pg_advisory_xact_lock(hashtextextended(new.grand_prix_id::text || ':' || new.constructor_team, 0));
+  if (select count(*) from public.grand_prix_driver_entries
+      where grand_prix_id = new.grand_prix_id
+        and constructor_team = new.constructor_team
+        and id <> new.id) >= 2 then
+    raise exception 'A constructor may have at most two drivers per Grand Prix';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists enforce_two_gp_drivers_per_constructor on public.grand_prix_driver_entries;
+create trigger enforce_two_gp_drivers_per_constructor before insert or update
+on public.grand_prix_driver_entries for each row
+execute function public.enforce_two_grand_prix_drivers_per_constructor();
+
+create or replace function public.replace_grand_prix_driver_entries(target_grand_prix_id uuid, participants jsonb)
+returns void language plpgsql security invoker set search_path = public as $$
+begin
+  if exists (select 1 from jsonb_to_recordset(participants) as p(constructor_team text, driver_id uuid)
+             group by constructor_team having count(*) <> 2) then
+    raise exception 'Every constructor must have exactly two drivers';
+  end if;
+  delete from public.grand_prix_driver_entries where grand_prix_id = target_grand_prix_id;
+  insert into public.grand_prix_driver_entries (grand_prix_id, constructor_team, driver_id)
+    select target_grand_prix_id, constructor_team, driver_id
+    from jsonb_to_recordset(participants) as p(constructor_team text, driver_id uuid);
+end;
+$$;
 
 -- 7) team_selections
 -- One team selection per user per grand prix.

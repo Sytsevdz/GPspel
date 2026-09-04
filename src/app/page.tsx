@@ -227,7 +227,7 @@ export default async function HomePage() {
 
   const displayedGrandPrixDrivers = displayedGrandPrix ? await getGrandPrixDrivers(displayedGrandPrix.id) : [];
   const displayedDriverById = new Map(displayedGrandPrixDrivers.map((driver) => [driver.id, driver]));
-  const bonusDrivers = displayedBonusQuestion ? displayedGrandPrixDrivers.filter(driver => driver.active) : [];
+  const bonusDrivers = displayedBonusQuestion ? displayedGrandPrixDrivers : [];
   const bonusAnswerOptions = bonusDrivers.map(driver => ({ value: driver.id, label: driver.name, description: driver.constructor_team }));
 
   const [displayedBonusPrediction, displayedBonusAnswer] = displayedBonusQuestion

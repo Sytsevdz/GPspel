@@ -58,7 +58,7 @@ export async function generateGrandPrixPricesFromPreviousResult(grandPrixId: str
     throw new Error("Deze Grand Prix is geannuleerd. Prijzen kunnen niet worden berekend.");
   }
 
-  const activeDriverRows = (await getGrandPrixDrivers(targetGrandPrix.id)).filter((driver) => driver.active);
+  const activeDriverRows = await getGrandPrixDrivers(targetGrandPrix.id);
   const activeDriverIds = activeDriverRows.map((driver) => driver.id);
 
   if (activeDriverIds.length === 0) {

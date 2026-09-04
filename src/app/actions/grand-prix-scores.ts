@@ -888,7 +888,7 @@ async function upsertBonusAnswerAndScores({
   const actualDriverId = question.question_type === "fastest_lap_driver" ? existingAnswer?.answer_driver_id ?? null : null;
   let actualTeam: string | null = null;
   if (question.question_type === "best_team") {
-    const effectiveDrivers = (await getGrandPrixDrivers(grandPrixId)).filter((driver) => driver.active);
+    const effectiveDrivers = await getGrandPrixDrivers(grandPrixId);
     const teamPoints = new Map<string, number>();
     for (const driver of effectiveDrivers) {
       const result = driverResults.find((row) => row.driver_id === driver.id);

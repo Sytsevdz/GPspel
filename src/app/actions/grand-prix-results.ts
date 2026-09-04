@@ -504,7 +504,7 @@ export async function saveGrandPrixResult(
     };
   }
 
-  const drivers = (await getGrandPrixDrivers(grandPrixId)).filter((driver) => driver.active);
+  const drivers = await getGrandPrixDrivers(grandPrixId);
 
   const activeDriverIds = drivers.map((driver) => driver.id);
   const activeDriverSet = new Set(activeDriverIds);

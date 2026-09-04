@@ -334,18 +334,24 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     const { data: actionProfile } = actionUser ? await actionSupabase.from("profiles").select("role").eq("id", actionUser.id).maybeSingle<{ role: string | null }>() : { data: null };
     if (actionProfile?.role !== "admin") redirect(`/admin/grand-prix/${params.id}?error=Geen+toegang`);
 
-    const defaults = await getGrandPrixDrivers(managedGrandPrix.id);
-    const overrides = defaults.flatMap((driver) => {
-      const constructorTeam = String(formData.get(`team_${driver.id}`) ?? "").trim();
-      const isActive = formData.get(`active_${driver.id}`) === "on";
-      return constructorTeam && (constructorTeam !== driver.default_constructor_team || isActive !== driver.default_active)
-        ? [{ grand_prix_id: managedGrandPrix.id, driver_id: driver.id, constructor_team: constructorTeam, is_active: isActive }]
-        : [];
-    });
-    const { error: deleteError } = await actionSupabase.from("grand_prix_driver_entries").delete().eq("grand_prix_id", managedGrandPrix.id);
-    const { error: insertError } = overrides.length ? await actionSupabase.from("grand_prix_driver_entries").insert(overrides) : { error: null };
-    if (deleteError || insertError) redirect(`/admin/grand-prix/${params.id}?error=Driver+entries+opslaan+mislukt`);
-    redirect(`/admin/grand-prix/${params.id}?message=Driver+entries+opgeslagen`);
+    const intent = String(formData.get("intent") ?? "save");
+    if (intent === "clear") {
+      const { error } = await actionSupabase.rpc("replace_grand_prix_driver_entries", { target_grand_prix_id: managedGrandPrix.id, participants: [] });
+      if (error) redirect(`/admin/grand-prix/${params.id}?error=GP-deelnemers+opslaan+mislukt`);
+      redirect(`/admin/grand-prix/${params.id}?message=Automatische+standaarddeelnemers+hersteld`);
+    }
+    const constructorTeams = String(formData.get("constructor_teams") ?? "").split("\n").filter(Boolean);
+    const participants = constructorTeams.flatMap((constructorTeam) => [1, 2].map((slot) => ({
+      grand_prix_id: managedGrandPrix.id,
+      constructor_team: constructorTeam,
+      driver_id: String(formData.get(`driver_${constructorTeam}_${slot}`) ?? "").trim(),
+    })));
+    if (participants.some((participant) => !participant.driver_id) || new Set(participants.map((participant) => participant.driver_id)).size !== participants.length) {
+      redirect(`/admin/grand-prix/${params.id}?error=Kies+voor+ieder+team+twee+verschillende+coureurs`);
+    }
+    const { error: insertError } = await actionSupabase.rpc("replace_grand_prix_driver_entries", { target_grand_prix_id: managedGrandPrix.id, participants });
+    if (insertError) redirect(`/admin/grand-prix/${params.id}?error=GP-deelnemers+opslaan+mislukt`);
+    redirect(`/admin/grand-prix/${params.id}?message=GP-deelnemers+opgeslagen`);
   }
 
   const workflowStatus = resolveGrandPrixWorkflowStatus({
@@ -355,7 +361,8 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
   const isCancelled = isGrandPrixCancelled(workflowStatus);
 
   const effectiveDrivers = await getGrandPrixDrivers(managedGrandPrix.id);
-  const constructorTeams = Array.from(new Set(effectiveDrivers.flatMap((driver) => [driver.constructor_team, driver.default_constructor_team]))).sort();
+  const constructorTeams = Array.from(new Set(effectiveDrivers.map((driver) => driver.constructor_team))).sort();
+  const { data: allDrivers } = await supabase.from("drivers").select("id, name").order("name").returns<Array<{ id: string; name: string }>>();
   const [
     { data: profiles },
     { data: leagues },
@@ -507,26 +514,31 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
             initialType={bonusQuestion?.question_type ?? "driver_finish_position"}
             initialDriverId={bonusQuestion?.subject_driver_id ?? ""}
             initialPoints={bonusQuestion?.points ?? 10}
-            drivers={effectiveDrivers.filter((driver) => driver.active).map(({ id, name }) => ({ id, name }))}
+            drivers={effectiveDrivers.map(({ id, name }) => ({ id, name }))}
           />
         </section>
 
         <section className="predictions-section">
-          <h2>Driver entries</h2>
-          <p>Wijzig het team of de beschikbaarheid alleen voor deze Grand Prix. Gelijke waarden herstellen automatisch de standaard.</p>
+          <h2>GP-deelnemers</h2>
+          <p>Kies voor iedere constructor de twee coureurs die deze Grand Prix rijden.</p>
           <form action={saveDriverEntries} className="predictions-form">
-            {effectiveDrivers.map((driver) => (
-              <fieldset key={driver.id} className="predictions-section">
-                <legend><strong>{driver.name}</strong>{driver.has_override ? " — override" : ""}</legend>
-                <label className="predictions-field"><span>Team</span>
-                  <select name={`team_${driver.id}`} defaultValue={driver.constructor_team} required>
-                    {constructorTeams.map((team) => <option key={team} value={team}>{team}</option>)}
+            <input type="hidden" name="constructor_teams" value={constructorTeams.join("\n")} />
+            {constructorTeams.map((constructorTeam) => {
+              const participants = effectiveDrivers.filter((driver) => driver.constructor_team === constructorTeam);
+              return <fieldset key={constructorTeam} className="predictions-section">
+                <legend><strong>{constructorTeam}</strong></legend>
+                {[1, 2].map((slot) => <label key={slot} className="predictions-field"><span>Driver {slot}</span>
+                  <select name={`driver_${constructorTeam}_${slot}`} defaultValue={participants[slot - 1]?.id ?? ""} required>
+                    <option value="">Kies coureur</option>
+                    {(allDrivers ?? []).map((driver) => <option key={driver.id} value={driver.id}>{driver.name}</option>)}
                   </select>
-                </label>
-                <label><input type="checkbox" name={`active_${driver.id}`} defaultChecked={driver.active} /> Actief</label>
+                </label>)}
               </fieldset>
-            ))}
-            <button type="submit">Driver entries opslaan</button>
+            })}
+            <div className="admin-action-stack">
+              <button type="submit" name="intent" value="save">GP-deelnemers opslaan</button>
+              <button type="submit" name="intent" value="clear" formNoValidate>Automatische standaard herstellen</button>
+            </div>
           </form>
         </section>
 

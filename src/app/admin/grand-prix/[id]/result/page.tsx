@@ -95,7 +95,7 @@ export default async function GrandPrixResultPage({
   });
   const isCancelled = isGrandPrixCancelled(workflowStatus);
 
-  const drivers = (await getGrandPrixDrivers(grandPrix.id)).filter((driver) => driver.active);
+  const drivers = await getGrandPrixDrivers(grandPrix.id);
 
   if (!drivers || drivers.length === 0) {
     return (

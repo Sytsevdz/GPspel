@@ -79,7 +79,7 @@ async function loadDriverPrices(
   }
 
   const effectiveDrivers = await getGrandPrixDrivers(rosterGrandPrixId);
-  const effectiveById = new Map(effectiveDrivers.filter((driver) => driver.active).map((driver) => [driver.id, driver]));
+  const effectiveById = new Map(effectiveDrivers.map((driver) => [driver.id, driver]));
   return (
     driverPriceRows
       ?.filter((row) => effectiveById.has(row.driver_id))
