@@ -341,8 +341,10 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
       if (error) redirect(`/admin/grand-prix/${params.id}?error=GP-deelnemers+opslaan+mislukt`);
       redirect(`/admin/grand-prix/${params.id}?message=Automatische+standaarddeelnemers+hersteld`);
     }
-    const constructorTeamsRaw = String(formData.get("constructor_teams") ?? "");
-    const constructorTeams = constructorTeamsRaw.split("\n").filter(Boolean);
+    const constructorTeams = formData
+      .getAll("constructor_team")
+      .map((constructorTeam) => String(constructorTeam).trim())
+      .filter(Boolean);
     const participants = constructorTeams.flatMap((constructorTeam) => [1, 2].map((slot) => {
       const fieldName = `driver_${constructorTeam}_${slot}`;
       return {
@@ -365,7 +367,6 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
         }));
       console.error("[saveDriverEntries] Empty GP participant slots", {
         grandPrixId: managedGrandPrix.id,
-        constructorTeamsRaw,
         constructorTeams,
         emptyParticipants,
         submittedDriverFields,

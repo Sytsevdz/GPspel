@@ -56,13 +56,13 @@ export function GrandPrixDriverParticipantsEditor({
 
   return (
     <form action={action} className="predictions-form" noValidate>
-      <input
-        type="hidden"
-        name="constructor_teams"
-        value={assignments.map((assignment) => assignment.constructorTeam).join("\n")}
-      />
       {assignments.map((assignment) => (
         <fieldset key={assignment.constructorTeam} className="predictions-section">
+          <input
+            type="hidden"
+            name="constructor_team"
+            value={assignment.constructorTeam}
+          />
           <legend>
             <strong>{assignment.constructorTeam}</strong>
           </legend>
