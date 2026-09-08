@@ -338,7 +338,16 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     const intent = String(formData.get("intent") ?? "save");
     if (intent === "clear") {
       const { error } = await actionSupabase.rpc("replace_grand_prix_driver_entries", { target_grand_prix_id: managedGrandPrix.id, participants: [] });
-      if (error) redirect(`/admin/grand-prix/${params.id}?error=GP-deelnemers+opslaan+mislukt`);
+      if (error) {
+        console.error("[saveDriverEntries] Failed to clear GP participants", {
+          grandPrixId: managedGrandPrix.id,
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        });
+        redirect(`/admin/grand-prix/${params.id}?error=GP-deelnemers+opslaan+mislukt`);
+      }
       redirect(`/admin/grand-prix/${params.id}?message=Automatische+standaarddeelnemers+hersteld`);
     }
     const constructorTeams = formData
@@ -385,8 +394,26 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
         : "Een coureur is meerdere keren geselecteerd.";
       redirect(`/admin/grand-prix/${params.id}?error=${encodeURIComponent(message)}`);
     }
-    const { error: insertError } = await actionSupabase.rpc("replace_grand_prix_driver_entries", { target_grand_prix_id: managedGrandPrix.id, participants });
-    if (insertError) redirect(`/admin/grand-prix/${params.id}?error=GP-deelnemers+opslaan+mislukt`);
+    const rpcParticipants = participants.map((participant) => ({
+      constructor_team: participant.constructor_team,
+      driver_id: participant.driver_id,
+    }));
+    const { error: insertError } = await actionSupabase.rpc("replace_grand_prix_driver_entries", {
+      target_grand_prix_id: managedGrandPrix.id,
+      participants: rpcParticipants,
+    });
+    if (insertError) {
+      console.error("[saveDriverEntries] Failed to replace GP participants", {
+        grandPrixId: managedGrandPrix.id,
+        participantCount: rpcParticipants.length,
+        constructorTeams,
+        code: insertError.code,
+        message: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint,
+      });
+      redirect(`/admin/grand-prix/${params.id}?error=GP-deelnemers+opslaan+mislukt`);
+    }
     redirect(`/admin/grand-prix/${params.id}?message=GP-deelnemers+opgeslagen`);
   }
 
