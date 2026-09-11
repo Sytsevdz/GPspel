@@ -32,6 +32,8 @@ type BonusPredictionResult = {
   actualPosition: number | null;
   selectedDriverId: string | null;
   actualDriverId: string | null;
+  selectedTeam: string | null;
+  actualTeam: string | null;
   points: number | null;
   pointsAvailable: number;
   answerOptions: Array<{ value: string; label: string; description?: string }>;
@@ -268,15 +270,15 @@ async function loadPlayerGrandPrixViewData(
     ? await Promise.all([
         supabase
           .from("grand_prix_bonus_predictions")
-          .select("answer_position, answer_driver_id")
+          .select("answer_position, answer_driver_id, answer_team")
           .eq("grand_prix_bonus_question_id", bonusQuestion.id)
           .eq("user_id", safePlayerId)
-          .maybeSingle<{ answer_position: number | null; answer_driver_id: string | null }>(),
+          .maybeSingle<{ answer_position: number | null; answer_driver_id: string | null; answer_team: string | null }>(),
         supabase
           .from("grand_prix_bonus_answers")
-          .select("answer_position, answer_driver_id")
+          .select("answer_position, answer_driver_id, answer_team")
           .eq("grand_prix_bonus_question_id", bonusQuestion.id)
-          .maybeSingle<{ answer_position: number | null; answer_driver_id: string | null }>(),
+          .maybeSingle<{ answer_position: number | null; answer_driver_id: string | null; answer_team: string | null }>(),
       ])
     : [{ data: null }, { data: null }];
 
@@ -364,6 +366,8 @@ async function loadPlayerGrandPrixViewData(
             selectedDriverId: bonusPrediction?.answer_driver_id ?? null,
             actualPosition: bonusAnswer?.answer_position ?? null,
             actualDriverId: bonusAnswer?.answer_driver_id ?? null,
+            selectedTeam: bonusPrediction?.answer_team ?? null,
+            actualTeam: bonusAnswer?.answer_team ?? null,
             points: totals?.bonus_prediction_points ?? null,
             pointsAvailable: bonusQuestion.points,
             answerOptions: bonusDrivers.map(driver => ({ value: driver.id, label: driver.name, description: driver.constructor_team })),

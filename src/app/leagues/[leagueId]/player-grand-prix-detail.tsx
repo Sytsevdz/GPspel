@@ -9,6 +9,7 @@ import {
 } from "@/app/actions/player-grand-prix-view";
 import { DriverScoreCard } from "@/app/driver-score-card";
 import { BonusPredictionCard } from "@/app/bonus-prediction-card";
+import { TeamBonusCard } from "@/app/team-bonus-card";
 import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 
@@ -597,7 +598,20 @@ export function PlayerGrandPrixDetail({
                           hasPublishedPredictionSlotScores
                         }
                       />
-                      {snapshot.bonusPrediction ? (
+                      {snapshot.bonusPrediction?.questionType === "best_team" ? (
+                        <TeamBonusCard
+                          title="Beste team"
+                          subtitle="Welk team scoort de meeste punten?"
+                          emptyPredictionText="Nog geen beste team voorspeld"
+                          actualTeamLabel="Werkelijk beste team"
+                          selectedTeam={snapshot.bonusPrediction.selectedTeam}
+                          actualTeam={snapshot.bonusPrediction.actualTeam}
+                          points={snapshot.bonusPrediction.points}
+                          helperText={`Goed voorspeld: ${snapshot.bonusPrediction.pointsAvailable} punten.`}
+                          showActual
+                          showPoints
+                        />
+                      ) : snapshot.bonusPrediction ? (
                         <BonusPredictionCard
                           questionType={snapshot.bonusPrediction.questionType}
                           questionText={snapshot.bonusPrediction.questionText}

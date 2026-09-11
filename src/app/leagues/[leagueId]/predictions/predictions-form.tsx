@@ -9,7 +9,7 @@ import {
   type PredictionsActionState,
 } from "@/app/actions/predictions";
 import { BonusPredictionCard, type BonusAnswerOption } from "@/app/bonus-prediction-card";
-import { FastestPitstopBonusCard } from "@/app/fastest-pitstop-bonus-card";
+import { TeamBonusCard } from "@/app/team-bonus-card";
 import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 import type { BonusQuestionType } from "@/lib/bonus-predictions";
@@ -694,35 +694,26 @@ export function PredictionsForm({
             name={bonusPrediction.questionType === "driver_finish_position" ? "bonus_answer_position" : bonusPrediction.questionType === "best_team" ? "bonus_answer_team" : "bonus_answer_driver_id"}
             value={values.bonusAnswerPosition}
           />
-          <BonusPredictionCard
-            questionType={bonusPrediction.questionType}
-            questionText={bonusPrediction.questionText}
-            answerOptions={bonusPrediction.questionType === "driver_finish_position" ? bonusAnswerOptions : drivers.map((driver) => ({ value: driver.id, label: driver.name, description: driver.constructorTeam }))}
-            showAnswerOptions={bonusPrediction.questionType === "driver_finish_position"}
-            selectedAnswer={values.bonusAnswerPosition || null}
-            actualAnswer={
-              bonusPrediction.questionType === "driver_finish_position"
-                ? (bonusPrediction.actualPosition !== null ? String(bonusPrediction.actualPosition) : null)
-                : bonusPrediction.actualDriverId
-            }
-            points={publishedPoints?.bonus ?? bonusPrediction.points}
-            pointsAvailable={bonusPrediction.pointsAvailable}
-            showActual={publishedPoints !== undefined && publishedPoints.bonus !== null}
-            showPoints={publishedPoints !== undefined && publishedPoints.bonus !== null}
-            disabled={readOnly}
-            onSelectAnswer={
-              readOnly || bonusPrediction.questionType === "fastest_lap_driver"
-                ? undefined
-                : (answer) => {
-                    setHasInteracted(true);
-                    onInteracted?.();
-                    setValues((current) => ({
-                      ...current,
-                      bonusAnswerPosition: answer,
-                    }));
-                  }
-            }
-          />
+          {bonusPrediction.questionType !== "best_team" ? (
+            <BonusPredictionCard
+              questionType={bonusPrediction.questionType}
+              questionText={bonusPrediction.questionText}
+              answerOptions={bonusPrediction.questionType === "driver_finish_position" ? bonusAnswerOptions : drivers.map((driver) => ({ value: driver.id, label: driver.name, description: driver.constructorTeam }))}
+              showAnswerOptions={bonusPrediction.questionType === "driver_finish_position"}
+              selectedAnswer={values.bonusAnswerPosition || null}
+              actualAnswer={bonusPrediction.questionType === "driver_finish_position" ? (bonusPrediction.actualPosition !== null ? String(bonusPrediction.actualPosition) : null) : bonusPrediction.actualDriverId}
+              points={publishedPoints?.bonus ?? bonusPrediction.points}
+              pointsAvailable={bonusPrediction.pointsAvailable}
+              showActual={publishedPoints !== undefined && publishedPoints.bonus !== null}
+              showPoints={publishedPoints !== undefined && publishedPoints.bonus !== null}
+              disabled={readOnly}
+              onSelectAnswer={readOnly || bonusPrediction.questionType === "fastest_lap_driver" ? undefined : (answer) => {
+                setHasInteracted(true);
+                onInteracted?.();
+                setValues((current) => ({ ...current, bonusAnswerPosition: answer }));
+              }}
+            />
+          ) : null}
           {bonusPrediction.questionType === "fastest_lap_driver" ? (
             <button
               type="button"
@@ -743,7 +734,20 @@ export function PredictionsForm({
             </button>
           ) : null}
           {bonusPrediction.questionType === "best_team" ? (
-            <FastestPitstopBonusCard selectedTeam={values.bonusAnswerPosition} actualTeam={bonusPrediction.actualTeam} points={publishedPoints?.bonus ?? null} showActual={publishedPoints !== undefined && publishedPoints.bonus !== null} showPoints={publishedPoints !== undefined && publishedPoints.bonus !== null} disabled={readOnly} onOpenPicker={readOnly ? undefined : () => setIsFastestPitstopPickerOpen(true)} />
+            <TeamBonusCard
+              title="Beste team"
+              subtitle="Welk team scoort de meeste punten?"
+              emptyPredictionText="Nog geen beste team voorspeld"
+              actualTeamLabel="Werkelijk beste team"
+              selectedTeam={values.bonusAnswerPosition}
+              actualTeam={bonusPrediction.actualTeam}
+              points={publishedPoints?.bonus ?? null}
+              showActual={publishedPoints !== undefined && publishedPoints.bonus !== null}
+              showPoints={publishedPoints !== undefined && publishedPoints.bonus !== null}
+              helperText={`Goed voorspeld: ${bonusPrediction.pointsAvailable} punten.`}
+              disabled={readOnly}
+              onOpenPicker={readOnly ? undefined : () => setIsFastestPitstopPickerOpen(true)}
+            />
           ) : null}
         </section>
       ) : (
@@ -753,7 +757,7 @@ export function PredictionsForm({
             name="fastest_pitstop_team"
             value={values.fastestPitstopTeam}
           />
-          <FastestPitstopBonusCard
+          <TeamBonusCard
             selectedTeam={values.fastestPitstopTeam}
             actualTeam={actualFastestPitstopTeam}
             points={publishedPoints?.fastestPitstop ?? null}
