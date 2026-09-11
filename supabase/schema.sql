@@ -13,7 +13,7 @@ begin
     create type grand_prix_status as enum ('upcoming', 'open', 'locked', 'finished', 'cancelled');
   end if;
   if not exists (select 1 from pg_type where typname = 'grand_prix_bonus_question_type') then
-    create type grand_prix_bonus_question_type as enum ('driver_finish_position', 'fastest_lap_driver');
+    create type grand_prix_bonus_question_type as enum ('driver_finish_position', 'fastest_lap_driver', 'best_team');
   end if;
 end$$;
 
@@ -116,6 +116,49 @@ create table if not exists public.driver_prices (
   unique (driver_id, grand_prix_id)
 );
 
+create table if not exists public.grand_prix_driver_entries (
+  id uuid primary key default gen_random_uuid(),
+  grand_prix_id uuid not null references public.grand_prix(id) on delete cascade,
+  driver_id uuid not null references public.drivers(id) on delete cascade,
+  constructor_team text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (grand_prix_id, driver_id)
+);
+
+create or replace function public.enforce_two_grand_prix_drivers_per_constructor()
+returns trigger language plpgsql set search_path = public as $$
+begin
+  perform pg_advisory_xact_lock(hashtextextended(new.grand_prix_id::text || ':' || new.constructor_team, 0));
+  if (select count(*) from public.grand_prix_driver_entries
+      where grand_prix_id = new.grand_prix_id
+        and constructor_team = new.constructor_team
+        and id <> new.id) >= 2 then
+    raise exception 'A constructor may have at most two drivers per Grand Prix';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists enforce_two_gp_drivers_per_constructor on public.grand_prix_driver_entries;
+create trigger enforce_two_gp_drivers_per_constructor before insert or update
+on public.grand_prix_driver_entries for each row
+execute function public.enforce_two_grand_prix_drivers_per_constructor();
+
+create or replace function public.replace_grand_prix_driver_entries(target_grand_prix_id uuid, participants jsonb)
+returns void language plpgsql security invoker set search_path = public as $$
+begin
+  if exists (select 1 from jsonb_to_recordset(participants) as p(constructor_team text, driver_id uuid)
+             group by constructor_team having count(*) <> 2) then
+    raise exception 'Every constructor must have exactly two drivers';
+  end if;
+  delete from public.grand_prix_driver_entries where grand_prix_id = target_grand_prix_id;
+  insert into public.grand_prix_driver_entries (grand_prix_id, constructor_team, driver_id)
+    select target_grand_prix_id, constructor_team, driver_id
+    from jsonb_to_recordset(participants) as p(constructor_team text, driver_id uuid);
+end;
+$$;
+
 -- 7) team_selections
 -- One team selection per user per grand prix.
 create table if not exists public.team_selections (
@@ -178,6 +221,7 @@ create table if not exists public.grand_prix_bonus_predictions (
   user_id uuid not null references public.profiles(id) on delete cascade,
   answer_position integer check (answer_position is null or answer_position >= 1),
   answer_driver_id uuid references public.drivers(id) on delete restrict,
+  answer_team text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (grand_prix_bonus_question_id, user_id)
@@ -188,6 +232,7 @@ create table if not exists public.grand_prix_bonus_answers (
   grand_prix_bonus_question_id uuid not null references public.grand_prix_bonus_questions(id) on delete cascade,
   answer_position integer check (answer_position is null or answer_position >= 1),
   answer_driver_id uuid references public.drivers(id) on delete restrict,
+  answer_team text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (grand_prix_bonus_question_id)
@@ -224,10 +269,18 @@ alter table public.league_members enable row level security;
 alter table public.team_selections enable row level security;
 alter table public.team_selection_drivers enable row level security;
 alter table public.predictions enable row level security;
+alter table public.grand_prix_driver_entries enable row level security;
 alter table public.grand_prix_bonus_questions enable row level security;
 alter table public.grand_prix_bonus_predictions enable row level security;
 alter table public.grand_prix_bonus_answers enable row level security;
 alter table public.grand_prix_bonus_prediction_scores enable row level security;
+
+drop policy if exists "grand_prix_driver_entries_read" on public.grand_prix_driver_entries;
+create policy "grand_prix_driver_entries_read" on public.grand_prix_driver_entries for select using (true);
+drop policy if exists "grand_prix_driver_entries_admin_write" on public.grand_prix_driver_entries;
+create policy "grand_prix_driver_entries_admin_write" on public.grand_prix_driver_entries for all
+using (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin'))
+with check (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin'));
 
 -- release 1 note: grand_prix, drivers, and driver_prices are treated as public read-only tables,
 -- so RLS is intentionally not enabled on those tables yet.

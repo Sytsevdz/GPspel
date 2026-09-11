@@ -21,6 +21,8 @@ import {
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { isSupportedBonusQuestionType, type BonusQuestion } from "@/lib/bonus-predictions";
 import { BonusQuestionForm } from "./bonus-question-form";
+import { getGrandPrixDrivers } from "@/lib/grand-prix-drivers";
+import { GrandPrixDriverParticipantsEditor } from "@/components/admin/grand-prix-driver-participants-editor";
 
 type GrandPrixManagementPageProps = {
   params: {
@@ -326,12 +328,104 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     redirect(`/admin/grand-prix/${params.id}?message=Bonusvraag+opgeslagen`);
   }
 
+  async function saveDriverEntries(formData: FormData) {
+    "use server";
+    const actionSupabase = createServerSupabaseClient();
+    const { data: { user: actionUser } } = await actionSupabase.auth.getUser();
+    const { data: actionProfile } = actionUser ? await actionSupabase.from("profiles").select("role").eq("id", actionUser.id).maybeSingle<{ role: string | null }>() : { data: null };
+    if (actionProfile?.role !== "admin") redirect(`/admin/grand-prix/${params.id}?error=Geen+toegang`);
+
+    const intent = String(formData.get("intent") ?? "save");
+    if (intent === "clear") {
+      const { error } = await actionSupabase.rpc("replace_grand_prix_driver_entries", { target_grand_prix_id: managedGrandPrix.id, participants: [] });
+      if (error) {
+        console.error("[saveDriverEntries] Failed to clear GP participants", {
+          grandPrixId: managedGrandPrix.id,
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        });
+        redirect(`/admin/grand-prix/${params.id}?error=GP-deelnemers+opslaan+mislukt`);
+      }
+      redirect(`/admin/grand-prix/${params.id}?message=Automatische+standaarddeelnemers+hersteld`);
+    }
+    const constructorTeams = formData
+      .getAll("constructor_team")
+      .map((constructorTeam) => String(constructorTeam).trim())
+      .filter(Boolean);
+    const participants = constructorTeams.flatMap((constructorTeam) => [1, 2].map((slot) => {
+      const fieldName = `driver_${constructorTeam}_${slot}`;
+      return {
+        grand_prix_id: managedGrandPrix.id,
+        constructor_team: constructorTeam,
+        driver_id: String(formData.get(fieldName) ?? "").trim(),
+        slot,
+        field_name: fieldName,
+      };
+    }));
+    const emptyParticipants = participants.filter(
+      (participant) => !participant.driver_id,
+    );
+    if (emptyParticipants.length > 0) {
+      const submittedDriverFields = Array.from(formData.entries())
+        .filter(([fieldName]) => fieldName.startsWith("driver_"))
+        .map(([fieldName, value]) => ({
+          fieldName,
+          value: typeof value === "string" ? value : `[File: ${value.name}]`,
+        }));
+      console.error("[saveDriverEntries] Empty GP participant slots", {
+        grandPrixId: managedGrandPrix.id,
+        constructorTeams,
+        emptyParticipants,
+        submittedDriverFields,
+      });
+      const emptyFieldNames = emptyParticipants
+        .map((participant) => participant.field_name)
+        .join(", ");
+      redirect(`/admin/grand-prix/${params.id}?error=${encodeURIComponent(`Kies voor ieder team twee coureurs. Ontbrekende velden: ${emptyFieldNames}`)}`);
+    }
+    const driverIds = participants.map((participant) => participant.driver_id);
+    if (new Set(driverIds).size !== driverIds.length) {
+      const duplicateDriverId = driverIds.find((driverId, index) => driverIds.indexOf(driverId) !== index);
+      const { data: duplicateDriver } = await actionSupabase.from("drivers").select("name").eq("id", duplicateDriverId ?? "").maybeSingle<{ name: string }>();
+      const message = duplicateDriver?.name
+        ? `${duplicateDriver.name} is meerdere keren geselecteerd.`
+        : "Een coureur is meerdere keren geselecteerd.";
+      redirect(`/admin/grand-prix/${params.id}?error=${encodeURIComponent(message)}`);
+    }
+    const rpcParticipants = participants.map((participant) => ({
+      constructor_team: participant.constructor_team,
+      driver_id: participant.driver_id,
+    }));
+    const { error: insertError } = await actionSupabase.rpc("replace_grand_prix_driver_entries", {
+      target_grand_prix_id: managedGrandPrix.id,
+      participants: rpcParticipants,
+    });
+    if (insertError) {
+      console.error("[saveDriverEntries] Failed to replace GP participants", {
+        grandPrixId: managedGrandPrix.id,
+        participantCount: rpcParticipants.length,
+        constructorTeams,
+        code: insertError.code,
+        message: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint,
+      });
+      redirect(`/admin/grand-prix/${params.id}?error=GP-deelnemers+opslaan+mislukt`);
+    }
+    redirect(`/admin/grand-prix/${params.id}?message=GP-deelnemers+opgeslagen`);
+  }
+
   const workflowStatus = resolveGrandPrixWorkflowStatus({
     status: managedGrandPrix.status,
     deadline: managedGrandPrix.deadline,
   });
   const isCancelled = isGrandPrixCancelled(workflowStatus);
 
+  const effectiveDrivers = await getGrandPrixDrivers(managedGrandPrix.id);
+  const constructorTeams = Array.from(new Set(effectiveDrivers.map((driver) => driver.constructor_team))).sort();
+  const { data: allDrivers } = await supabase.from("drivers").select("id, name").order("name").returns<Array<{ id: string; name: string }>>();
   const [
     { data: profiles },
     { data: leagues },
@@ -339,7 +433,6 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     { data: teamSelections },
     { data: predictions },
     { data: driverPrices },
-    { data: drivers },
     { data: bonusQuestion },
   ] = await Promise.all([
     supabase.from("profiles").select("id, display_name, role").returns<Array<{ id: string; display_name: string | null; role: string | null }>>(),
@@ -378,12 +471,6 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
       .select("driver_id, price")
       .eq("grand_prix_id", managedGrandPrix.id)
       .returns<Array<{ driver_id: string; price: number }>>(),
-    supabase
-      .from("drivers")
-      .select("id, name")
-      .eq("active", true)
-      .order("name", { ascending: true })
-      .returns<Array<{ id: string; name: string }>>(),
     supabase
       .from("grand_prix_bonus_questions")
       .select("id, grand_prix_id, question_type, subject_driver_id, points")
@@ -490,7 +577,25 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
             initialType={bonusQuestion?.question_type ?? "driver_finish_position"}
             initialDriverId={bonusQuestion?.subject_driver_id ?? ""}
             initialPoints={bonusQuestion?.points ?? 10}
-            drivers={drivers ?? []}
+            drivers={effectiveDrivers.map(({ id, name }) => ({ id, name }))}
+          />
+        </section>
+
+        <section className="predictions-section">
+          <h2>GP-deelnemers</h2>
+          <p>Kies voor iedere constructor de twee coureurs die deze Grand Prix rijden.</p>
+          <GrandPrixDriverParticipantsEditor
+            action={saveDriverEntries}
+            assignments={constructorTeams.map((constructorTeam) => ({
+              constructorTeam,
+              driverIds: effectiveDrivers
+                .filter((driver) => driver.constructor_team === constructorTeam)
+                .map((driver) => driver.id)
+                .slice(0, 2)
+                .concat(["", ""])
+                .slice(0, 2) as [string, string],
+            }))}
+            drivers={allDrivers ?? []}
           />
         </section>
 

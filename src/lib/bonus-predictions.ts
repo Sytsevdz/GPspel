@@ -1,4 +1,4 @@
-export const BONUS_QUESTION_TYPES = ["driver_finish_position", "fastest_lap_driver"] as const;
+export const BONUS_QUESTION_TYPES = ["driver_finish_position", "fastest_lap_driver", "best_team"] as const;
 
 export type BonusQuestionType = (typeof BONUS_QUESTION_TYPES)[number];
 
@@ -15,12 +15,14 @@ export type BonusPrediction = {
   user_id: string;
   answer_position: number | null;
   answer_driver_id: string | null;
+  answer_team: string | null;
 };
 
 export type BonusAnswer = {
   grand_prix_bonus_question_id: string;
   answer_position: number | null;
   answer_driver_id: string | null;
+  answer_team: string | null;
 };
 
 export type BonusPredictionScore = {
@@ -57,6 +59,8 @@ export const getBonusQuestionText = (
       return `Welke positie eindigt ${subjectDriverName ?? "de coureur"}?`;
     case "fastest_lap_driver":
       return "Wie rijdt de snelste ronde?";
+    case "best_team":
+      return "Welk team scoort de meeste punten?";
   }
 };
 
@@ -92,3 +96,6 @@ export const calculateFastestLapDriverBonusPoints = ({
 }) => predictedDriverId && actualDriverId && predictedDriverId === actualDriverId
   ? pointsAvailable
   : 0;
+
+export const calculateBestTeamBonusPoints = (predictedTeam: string | null, actualTeam: string | null, points: number) =>
+  predictedTeam && actualTeam && predictedTeam === actualTeam ? points : 0;

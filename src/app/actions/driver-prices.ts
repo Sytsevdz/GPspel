@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { calculateDriverPricesFromSeasonResults } from "@/lib/driver-pricing";
 import { isGrandPrixCancelled, type GrandPrixStatus } from "@/lib/grand-prix-status";
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { getGrandPrixDrivers } from "@/lib/grand-prix-drivers";
 
 type GrandPrixCandidate = {
   id: string;
@@ -57,17 +58,7 @@ export async function generateGrandPrixPricesFromPreviousResult(grandPrixId: str
     throw new Error("Deze Grand Prix is geannuleerd. Prijzen kunnen niet worden berekend.");
   }
 
-  const { data: activeDrivers, error: activeDriversError } = await supabase
-    .from("drivers")
-    .select("id, name")
-    .eq("active", true)
-    .returns<Array<{ id: string; name: string }>>();
-
-  if (activeDriversError) {
-    throw new Error(activeDriversError.message);
-  }
-
-  const activeDriverRows = activeDrivers ?? [];
+  const activeDriverRows = await getGrandPrixDrivers(targetGrandPrix.id);
   const activeDriverIds = activeDriverRows.map((driver) => driver.id);
 
   if (activeDriverIds.length === 0) {

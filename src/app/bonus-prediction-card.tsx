@@ -36,10 +36,8 @@ const formatAnswer = (
     return "Nog niet bekend";
   }
 
-  return (
-    answerOptions.find((option) => option.value === answer)?.label ??
-    formatFinishPosition(Number(answer))
-  );
+  return answerOptions.find((option) => option.value === answer)?.label ??
+    (Number.isFinite(Number(answer)) ? formatFinishPosition(Number(answer)) : answer);
 };
 
 export function BonusPredictionCard({

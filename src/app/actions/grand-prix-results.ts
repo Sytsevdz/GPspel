@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getGrandPrixDrivers } from "@/lib/grand-prix-drivers";
 
 import {
   calculateGrandPrixQualificationScores,
@@ -503,16 +504,12 @@ export async function saveGrandPrixResult(
     };
   }
 
-  const { data: drivers } = await adminCheck.supabase
-    .from("drivers")
-    .select("id, constructor_team")
-    .eq("active", true)
-    .returns<Array<{ id: string; constructor_team: string }>>();
+  const drivers = await getGrandPrixDrivers(grandPrixId);
 
-  const activeDriverIds = (drivers ?? []).map((driver) => driver.id);
+  const activeDriverIds = drivers.map((driver) => driver.id);
   const activeDriverSet = new Set(activeDriverIds);
   const activeConstructorTeams = new Set(
-    (drivers ?? []).map((driver) => driver.constructor_team),
+    drivers.map((driver) => driver.constructor_team),
   );
 
   const isSprintWeekend = adminCheck.supabase

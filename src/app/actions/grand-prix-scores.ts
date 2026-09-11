@@ -1,7 +1,8 @@
 "use server";
 
 import { createServerSupabaseClient } from "@/lib/supabase";
-import { calculateDriverFinishPositionBonusPoints, calculateFastestLapDriverBonusPoints, type BonusQuestion } from "@/lib/bonus-predictions";
+import { calculateBestTeamBonusPoints, calculateDriverFinishPositionBonusPoints, calculateFastestLapDriverBonusPoints, type BonusQuestion } from "@/lib/bonus-predictions";
+import { getGrandPrixDrivers } from "@/lib/grand-prix-drivers";
 
 type GrandPrixDriverResultRow = {
   driver_id: string;
@@ -70,6 +71,7 @@ type BonusPredictionRow = {
   user_id: string;
   answer_position: number | null;
   answer_driver_id: string | null;
+  answer_team: string | null;
 };
 
 const F1_RACE_POINTS_BY_POSITION: Record<number, number> = {
@@ -390,7 +392,7 @@ const loadBonusPredictions = async (questionId: string) => {
   const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
     .from("grand_prix_bonus_predictions")
-    .select("user_id, answer_position, answer_driver_id")
+    .select("user_id, answer_position, answer_driver_id, answer_team")
     .eq("grand_prix_bonus_question_id", questionId)
     .returns<BonusPredictionRow[]>();
 
@@ -869,9 +871,11 @@ export async function calculateGrandPrixQualificationScores(
 async function upsertBonusAnswerAndScores({
   question,
   driverResults,
+  grandPrixId,
 }: {
   question: BonusQuestion | null;
   driverResults: GrandPrixDriverResultRow[];
+  grandPrixId: string;
 }) {
   if (!question) {
     return new Map<string, number>();
@@ -882,6 +886,21 @@ async function upsertBonusAnswerAndScores({
   const actualPosition = question.question_type === "driver_finish_position"
     ? driverResults.find((row) => row.driver_id === question.subject_driver_id)?.race_position ?? null : null;
   const actualDriverId = question.question_type === "fastest_lap_driver" ? existingAnswer?.answer_driver_id ?? null : null;
+  let actualTeam: string | null = null;
+  if (question.question_type === "best_team") {
+    const effectiveDrivers = await getGrandPrixDrivers(grandPrixId);
+    const teamPoints = new Map<string, number>();
+    for (const driver of effectiveDrivers) {
+      const result = driverResults.find((row) => row.driver_id === driver.id);
+      const points = result?.race_position ? (F1_RACE_POINTS_BY_POSITION[result.race_position] ?? 0) : 0;
+      teamPoints.set(driver.constructor_team, (teamPoints.get(driver.constructor_team) ?? 0) + points);
+    }
+    actualTeam = [...teamPoints.entries()].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))[0]?.[0] ?? null;
+    await supabase.from("grand_prix_bonus_answers").upsert(
+      { grand_prix_bonus_question_id: question.id, answer_position: null, answer_driver_id: null, answer_team: actualTeam },
+      { onConflict: "grand_prix_bonus_question_id" },
+    );
+  }
   if (question.question_type === "driver_finish_position") await supabase.from("grand_prix_bonus_answers").upsert(
     { grand_prix_bonus_question_id: question.id, answer_position: actualPosition, answer_driver_id: null },
     { onConflict: "grand_prix_bonus_question_id" });
@@ -892,6 +911,7 @@ async function upsertBonusAnswerAndScores({
     const points = (() => { switch (question.question_type) {
       case "driver_finish_position": return calculateDriverFinishPositionBonusPoints({ predictedPosition: prediction.answer_position, actualPosition, pointsAvailable: question.points });
       case "fastest_lap_driver": return calculateFastestLapDriverBonusPoints({ predictedDriverId: prediction.answer_driver_id, actualDriverId, pointsAvailable: question.points });
+      case "best_team": return calculateBestTeamBonusPoints(prediction.answer_team, actualTeam, question.points);
     }})();
     pointsByUserId.set(prediction.user_id, points);
     return {
@@ -977,6 +997,7 @@ export async function calculateGrandPrixRaceScores(grandPrixId: string) {
   const bonusPredictionPointsByUserId = await upsertBonusAnswerAndScores({
     question: bonusQuestion,
     driverResults,
+    grandPrixId: normalizedGrandPrixId,
   });
 
   const componentByUserId = new Map<string, ScoreComponentValues>(

@@ -8,6 +8,7 @@ import {
   type GrandPrixStatus,
 } from "@/lib/grand-prix-status";
 import { createServerSupabaseClient } from "@/lib/supabase";
+import { getGrandPrixDrivers } from "@/lib/grand-prix-drivers";
 
 import { PublishScoreActions } from "./publish-score-actions";
 import { ResultForm } from "./result-form";
@@ -94,11 +95,7 @@ export default async function GrandPrixResultPage({
   });
   const isCancelled = isGrandPrixCancelled(workflowStatus);
 
-  const { data: drivers } = await supabase
-    .from("drivers")
-    .select("id, name, constructor_team")
-    .eq("active", true)
-    .order("name", { ascending: true });
+  const drivers = await getGrandPrixDrivers(grandPrix.id);
 
   if (!drivers || drivers.length === 0) {
     return (
