@@ -16,7 +16,7 @@ import {
 import { isSessionPublished } from "@/lib/session-publication";
 import { GlobalStandingsPanel } from "./dashboard/global-standings-panel";
 import { DriverScoreCard } from "./driver-score-card";
-import { FastestPitstopBonusCard } from "./fastest-pitstop-bonus-card";
+import { TeamBonusCard } from "./team-bonus-card";
 import { BonusPredictionCard } from "./bonus-prediction-card";
 import { getBonusQuestionText, type BonusQuestion } from "@/lib/bonus-predictions";
 
@@ -489,7 +489,21 @@ export default async function HomePage() {
                       </div>
                     ) : null}
 
-                    {hasPublishedBonusPoints && displayedBonusQuestion ? (
+                    {hasPublishedBonusPoints && displayedBonusQuestion?.question_type === "best_team" ? (
+                      <TeamBonusCard
+                        title="Beste team"
+                        subtitle="Welk team scoort de meeste punten?"
+                        emptyPredictionText="Nog geen beste team voorspeld"
+                        actualTeamLabel="Werkelijk beste team"
+                        selectedTeam={displayedBonusPrediction.data?.answer_team}
+                        actualTeam={displayedBonusAnswer.data?.answer_team}
+                        points={userDisplayedScore.bonus_prediction_points ?? 0}
+                        showActual
+                        showPoints
+                        helperText={`Goed voorspeld: ${displayedBonusQuestion.points} punten.`}
+                        className="dashboard-bonus-card"
+                      />
+                    ) : hasPublishedBonusPoints && displayedBonusQuestion ? (
                       <BonusPredictionCard
                         questionType={displayedBonusQuestion.question_type}
                         questionText={getBonusQuestionText(displayedBonusQuestion.question_type, bonusDrivers.find(driver => driver.id === displayedBonusQuestion.subject_driver_id)?.name)}
@@ -507,7 +521,7 @@ export default async function HomePage() {
                         className="dashboard-bonus-card"
                       />
                     ) : hasPublishedFastestPitstopPoints ? (
-                      <FastestPitstopBonusCard
+                      <TeamBonusCard
                         selectedTeam={
                           userDisplayedPrediction?.fastest_pitstop_team
                         }

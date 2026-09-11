@@ -8,7 +8,7 @@ import {
   saveGrandPrixResult,
   type GrandPrixResultActionState,
 } from "@/app/actions/grand-prix-results";
-import { FastestPitstopBonusCard } from "@/app/fastest-pitstop-bonus-card";
+import { TeamBonusCard } from "@/app/team-bonus-card";
 import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 
@@ -345,7 +345,7 @@ export function ResultForm({
           name="fastest_pitstop_team"
           value={values.fastestPitstopTeam}
         />
-        <FastestPitstopBonusCard
+        <TeamBonusCard
           title="Snelste pitstop-team"
           subtitle="Selecteer het team dat de bonusuitslag bepaalt."
           selectedTeam={values.fastestPitstopTeam}

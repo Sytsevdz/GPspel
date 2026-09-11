@@ -5,7 +5,7 @@ import Image from "next/image";
 import { getTeamSideImageSize } from "@/lib/team-side-view-images";
 import { resolveTeamSelectionTeam } from "@/lib/team-selection-teams";
 
-type FastestPitstopBonusCardProps = {
+type TeamBonusCardProps = {
   title?: string;
   subtitle?: string;
   selectedTeam?: string | null;
@@ -14,6 +14,8 @@ type FastestPitstopBonusCardProps = {
   showActual?: boolean;
   showPoints?: boolean;
   helperText?: string;
+  emptyPredictionText?: string;
+  actualTeamLabel?: string;
   className?: string;
   disabled?: boolean;
   onOpenPicker?: () => void;
@@ -26,7 +28,7 @@ const formatPoints = (points: number | null | undefined) =>
       : "0"
     : "Nog niet bekend";
 
-export function FastestPitstopBonusCard({
+export function TeamBonusCard({
   title = "Snelste pitstop",
   subtitle = "Welk team maakt de snelste pitstop?",
   selectedTeam,
@@ -35,10 +37,12 @@ export function FastestPitstopBonusCard({
   showActual = false,
   showPoints = false,
   helperText,
+  emptyPredictionText = "Nog geen snelste pitstop voorspeld",
+  actualTeamLabel = "Werkelijk snelste team",
   className,
   disabled = false,
   onOpenPicker,
-}: FastestPitstopBonusCardProps) {
+}: TeamBonusCardProps) {
   const rootClassName = ["fastest-pitstop-card", className]
     .filter(Boolean)
     .join(" ");
@@ -74,7 +78,7 @@ export function FastestPitstopBonusCard({
   ) : (
     <div className="gp-team-slot-empty fastest-pitstop-empty-state">
       <strong>Kies een team</strong>
-      <span>Nog geen snelste pitstop voorspeld</span>
+      <span>{emptyPredictionText}</span>
     </div>
   );
 
@@ -113,7 +117,7 @@ export function FastestPitstopBonusCard({
           </div>
           {showActual ? (
             <div>
-              <dt>Werkelijk snelste team</dt>
+              <dt>{actualTeamLabel}</dt>
               <dd>{actualTeam || "Nog niet bekend"}</dd>
             </div>
           ) : null}
