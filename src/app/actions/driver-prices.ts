@@ -2,10 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 
-import { calculateDriverPricesFromSeasonResults } from "@/lib/driver-pricing";
+import {
+  calculateDriverPricesFromSeasonResults,
+  EXPECTED_GRAND_PRIX_DRIVER_COUNT,
+} from "@/lib/driver-pricing";
 import { isGrandPrixCancelled, type GrandPrixStatus } from "@/lib/grand-prix-status";
 import { createServerSupabaseClient } from "@/lib/supabase";
-import { getGrandPrixDrivers } from "@/lib/grand-prix-drivers";
+import { getExplicitGrandPrixDrivers } from "@/lib/grand-prix-drivers";
 
 type GrandPrixCandidate = {
   id: string;
@@ -58,18 +61,26 @@ export async function generateGrandPrixPricesFromPreviousResult(grandPrixId: str
     throw new Error("Deze Grand Prix is geannuleerd. Prijzen kunnen niet worden berekend.");
   }
 
-  const activeDriverRows = await getGrandPrixDrivers(targetGrandPrix.id);
-  const activeDriverIds = activeDriverRows.map((driver) => driver.id);
+  // Pricing must never use the active-master-driver fallback: a reserve driver may
+  // be available globally without participating in this particular Grand Prix.
+  const participatingDriverRows = await getExplicitGrandPrixDrivers(targetGrandPrix.id);
+  const participatingDriverIds = participatingDriverRows.map((driver) => driver.id);
 
-  if (activeDriverIds.length === 0) {
-    throw new Error("Geen actieve coureurs gevonden");
+  if (participatingDriverIds.length === 0) {
+    throw new Error("Stel eerst de GP-deelnemers in voordat je coureurprijzen berekent.");
+  }
+
+  if (participatingDriverIds.length !== EXPECTED_GRAND_PRIX_DRIVER_COUNT) {
+    throw new Error(
+      `De GP-deelnemerslijst moet exact ${EXPECTED_GRAND_PRIX_DRIVER_COUNT} coureurs bevatten voordat je coureurprijzen berekent.`,
+    );
   }
 
   console.info("[driver-prices] Start prijsberekening", {
     targetGrandPrixId: targetGrandPrix.id,
     targetGrandPrixName: targetGrandPrix.name,
     targetQualificationStart: targetGrandPrix.qualification_start,
-    expectedResultRows: activeDriverIds.length,
+    expectedResultRows: participatingDriverIds.length,
   });
 
   const { data: completedGrandPrixBeforeTarget, error: completedGrandPrixError } = await supabase
@@ -114,7 +125,7 @@ export async function generateGrandPrixPricesFromPreviousResult(grandPrixId: str
   }
 
   const calculatedPrices = calculateDriverPricesFromSeasonResults(
-    activeDriverRows.map((driver) => ({
+    participatingDriverRows.map((driver) => ({
       driverId: driver.id,
       name: driver.name,
     })),
@@ -139,6 +150,33 @@ export async function generateGrandPrixPricesFromPreviousResult(grandPrixId: str
 
   if (upsertError) {
     throw new Error(upsertError.message);
+  }
+
+  const { data: existingPriceRows, error: existingPricesError } = await supabase
+    .from("driver_prices")
+    .select("driver_id")
+    .eq("grand_prix_id", targetGrandPrix.id)
+    .returns<Array<{ driver_id: string }>>();
+
+  if (existingPricesError) {
+    throw new Error(existingPricesError.message);
+  }
+
+  const participantIds = new Set(participatingDriverIds);
+  const staleDriverIds = (existingPriceRows ?? [])
+    .map((row) => row.driver_id)
+    .filter((driverId) => !participantIds.has(driverId));
+
+  if (staleDriverIds.length > 0) {
+    const { error: deleteError } = await supabase
+      .from("driver_prices")
+      .delete()
+      .eq("grand_prix_id", targetGrandPrix.id)
+      .in("driver_id", staleDriverIds);
+
+    if (deleteError) {
+      throw new Error(deleteError.message);
+    }
   }
 
   revalidatePath("/admin");

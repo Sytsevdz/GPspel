@@ -43,6 +43,8 @@ const PRICE_LADDER_BY_RANK = [
   380, 365, 350, 335, 315, 295, 275, 255, 235, 215, 200, 185, 170, 160, 150, 140, 135, 130, 125, 120, 115, 110,
 ] as const;
 
+export const EXPECTED_GRAND_PRIX_DRIVER_COUNT = PRICE_LADDER_BY_RANK.length;
+
 const getRacePointsForPosition = (position: number) => F1_RACE_POINTS_BY_POSITION[position] ?? 0;
 
 const getQualifyingBonusForPosition = (position: number) => {
