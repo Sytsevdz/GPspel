@@ -11,6 +11,7 @@ import {
   getGameplayGrandPrix,
   getGrandPrixTimeline,
   getNextGrandPrixFromTimeline,
+  getLatestFinishedGrandPrix,
   getScoreGrandPrix,
 } from "@/lib/team-selection-data";
 import { isSessionPublished } from "@/lib/session-publication";
@@ -336,6 +337,31 @@ export default async function HomePage() {
         left.spelerNaam.localeCompare(right.spelerNaam),
     );
 
+  // Reuse the already loaded global scores; do not use season totals here.
+  const publishedGrandPrixIds = new Set(
+    (allScoreRows ?? [])
+      .filter((score) => score.total_points != null)
+      .map((score) => score.grand_prix_id),
+  );
+  const latestScoredGrandPrix = getLatestFinishedGrandPrix(
+    timeline.filter((grandPrix) => publishedGrandPrixIds.has(grandPrix.id)),
+  );
+  const latestGrandPrixPointsByUserId = new Map(
+    (allScoreRows ?? [])
+      .filter((score) => score.grand_prix_id === latestScoredGrandPrix?.id)
+      .map((score) => [score.user_id, score.total_points ?? 0]),
+  );
+  const latestGrandPrixStandings = globalStandings
+    .map((entry) => ({
+      ...entry,
+      totaalPunten: latestGrandPrixPointsByUserId.get(entry.userId) ?? 0,
+    }))
+    .sort(
+      (left, right) =>
+        right.totaalPunten - left.totaalPunten ||
+        left.spelerNaam.localeCompare(right.spelerNaam),
+    );
+
   return (
     <main className="dashboard-page dashboard-home-page">
       <section className="dashboard-home-header">
@@ -555,18 +581,35 @@ export default async function HomePage() {
           )}
         </article>
 
-        <article className="dashboard-card dashboard-home-card dashboard-home-card--standings">
-          <h2>Algemeen klassement</h2>
-          <GlobalStandingsPanel
-            grandPrix={
-              displayedGrandPrix
-                ? { id: displayedGrandPrix.id, name: displayedGrandPrix.name }
-                : null
-            }
-            deadlinePassed={canOpenDisplayedGrandPrixDetails}
-            standings={globalStandings}
-          />
-        </article>
+        <div className="dashboard-standings-column">
+          <article className="dashboard-card dashboard-home-card dashboard-home-card--standings">
+            <h2>Algemeen klassement – Laatste Grand Prix</h2>
+            {latestScoredGrandPrix ? (
+              <>
+                <p className="dashboard-data-title">{latestScoredGrandPrix.name}</p>
+                <GlobalStandingsPanel
+                  grandPrix={{ id: latestScoredGrandPrix.id, name: latestScoredGrandPrix.name }}
+                  deadlinePassed={true}
+                  standings={latestGrandPrixStandings}
+                />
+              </>
+            ) : (
+              <p className="league-list-empty">Er is nog geen afgeronde Grand Prix met gepubliceerde scores.</p>
+            )}
+          </article>
+          <article className="dashboard-card dashboard-home-card dashboard-home-card--standings">
+            <h2>Algemeen klassement – Seizoen 2026</h2>
+            <GlobalStandingsPanel
+              grandPrix={
+                displayedGrandPrix
+                  ? { id: displayedGrandPrix.id, name: displayedGrandPrix.name }
+                  : null
+              }
+              deadlinePassed={canOpenDisplayedGrandPrixDetails}
+              standings={globalStandings}
+            />
+          </article>
+        </div>
 
         <article className="dashboard-card dashboard-home-card">
           <h2>Jouw Leagues</h2>
