@@ -404,6 +404,17 @@ a {
   gap: 1rem;
 }
 
+.dashboard-standings-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.dashboard-standings-column > .dashboard-home-card {
+  min-height: 0;
+}
+
 .dashboard-home-card {
   width: 100%;
   min-height: 100%;
