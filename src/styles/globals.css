@@ -2970,3 +2970,47 @@ button.bonus-driver-slot:disabled {
 .gp-workflow-chevron { margin-left: auto; font-size: 1.4rem; }
 .gp-workflow-section[open] > summary { margin-bottom: 1rem; }
 .gp-workflow-section[open] > summary .gp-workflow-chevron { transform: rotate(180deg); }
+
+/* Keep the scoring table readable without widening the rules page on mobile. */
+.rules-card {
+  min-width: 0;
+}
+
+.rules-section,
+.rules-subsection {
+  min-width: 0;
+}
+
+.rules-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  margin-block: 0.7rem;
+}
+
+.rules-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.rules-table caption {
+  text-align: left;
+  padding-bottom: 0.5rem;
+  color: #e5e5e5;
+}
+
+.rules-table th,
+.rules-table td {
+  padding: 0.55rem;
+  border-bottom: 1px solid #303030;
+  text-align: center;
+}
+
+.rules-table th:first-child {
+  text-align: left;
+}
+
+.rules-table-scroll:focus-visible {
+  outline: 2px solid #e5e5e5;
+  outline-offset: 2px;
+}
