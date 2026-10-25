@@ -101,7 +101,7 @@ function ReorderList({
         )}
       </div>
 
-      <ol className="result-rankings-list">
+      <ol className="result-rankings-list" tabIndex={0} aria-label={`${title}: coureursvolgorde`}>
         {order.map((driverId, index) => {
           const driver = driversById.get(driverId);
 
@@ -333,7 +333,7 @@ export function ResultForm({
         </div>
       </section> : null}
 
-      <section className="predictions-section bonus-results-section">
+      {bonusQuestionType === "fastest_pitstop_team" ? <section className="predictions-section bonus-results-section">
         <div className="predictions-section-header">
           <h2>Bonusresultaten</h2>
           <p>
@@ -352,9 +352,9 @@ export function ResultForm({
           helperText="Dit veld gebruikt dezelfde teamlijst als de voorspelling en wijzigt geen scoringslogica."
           onOpenPicker={() => setIsFastestPitstopPickerOpen(true)}
         />
-      </section>
+      </section> : null}
 
-      {isFastestPitstopPickerOpen ? (
+      {bonusQuestionType === "fastest_pitstop_team" && isFastestPitstopPickerOpen ? (
         <div
           className="podium-selection-overlay"
           role="presentation"

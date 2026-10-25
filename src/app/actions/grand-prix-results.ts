@@ -194,13 +194,17 @@ export async function publishGrandPrixSprintQualificationScores(
     };
   }
 
-  const { error } = await requireAdminAndGrandPrix(grandPrixId);
+  const { error, grandPrix } = await requireAdminAndGrandPrix(grandPrixId);
 
   if (error) {
     return {
       status: "error",
       message: error,
     };
+  }
+
+  if (!grandPrix?.is_sprint_weekend) {
+    return { status: "error", message: "Sprintpunten publiceren is alleen mogelijk bij een sprintweekend." };
   }
 
   await calculateGrandPrixSprintQualificationScores(grandPrixId);
@@ -233,13 +237,17 @@ export async function publishGrandPrixSprintRaceScores(
     };
   }
 
-  const { error } = await requireAdminAndGrandPrix(grandPrixId);
+  const { error, grandPrix } = await requireAdminAndGrandPrix(grandPrixId);
 
   if (error) {
     return {
       status: "error",
       message: error,
     };
+  }
+
+  if (!grandPrix?.is_sprint_weekend) {
+    return { status: "error", message: "Sprintpunten publiceren is alleen mogelijk bij een sprintweekend." };
   }
 
   await calculateGrandPrixSprintRaceScores(grandPrixId);
@@ -504,6 +512,19 @@ export async function saveGrandPrixResult(
     };
   }
 
+  const { data: bonusQuestion, error: bonusQuestionError } = await adminCheck.supabase
+    .from("grand_prix_bonus_questions")
+    .select("id, question_type, subject_driver_id")
+    .eq("grand_prix_id", grandPrixId)
+    .maybeSingle<{ id: string; question_type: string; subject_driver_id: string | null }>();
+
+  if (bonusQuestionError) {
+    return {
+      status: "error",
+      message: "Bonusvraag laden mislukte; uitslag niet opgeslagen",
+    };
+  }
+
   const drivers = await getGrandPrixDrivers(grandPrixId);
 
   const activeDriverIds = drivers.map((driver) => driver.id);
@@ -546,7 +567,7 @@ export async function saveGrandPrixResult(
     ...raceOrder,
   ];
 
-  if (fastestPitstopTeam && !activeConstructorTeams.has(fastestPitstopTeam)) {
+  if (bonusQuestion?.question_type === "fastest_pitstop_team" && fastestPitstopTeam && !activeConstructorTeams.has(fastestPitstopTeam)) {
     return {
       status: "error",
       message: "Kies een geldig constructorteam voor snelste pitstop",
@@ -611,19 +632,6 @@ export async function saveGrandPrixResult(
   }
 
 
-  const { data: bonusQuestion, error: bonusQuestionError } = await adminCheck.supabase
-    .from("grand_prix_bonus_questions")
-    .select("id, question_type, subject_driver_id")
-    .eq("grand_prix_id", grandPrixId)
-    .maybeSingle<{ id: string; question_type: string; subject_driver_id: string | null }>();
-
-  if (bonusQuestionError) {
-    return {
-      status: "error",
-      message: "Uitslag opgeslagen, maar bonusvraag laden mislukte",
-    };
-  }
-
   if (bonusQuestion?.question_type === "driver_finish_position") {
     const answerPosition = bonusQuestion.subject_driver_id
       ? (racePositionByDriverId.get(bonusQuestion.subject_driver_id) ?? null)
@@ -651,21 +659,23 @@ export async function saveGrandPrixResult(
     if (error) return { status: "error", message: "Uitslag opgeslagen, maar snelste ronde opslaan mislukte" };
   }
 
-  const { error: bonusUpsertError } = await adminCheck.supabase
-    .from("grand_prix_bonus_results")
-    .upsert(
-      {
-        grand_prix_id: grandPrixId,
-        fastest_pitstop_team: fastestPitstopTeam || null,
-      },
-      { onConflict: "grand_prix_id" },
-    );
+  if (bonusQuestion?.question_type === "fastest_pitstop_team" && formData.has("fastest_pitstop_team")) {
+    const { error: bonusUpsertError } = await adminCheck.supabase
+      .from("grand_prix_bonus_results")
+      .upsert(
+        {
+          grand_prix_id: grandPrixId,
+          fastest_pitstop_team: fastestPitstopTeam || null,
+        },
+        { onConflict: "grand_prix_id" },
+      );
 
-  if (bonusUpsertError) {
-    return {
-      status: "error",
-      message: "Uitslag opgeslagen, maar snelste pitstop opslaan mislukte",
-    };
+    if (bonusUpsertError) {
+      return {
+        status: "error",
+        message: "Uitslag opgeslagen, maar snelste pitstop opslaan mislukte",
+      };
+    }
   }
 
   revalidatePath(`/admin/grand-prix/${grandPrixId}`);
