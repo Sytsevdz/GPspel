@@ -2953,3 +2953,20 @@ button.bonus-driver-slot:disabled {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+.gp-workflow-section > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3rem;
+  cursor: pointer;
+  list-style: none;
+  flex-wrap: wrap;
+}
+.gp-workflow-section > summary::-webkit-details-marker { display: none; }
+.gp-workflow-section > summary h2 { margin: 0; font-size: 1.1rem; }
+.gp-workflow-section > summary:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+.gp-workflow-status, .gp-workflow-summary { font-size: 0.8rem; opacity: 0.7; }
+.gp-workflow-chevron { margin-left: auto; font-size: 1.4rem; }
+.gp-workflow-section[open] > summary { margin-bottom: 1rem; }
+.gp-workflow-section[open] > summary .gp-workflow-chevron { transform: rotate(180deg); }

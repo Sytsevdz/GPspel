@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+import { reportResultWorkflow } from "../workflow-controller";
+
 import { useFormState, useFormStatus } from "react-dom";
 
 import { ConfirmSubmitButton } from "@/app/admin/confirm-submit-button";
@@ -37,6 +40,22 @@ export function PublishScoreActions({ grandPrixId, isSprintWeekend, disabled = f
   const [sprintRaceState, sprintRaceAction] = useFormState(publishGrandPrixSprintRaceScores, INITIAL_STATE);
   const [finalState, finalAction] = useFormState(publishGrandPrixFinalScores, INITIAL_STATE);
   const [resetState, resetAction] = useFormState(resetGrandPrixPlayerScores, INITIAL_STATE);
+
+  useEffect(() => {
+    if (qualificationState.status === "success") reportResultWorkflow(grandPrixId, "qualification", isSprintWeekend);
+  }, [qualificationState, grandPrixId, isSprintWeekend]);
+  useEffect(() => {
+    if (sprintQualificationState.status === "success") reportResultWorkflow(grandPrixId, "sprintQualification", isSprintWeekend);
+  }, [sprintQualificationState, grandPrixId, isSprintWeekend]);
+  useEffect(() => {
+    if (sprintRaceState.status === "success") reportResultWorkflow(grandPrixId, "sprintRace", isSprintWeekend);
+  }, [sprintRaceState, grandPrixId, isSprintWeekend]);
+  useEffect(() => {
+    if (finalState.status === "success") reportResultWorkflow(grandPrixId, "final", isSprintWeekend);
+  }, [finalState, grandPrixId, isSprintWeekend]);
+  useEffect(() => {
+    if (resetState.status === "success") reportResultWorkflow(grandPrixId, "reset", isSprintWeekend);
+  }, [resetState, grandPrixId, isSprintWeekend]);
 
   return (
     <section className="predictions-section">
