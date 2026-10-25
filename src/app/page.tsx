@@ -11,7 +11,6 @@ import {
   getGameplayGrandPrix,
   getGrandPrixTimeline,
   getNextGrandPrixFromTimeline,
-  getLatestFinishedGrandPrix,
   getScoreGrandPrix,
 } from "@/lib/team-selection-data";
 import { isSessionPublished } from "@/lib/session-publication";
@@ -337,18 +336,10 @@ export default async function HomePage() {
         left.spelerNaam.localeCompare(right.spelerNaam),
     );
 
-  // Reuse the already loaded global scores; do not use season totals here.
-  const publishedGrandPrixIds = new Set(
-    (allScoreRows ?? [])
-      .filter((score) => score.total_points != null)
-      .map((score) => score.grand_prix_id),
-  );
-  const latestScoredGrandPrix = getLatestFinishedGrandPrix(
-    timeline.filter((grandPrix) => publishedGrandPrixIds.has(grandPrix.id)),
-  );
+  // Match the league GP selection and reuse published totals from the global query.
   const latestGrandPrixPointsByUserId = new Map(
     (allScoreRows ?? [])
-      .filter((score) => score.grand_prix_id === latestScoredGrandPrix?.id)
+      .filter((score) => score.grand_prix_id === displayedGrandPrix?.id)
       .map((score) => [score.user_id, score.total_points ?? 0]),
   );
   const latestGrandPrixStandings = globalStandings
@@ -584,17 +575,17 @@ export default async function HomePage() {
         <div className="dashboard-standings-column">
           <article className="dashboard-card dashboard-home-card dashboard-home-card--standings">
             <h2>Algemeen klassement – Laatste Grand Prix</h2>
-            {latestScoredGrandPrix ? (
+            {displayedGrandPrix ? (
               <>
-                <p className="dashboard-data-title">{latestScoredGrandPrix.name}</p>
+                <p className="dashboard-data-title">{displayedGrandPrix.name}</p>
                 <GlobalStandingsPanel
-                  grandPrix={{ id: latestScoredGrandPrix.id, name: latestScoredGrandPrix.name }}
-                  deadlinePassed={true}
+                  grandPrix={{ id: displayedGrandPrix.id, name: displayedGrandPrix.name }}
+                  deadlinePassed={canOpenDisplayedGrandPrixDetails}
                   standings={latestGrandPrixStandings}
                 />
               </>
             ) : (
-              <p className="league-list-empty">Er is nog geen afgeronde Grand Prix met gepubliceerde scores.</p>
+              <p className="league-list-empty">Er is nog geen Grand Prix beschikbaar.</p>
             )}
           </article>
           <article className="dashboard-card dashboard-home-card dashboard-home-card--standings">
