@@ -10,8 +10,9 @@ import {
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { getGrandPrixDrivers } from "@/lib/grand-prix-drivers";
 
-import { PublishScoreActions } from "./publish-score-actions";
+import { isSessionPublished } from "@/lib/session-publication";
 import { ResultForm } from "./result-form";
+import { PublishScoreActions } from "./publish-score-actions";
 
 type GrandPrixResultPageProps = {
   params: {
@@ -155,6 +156,17 @@ export default async function GrandPrixResultPage({
     return [...orderedExistingIds, ...missingIds];
   };
 
+  const { data: scoreRows, error: scoreError } = await supabase
+    .from("grand_prix_scores")
+    .select("team_quali_points, team_sprint_quali_points, team_sprint_race_points, team_race_points")
+    .eq("grand_prix_id", grandPrix.id);
+  const published = {
+    qualification: (scoreRows ?? []).some(row => isSessionPublished(row, "team_quali_points")),
+    sprintQualification: (scoreRows ?? []).some(row => isSessionPublished(row, "team_sprint_quali_points")),
+    sprintRace: (scoreRows ?? []).some(row => isSessionPublished(row, "team_sprint_race_points")),
+    final: (scoreRows ?? []).some(row => isSessionPublished(row, "team_race_points")),
+  };
+
   const initialValues = {
     qualificationOrder: toOrderedIds("quali_position"),
     sprintQualificationOrder: toOrderedIds("sprint_quali_position"),
@@ -199,6 +211,9 @@ export default async function GrandPrixResultPage({
           </p>
         ) : (
           <ResultForm
+            key={grandPrix.id}
+            published={published}
+            publicationStatusUnknown={Boolean(scoreError)}
             grandPrixId={grandPrix.id}
             isSprintWeekend={grandPrix.is_sprint_weekend}
             drivers={drivers.map((driver) => ({
@@ -211,12 +226,7 @@ export default async function GrandPrixResultPage({
             bonusQuestionType={bonusQuestion?.question_type ?? null}
           />
         )}
-
-        <PublishScoreActions
-          grandPrixId={grandPrix.id}
-          disabled={isCancelled}
-          isSprintWeekend={grandPrix.is_sprint_weekend}
-        />
+        {isCancelled ? <PublishScoreActions grandPrixId={grandPrix.id} disabled isSprintWeekend={grandPrix.is_sprint_weekend} /> : null}
       </section>
     </main>
   );

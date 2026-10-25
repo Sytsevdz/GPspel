@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { reportResultWorkflow } from "../workflow-controller";
-
 import { useFormState, useFormStatus } from "react-dom";
-
+import { reportResultWorkflow } from "../workflow-controller";
 import { ConfirmSubmitButton } from "@/app/admin/confirm-submit-button";
 import {
   publishGrandPrixFinalScores,
@@ -15,98 +13,68 @@ import {
   type GrandPrixResultActionState,
 } from "@/app/actions/grand-prix-results";
 
+const actions = {
+  qualification: { action: publishGrandPrixQualificationScores, label: "Kwalificatie publiceren" },
+  sprintQualification: { action: publishGrandPrixSprintQualificationScores, label: "Sprint kwalificatie publiceren" },
+  sprintRace: { action: publishGrandPrixSprintRaceScores, label: "Sprint race publiceren" },
+  final: { action: publishGrandPrixFinalScores, label: "Race publiceren" },
+  reset: { action: resetGrandPrixPlayerScores, label: "Punten resetten voor spelers" },
+};
+type Phase = keyof typeof actions;
+type Props = {
+  grandPrixId: string;
+  isSprintWeekend: boolean;
+  disabled?: boolean;
+  phase?: Phase;
+  onPublished?: (phase: Phase) => void;
+  onFailed?: (phase: Phase) => void;
+};
 const INITIAL_STATE: GrandPrixResultActionState = { status: "idle" };
 
-function PublishButton({ label, pendingLabel, disabled = false }: { label: string; pendingLabel: string; disabled?: boolean }) {
+function PublishButton({ label, disabled }: { label: string; disabled?: boolean }) {
   const { pending } = useFormStatus();
-
-  return <button type="submit" disabled={disabled || pending}>{pending ? pendingLabel : label}</button>;
+  return <button type="submit" disabled={disabled || pending}>{pending ? "Publiceren..." : label}</button>;
 }
 
-function ActionFeedback({ status, message }: GrandPrixResultActionState) {
-  if (status === "idle" || !message) {
-    return null;
-  }
-
-  return <p className={`form-message ${status === "success" ? "success" : "error"}`}>{message}</p>;
+function PhaseAction({ grandPrixId, isSprintWeekend, disabled, phase, onPublished, onFailed }: Props & { phase: Phase }) {
+  const [state, action] = useFormState(async (previous: GrandPrixResultActionState, data: FormData): Promise<GrandPrixResultActionState> => {
+    try {
+      return await actions[phase].action(previous, data);
+    } catch {
+      // Score actions can throw when a database request fails. Keep the editor
+      // mounted and expose a retry, without treating a partial write as success.
+      return { status: "error", message: phase === "reset" ? "Punten resetten mislukt. Probeer opnieuw." : "Publiceren mislukt. Probeer opnieuw." };
+    }
+  }, INITIAL_STATE);
+  useEffect(() => {
+    if (state.status === "success") {
+      reportResultWorkflow(grandPrixId, phase, isSprintWeekend);
+      onPublished?.(phase);
+    } else if (state.status === "error") {
+      onFailed?.(phase);
+    }
+  }, [state, grandPrixId, phase, isSprintWeekend, onPublished, onFailed]);
+  return <div className="admin-action-stack">
+    <form action={action}>
+      <input type="hidden" name="grand_prix_id" value={grandPrixId} />
+      <input type="hidden" name="expected_grand_prix_id" value={grandPrixId} />
+      {phase === "reset" ? <ConfirmSubmitButton
+        confirmMessage="Weet je zeker dat je alle spelerspunten voor deze Grand Prix wilt resetten?"
+        label={actions[phase].label} disabled={disabled} />
+        : <PublishButton label={actions[phase].label} disabled={disabled} />}
+    </form>
+    {state.status !== "idle" && state.message ? <p role={state.status === "error" ? "alert" : "status"} className={`form-message ${state.status === "success" ? "success" : "error"}`}>{state.message}</p> : null}
+  </div>;
 }
 
-export function PublishScoreActions({ grandPrixId, isSprintWeekend, disabled = false }: { grandPrixId: string; isSprintWeekend: boolean; disabled?: boolean }) {
-  const [qualificationState, qualificationAction] = useFormState(publishGrandPrixQualificationScores, INITIAL_STATE);
-  const [sprintQualificationState, sprintQualificationAction] = useFormState(
-    publishGrandPrixSprintQualificationScores,
-    INITIAL_STATE,
-  );
-  const [sprintRaceState, sprintRaceAction] = useFormState(publishGrandPrixSprintRaceScores, INITIAL_STATE);
-  const [finalState, finalAction] = useFormState(publishGrandPrixFinalScores, INITIAL_STATE);
-  const [resetState, resetAction] = useFormState(resetGrandPrixPlayerScores, INITIAL_STATE);
-
-  useEffect(() => {
-    if (qualificationState.status === "success") reportResultWorkflow(grandPrixId, "qualification", isSprintWeekend);
-  }, [qualificationState, grandPrixId, isSprintWeekend]);
-  useEffect(() => {
-    if (sprintQualificationState.status === "success") reportResultWorkflow(grandPrixId, "sprintQualification", isSprintWeekend);
-  }, [sprintQualificationState, grandPrixId, isSprintWeekend]);
-  useEffect(() => {
-    if (sprintRaceState.status === "success") reportResultWorkflow(grandPrixId, "sprintRace", isSprintWeekend);
-  }, [sprintRaceState, grandPrixId, isSprintWeekend]);
-  useEffect(() => {
-    if (finalState.status === "success") reportResultWorkflow(grandPrixId, "final", isSprintWeekend);
-  }, [finalState, grandPrixId, isSprintWeekend]);
-  useEffect(() => {
-    if (resetState.status === "success") reportResultWorkflow(grandPrixId, "reset", isSprintWeekend);
-  }, [resetState, grandPrixId, isSprintWeekend]);
-
-  return (
-    <section className="predictions-section">
-      <h2>Scores spelers</h2>
-      <p>Publiceer de spelerspunten in fases. Elke fase blijft een aparte handeling.</p>
-      {disabled ? <p className="league-list-empty">Deze GP is geannuleerd. Publicatie van scores is uitgeschakeld.</p> : null}
-
-      <div className="admin-action-stack">
-        {isSprintWeekend ? (
-          <>
-            <form action={sprintQualificationAction}>
-              <input type="hidden" name="grand_prix_id" value={grandPrixId} />
-              <input type="hidden" name="expected_grand_prix_id" value={grandPrixId} />
-              <PublishButton label="Sprint kwalificatie publiceren" pendingLabel="Publiceren..." disabled={disabled} />
-            </form>
-            <ActionFeedback {...sprintQualificationState} />
-
-            <form action={sprintRaceAction}>
-              <input type="hidden" name="grand_prix_id" value={grandPrixId} />
-              <input type="hidden" name="expected_grand_prix_id" value={grandPrixId} />
-              <PublishButton label="Sprint race publiceren" pendingLabel="Publiceren..." disabled={disabled} />
-            </form>
-            <ActionFeedback {...sprintRaceState} />
-          </>
-        ) : null}
-
-        <form action={qualificationAction}>
-          <input type="hidden" name="grand_prix_id" value={grandPrixId} />
-          <input type="hidden" name="expected_grand_prix_id" value={grandPrixId} />
-          <PublishButton label="Kwalificatie publiceren" pendingLabel="Publiceren..." disabled={disabled} />
-        </form>
-        <ActionFeedback {...qualificationState} />
-
-        <form action={finalAction}>
-          <input type="hidden" name="grand_prix_id" value={grandPrixId} />
-          <input type="hidden" name="expected_grand_prix_id" value={grandPrixId} />
-          <PublishButton label="Race publiceren" pendingLabel="Publiceren..." disabled={disabled} />
-        </form>
-        <ActionFeedback {...finalState} />
-
-        <form action={resetAction}>
-          <input type="hidden" name="grand_prix_id" value={grandPrixId} />
-          <input type="hidden" name="expected_grand_prix_id" value={grandPrixId} />
-          <ConfirmSubmitButton
-            confirmMessage="Weet je zeker dat je alle spelerspunten voor deze Grand Prix wilt resetten?"
-            label="Punten resetten voor spelers"
-            disabled={disabled}
-          />
-        </form>
-        <ActionFeedback {...resetState} />
-      </div>
-    </section>
-  );
+export function PublishScoreActions(props: Props) {
+  const phases: Phase[] = props.phase ? [props.phase] : [
+    ...(props.isSprintWeekend ? ["sprintQualification", "sprintRace"] as Phase[] : []),
+    "qualification", "final", "reset",
+  ];
+  return <section className="predictions-section">
+    {!props.phase ? <><h2>Scores spelers</h2><p>Publiceer de spelerspunten in fases. Elke fase blijft een aparte handeling.</p></> : null}
+    {props.disabled ? <p className="league-list-empty">Deze GP is geannuleerd. Publicatie van scores is uitgeschakeld.</p> : null}
+    {phases.filter(phase => props.isSprintWeekend || !phase.startsWith("sprint")).map(phase => <PhaseAction key={phase} {...props} phase={phase} />)}
+  </section>;
 }
