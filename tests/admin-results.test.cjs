@@ -99,6 +99,7 @@ test('publication UI renders sprint options only for sprint weekends', () => {
     'react-dom': { useFormState: () => [{ status: 'idle' }, undefined], useFormStatus: () => ({ pending: false }) },
     '@/app/admin/confirm-submit-button': { ConfirmSubmitButton: () => null },
     '@/app/actions/grand-prix-results': {},
+    '../workflow-controller': { reportResultWorkflow() {} },
   });
   for (const sprint of [false, true]) {
     const html = renderToStaticMarkup(React.createElement(PublishScoreActions, { grandPrixId: 'gp', isSprintWeekend: sprint }));
@@ -113,6 +114,7 @@ test('result form shows pitstop input only for the configured question and retai
     'next/image': { __esModule: true, default: () => null },
     'react-dom': { useFormState: () => [{ status: 'idle' }, undefined], useFormStatus: () => ({ pending: false }) },
     '@/app/actions/grand-prix-results': {},
+    '../workflow-controller': { reportResultWorkflow() {} },
     '@/app/team-bonus-card': { TeamBonusCard: () => React.createElement('span', null, 'Pitstop picker') },
     '@/lib/team-side-view-images': {},
     '@/lib/team-selection-teams': {},

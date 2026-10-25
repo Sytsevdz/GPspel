@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+import { reportWorkflowSuccess } from "../workflow-controller";
+
 import { useFormState, useFormStatus } from "react-dom";
 
 import { updateGrandPrixDeadline, type DeadlineActionState } from "@/app/actions/grand-prix-deadlines";
@@ -22,6 +25,10 @@ function SaveButton() {
 
 export function DeadlineForm({ grandPrixId, initialDeadline, initialQualificationStart }: DeadlineFormProps) {
   const [state, formAction] = useFormState(updateGrandPrixDeadline, INITIAL_STATE);
+
+  useEffect(() => {
+    if (state.status === "success") reportWorkflowSuccess(grandPrixId, "settings");
+  }, [state, grandPrixId]);
 
   return (
     <form action={formAction} className="predictions-form">

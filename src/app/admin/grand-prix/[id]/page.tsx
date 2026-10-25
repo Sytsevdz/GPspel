@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WorkflowController } from "./workflow-controller";
 import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect";
 
@@ -20,7 +21,7 @@ import {
 import { createServerSupabaseClient } from "@/lib/supabase";
 import { isSupportedBonusQuestionType, type BonusQuestion } from "@/lib/bonus-predictions";
 import { BonusQuestionForm } from "./bonus-question-form";
-import { getGrandPrixDrivers } from "@/lib/grand-prix-drivers";
+import { getExplicitGrandPrixDrivers, getGrandPrixDrivers } from "@/lib/grand-prix-drivers";
 import { GrandPrixDriverParticipantsEditor } from "@/components/admin/grand-prix-driver-participants-editor";
 
 type GrandPrixManagementPageProps = {
@@ -31,6 +32,7 @@ type GrandPrixManagementPageProps = {
     message?: string;
     error?: string;
     league?: string;
+    bonusFeedback?: string;
   };
 };
 
@@ -285,6 +287,8 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
   async function saveBonusQuestion(formData: FormData) {
     "use server";
 
+    // A unique UI receipt survives the redirect, including a fresh client mount.
+    const bonusFeedback = crypto.randomUUID();
     const grandPrixId = String(formData.get("grand_prix_id") ?? "").trim();
     const questionType = String(formData.get("question_type") ?? "").trim();
     const subjectDriverId = String(formData.get("subject_driver_id") ?? "").trim();
@@ -297,17 +301,17 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
       !Number.isInteger(points) ||
       points < 1
     ) {
-      redirect(`/admin/grand-prix/${params.id}?error=Vul+een+geldige+bonusvraag+in`);
+      redirect(`/admin/grand-prix/${params.id}?error=Vul+een+geldige+bonusvraag+in&bonusFeedback=${bonusFeedback}`);
     }
 
     const actionSupabase = createServerSupabaseClient();
     const { data: { user: actionUser }, error: actionUserError } = await actionSupabase.auth.getUser();
     if (actionUserError || !actionUser) {
-      redirect(`/admin/grand-prix/${params.id}?error=Je+hebt+geen+toegang+tot+deze+actie`);
+      redirect(`/admin/grand-prix/${params.id}?error=Je+hebt+geen+toegang+tot+deze+actie&bonusFeedback=${bonusFeedback}`);
     }
     const { data: actionProfile } = await actionSupabase.from("profiles").select("role").eq("id", actionUser.id).maybeSingle<{ role: string | null }>();
     if (actionProfile?.role !== "admin") {
-      redirect(`/admin/grand-prix/${params.id}?error=Je+hebt+geen+toegang+tot+deze+actie`);
+      redirect(`/admin/grand-prix/${params.id}?error=Je+hebt+geen+toegang+tot+deze+actie&bonusFeedback=${bonusFeedback}`);
     }
 
     const { error } = await actionSupabase.from("grand_prix_bonus_questions").upsert(
@@ -321,10 +325,10 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     );
 
     if (error) {
-      redirect(`/admin/grand-prix/${params.id}?error=Bonusvraag+opslaan+mislukt`);
+      redirect(`/admin/grand-prix/${params.id}?error=Bonusvraag+opslaan+mislukt&bonusFeedback=${bonusFeedback}`);
     }
 
-    redirect(`/admin/grand-prix/${params.id}?message=Bonusvraag+opgeslagen`);
+    redirect(`/admin/grand-prix/${params.id}?message=Bonusvraag+opgeslagen&bonusFeedback=${bonusFeedback}`);
   }
 
   async function saveDriverEntries(formData: FormData) {
@@ -423,6 +427,7 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
   const isCancelled = isGrandPrixCancelled(workflowStatus);
 
   const effectiveDrivers = await getGrandPrixDrivers(managedGrandPrix.id);
+  const explicitDrivers = await getExplicitGrandPrixDrivers(managedGrandPrix.id);
   const constructorTeams = Array.from(new Set(effectiveDrivers.map((driver) => driver.constructor_team))).sort();
   const { data: allDrivers } = await supabase.from("drivers").select("id, name").order("name").returns<Array<{ id: string; name: string }>>();
   const [
@@ -500,6 +505,20 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     driverPricesById,
   });
 
+  const completedSections = [
+    explicitDrivers.length > 0,
+    effectiveDrivers.length > 0 && effectiveDrivers.every((driver) => driverPricesById.has(driver.id)),
+    false, // No persisted settings completion signal exists.
+    Boolean(bonusQuestion),
+    false, // Publication completion is tracked only after successful actions in this session.
+    false,
+  ];
+  const defaultSection = ["participants", "prices", "settings", "bonus", "results"]
+    .find((_, index) => !completedSections[index]);
+  const initialSection = searchParams.bonusFeedback
+    ? searchParams.error ? "bonus" : searchParams.message === "Bonusvraag opgeslagen" ? "results" : defaultSection
+    : defaultSection;
+
   return (
     <main className="leagues-page">
       <section className="leagues-card league-detail-card">
@@ -523,8 +542,36 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
         {searchParams.error ? <p className="form-message error">{searchParams.error}</p> : null}
         {searchParams.message ? <p className="form-message success">{searchParams.message}</p> : null}
 
-        <section className="predictions-section">
-          <h2>Prijzen berekenen</h2>
+        <WorkflowController grandPrixId={managedGrandPrix.id} completed={completedSections} message={searchParams.message ?? null} error={searchParams.error ?? null} bonusFeedback={searchParams.bonusFeedback ?? null} />
+        <details className="predictions-section gp-workflow-section" data-workflow-section="participants" open={initialSection === "participants"}>
+          <summary>
+            <h2>GP-Deelnemers</h2>
+            <span className="gp-workflow-status" data-workflow-status />
+            <span className="gp-workflow-summary">{effectiveDrivers.length} coureurs</span>
+            <span className="gp-workflow-chevron" aria-hidden="true">⌄</span>
+          </summary>
+          <p>Kies voor iedere constructor de twee coureurs die deze Grand Prix rijden.</p>
+          <GrandPrixDriverParticipantsEditor
+            action={saveDriverEntries}
+            assignments={constructorTeams.map((constructorTeam) => ({
+              constructorTeam,
+              driverIds: effectiveDrivers
+                .filter((driver) => driver.constructor_team === constructorTeam)
+                .map((driver) => driver.id)
+                .slice(0, 2)
+                .concat(["", ""])
+                .slice(0, 2) as [string, string],
+            }))}
+            drivers={allDrivers ?? []}
+          />
+        </details>
+
+        <details className="predictions-section gp-workflow-section" data-workflow-section="prices" open={initialSection === "prices"}>
+          <summary>
+            <h2>Prijzen berekenen</h2>
+            <span className="gp-workflow-status" data-workflow-status />
+            <span className="gp-workflow-chevron" aria-hidden="true">⌄</span>
+          </summary>
           <p>Bereken of reset coureursprijzen voor deze GP. Doe dit alleen vóór de deadline.</p>
           {isCancelled ? <p className="league-list-empty">Deze GP is geannuleerd. Prijsbeheer is uitgeschakeld.</p> : null}
           {!isCancelled && isAfterDeadline ? (
@@ -545,10 +592,14 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
               </>
             ) : null}
           </div>
-        </section>
+        </details>
 
-        <section className="predictions-section">
-          <h2>Instellingen</h2>
+        <details className="predictions-section gp-workflow-section" data-workflow-section="settings" open={initialSection === "settings"}>
+          <summary>
+            <h2>Instellingen</h2>
+            <span className="gp-workflow-status" data-workflow-status />
+            <span className="gp-workflow-chevron" aria-hidden="true">⌄</span>
+          </summary>
           <p>Pas de timing voor deze Grand Prix aan.</p>
           <DeadlineForm
             grandPrixId={managedGrandPrix.id}
@@ -589,10 +640,14 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
               </form>
             )}
           </div>
-        </section>
+        </details>
 
-        <section className="predictions-section">
-          <h2>Bonusvraag</h2>
+        <details className="predictions-section gp-workflow-section" data-workflow-section="bonus" open={initialSection === "bonus"}>
+          <summary>
+            <h2>Bonusvraag</h2>
+            <span className="gp-workflow-status" data-workflow-status />
+            <span className="gp-workflow-chevron" aria-hidden="true">⌄</span>
+          </summary>
           <p>Configureer één bonusvraag voor deze Grand Prix.</p>
           <BonusQuestionForm
             action={saveBonusQuestion}
@@ -602,28 +657,14 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
             initialPoints={bonusQuestion?.points ?? 10}
             drivers={effectiveDrivers.map(({ id, name }) => ({ id, name }))}
           />
-        </section>
+        </details>
 
-        <section className="predictions-section">
-          <h2>GP-Deelnemers</h2>
-          <p>Kies voor iedere constructor de twee coureurs die deze Grand Prix rijden.</p>
-          <GrandPrixDriverParticipantsEditor
-            action={saveDriverEntries}
-            assignments={constructorTeams.map((constructorTeam) => ({
-              constructorTeam,
-              driverIds: effectiveDrivers
-                .filter((driver) => driver.constructor_team === constructorTeam)
-                .map((driver) => driver.id)
-                .slice(0, 2)
-                .concat(["", ""])
-                .slice(0, 2) as [string, string],
-            }))}
-            drivers={allDrivers ?? []}
-          />
-        </section>
-
-        <section className="predictions-section">
-          <h2>Resultaten</h2>
+        <details className="predictions-section gp-workflow-section" data-workflow-section="results" open={initialSection === "results"}>
+          <summary>
+            <h2>Resultaten</h2>
+            <span className="gp-workflow-status" data-workflow-status />
+            <span className="gp-workflow-chevron" aria-hidden="true">⌄</span>
+          </summary>
           <p>Voer de uitslagen in en publiceer daarna de spelersscores.</p>
           {isCancelled ? <p className="league-list-empty">Deze GP is geannuleerd. Resultaatbeheer is uitgeschakeld.</p> : null}
           <div className="admin-action-stack">
@@ -641,10 +682,14 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
               </>
             ) : null}
           </div>
-        </section>
+        </details>
 
-        <section className="predictions-section">
-          <h2>Deelname overzicht</h2>
+        <details className="predictions-section gp-workflow-section" data-workflow-section="overview" open={initialSection === "overview"}>
+          <summary>
+            <h2>Deelname overzicht</h2>
+            <span className="gp-workflow-status" data-workflow-status />
+            <span className="gp-workflow-chevron" aria-hidden="true">⌄</span>
+          </summary>
           <LeagueParticipationFilter selectedLeagueId={effectiveSelectedLeagueId} leagues={availableLeagues} />
           <p>
             Inzendingen per speler (zonder team- of voorspellingdetails).
@@ -677,7 +722,7 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
               </tbody>
             </table>
           </div>
-        </section>
+        </details>
 
 
       </section>

@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { reportResultWorkflow } from "../workflow-controller";
+import { useEffect, useMemo, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 
 import {
@@ -145,6 +146,9 @@ export function ResultForm({
   bonusQuestionType,
 }: ResultFormProps) {
   const [state, formAction] = useFormState(saveGrandPrixResult, INITIAL_STATE);
+  useEffect(() => {
+    if (state.status === "success") reportResultWorkflow(grandPrixId, "reset", isSprintWeekend);
+  }, [state, grandPrixId, isSprintWeekend]);
   const [values, setValues] = useState<ResultValues>(initialValues);
   const [pasteValues, setPasteValues] = useState<Record<ResultField, string>>({
     qualificationOrder: "",
