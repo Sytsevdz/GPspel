@@ -342,37 +342,6 @@ const loadBonusResult = async (grandPrixId: string) => {
   return data?.fastest_pitstop_team?.trim() || null;
 };
 
-const normalizeConstructorTeam = (team: string | null) =>
-  team?.trim().toLocaleLowerCase("nl-NL") || null;
-
-const calculateFastestPitstopPredictionPoints = (
-  predictedTeam: string | null,
-  actualTeam: string | null,
-) => {
-  const normalizedPredictedTeam = normalizeConstructorTeam(predictedTeam);
-  const normalizedActualTeam = normalizeConstructorTeam(actualTeam);
-
-  if (!normalizedPredictedTeam || !normalizedActualTeam) {
-    return 0;
-  }
-
-  return normalizedPredictedTeam === normalizedActualTeam ? 10 : 0;
-};
-
-const buildFastestPitstopPredictionPointsByUserId = (
-  predictions: PredictionRow[],
-  actualTeam: string | null,
-) =>
-  new Map(
-    predictions.map((prediction) => [
-      prediction.user_id,
-      calculateFastestPitstopPredictionPoints(
-        prediction.fastest_pitstop_team,
-        actualTeam,
-      ),
-    ]),
-  );
-
 const loadBonusQuestion = async (grandPrixId: string) => {
   const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
@@ -886,7 +855,8 @@ async function upsertBonusAnswerAndScores({
   const actualPosition = question.question_type === "driver_finish_position"
     ? driverResults.find((row) => row.driver_id === question.subject_driver_id)?.race_position ?? null : null;
   const actualDriverId = question.question_type === "fastest_lap_driver" ? existingAnswer?.answer_driver_id ?? null : null;
-  let actualTeam: string | null = null;
+  let actualTeam: string | null = question.question_type === "fastest_pitstop_team"
+    ? await loadBonusResult(grandPrixId) : null;
   if (question.question_type === "best_team") {
     const effectiveDrivers = await getGrandPrixDrivers(grandPrixId);
     const teamPoints = new Map<string, number>();
@@ -905,12 +875,21 @@ async function upsertBonusAnswerAndScores({
     { grand_prix_bonus_question_id: question.id, answer_position: actualPosition, answer_driver_id: null },
     { onConflict: "grand_prix_bonus_question_id" });
 
+  if (question.question_type === "fastest_pitstop_team") {
+    const { error } = await supabase.from("grand_prix_bonus_answers").upsert(
+      { grand_prix_bonus_question_id: question.id, answer_position: null, answer_driver_id: null, answer_team: actualTeam },
+      { onConflict: "grand_prix_bonus_question_id" },
+    );
+    if (error) throw new Error(`[grand-prix-scores] Failed to save pitstop answer: ${error.message}`);
+  }
+
   const bonusPredictions = await loadBonusPredictions(question.id);
   const pointsByUserId = new Map<string, number>();
   const scoreRows = bonusPredictions.map((prediction) => {
     const points = (() => { switch (question.question_type) {
       case "driver_finish_position": return calculateDriverFinishPositionBonusPoints({ predictedPosition: prediction.answer_position, actualPosition, pointsAvailable: question.points });
       case "fastest_lap_driver": return calculateFastestLapDriverBonusPoints({ predictedDriverId: prediction.answer_driver_id, actualDriverId, pointsAvailable: question.points });
+      case "fastest_pitstop_team":
       case "best_team": return calculateBestTeamBonusPoints(prediction.answer_team, actualTeam, question.points);
     }})();
     pointsByUserId.set(prediction.user_id, points);
@@ -948,14 +927,12 @@ export async function calculateGrandPrixRaceScores(grandPrixId: string) {
     teamSelections,
     predictions,
     existingComponentsByUserId,
-    officialFastestPitstopTeam,
     bonusQuestion,
   ] = await Promise.all([
     loadDriverResults(normalizedGrandPrixId),
     loadTeamSelections(normalizedGrandPrixId),
     loadPredictions(normalizedGrandPrixId),
     loadExistingScores(normalizedGrandPrixId),
-    loadBonusResult(normalizedGrandPrixId),
     loadBonusQuestion(normalizedGrandPrixId),
   ]);
 
@@ -1050,12 +1027,6 @@ export async function calculateGrandPrixRaceScores(grandPrixId: string) {
     });
   });
 
-  const fastestPitstopPredictionPointsByUserId =
-    buildFastestPitstopPredictionPointsByUserId(
-      predictions,
-      officialFastestPitstopTeam,
-    );
-
   predictions.forEach((prediction) => {
     const qualiPredictionPoints = calculateTopThreePredictionPoints(
       [prediction.quali_p1, prediction.quali_p2, prediction.quali_p3],
@@ -1099,18 +1070,17 @@ export async function calculateGrandPrixRaceScores(grandPrixId: string) {
         existing?.sprintRacePredictionPoints ??
         sprintComponents.sprintRacePredictionPoints,
       racePredictionPoints,
-      fastestPitstopPredictionPoints:
-        fastestPitstopPredictionPointsByUserId.get(prediction.user_id) ?? 0,
+      fastestPitstopPredictionPoints: 0,
       bonusPredictionPoints:
         bonusPredictionPointsByUserId.get(prediction.user_id) ?? 0,
     });
   });
 
+  // Only the explicitly configured question can award a bonus. Do not also score legacy pitstop fields.
   componentByUserId.forEach((components, userId) => {
     componentByUserId.set(userId, {
       ...components,
-      fastestPitstopPredictionPoints:
-        fastestPitstopPredictionPointsByUserId.get(userId) ?? 0,
+      fastestPitstopPredictionPoints: 0,
       bonusPredictionPoints: bonusPredictionPointsByUserId.get(userId) ?? 0,
     });
   });

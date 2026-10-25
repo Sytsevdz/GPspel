@@ -82,10 +82,6 @@ type UserGrandPrixPredictionScoreDetailRow = {
   points: number;
 };
 
-type BonusResultRow = {
-  fastest_pitstop_team: string | null;
-};
-
 type BonusPredictionRow = { answer_position: number | null; answer_driver_id: string | null; answer_team: string | null };
 
 type BonusAnswerRow = { answer_position: number | null; answer_driver_id: string | null; answer_team: string | null };
@@ -150,7 +146,6 @@ export default async function GPSpelGrandPrixPage({
       { data: userScore },
       { data: userScoreDetails },
       { data: predictionScoreDetails },
-      { data: bonusResult },
       { data: bonusQuestion },
     ] = await Promise.all([
       supabase
@@ -190,11 +185,6 @@ export default async function GPSpelGrandPrixPage({
         .eq("user_id", user.id)
         .eq("grand_prix_id", gpData.grandPrix.id)
         .returns<UserGrandPrixPredictionScoreDetailRow[]>(),
-      supabase
-        .from("grand_prix_bonus_results")
-        .select("fastest_pitstop_team")
-        .eq("grand_prix_id", gpData.grandPrix.id)
-        .maybeSingle<BonusResultRow>(),
       supabase
         .from("grand_prix_bonus_questions")
         .select("id, grand_prix_id, question_type, subject_driver_id, points")
@@ -242,7 +232,7 @@ export default async function GPSpelGrandPrixPage({
         : [{ data: null }, { data: null }];
 
     initialPredictionValues.bonusAnswerPosition = bonusQuestion?.question_type === "fastest_lap_driver"
-      ? (existingBonusPrediction?.answer_driver_id ?? "") : bonusQuestion?.question_type === "best_team" ? (existingBonusPrediction?.answer_team ?? "")
+      ? (existingBonusPrediction?.answer_driver_id ?? "") : (bonusQuestion?.question_type === "best_team" || bonusQuestion?.question_type === "fastest_pitstop_team") ? (existingBonusPrediction?.answer_team ?? "")
       : existingBonusPrediction?.answer_position != null ? String(existingBonusPrediction.answer_position) : "";
     const slotPredictionPointsByField: PredictionSlotPoints = {
       sprintQualiP1: null,
@@ -467,9 +457,6 @@ export default async function GPSpelGrandPrixPage({
                         ? (userScore?.bonus_prediction_points ?? 0)
                         : null,
                     }
-                  : null,
-                actualFastestPitstopTeam: !bonusQuestion && hasPublishedFastestPitstopPoints
-                  ? (bonusResult?.fastest_pitstop_team ?? null)
                   : null,
                 isSprintWeekend: gpData.grandPrix.is_sprint_weekend,
                 publishedSlotPoints: slotPredictionPointsByField,

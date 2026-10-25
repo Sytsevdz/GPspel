@@ -35,9 +35,6 @@ export async function savePrediction(
   const raceP1 = String(formData.get("race_p1") ?? "").trim();
   const raceP2 = String(formData.get("race_p2") ?? "").trim();
   const raceP3 = String(formData.get("race_p3") ?? "").trim();
-  const fastestPitstopTeam = String(
-    formData.get("fastest_pitstop_team") ?? "",
-  ).trim();
   const bonusQuestionId = String(formData.get("bonus_question_id") ?? "").trim();
   const bonusAnswerPositionValue = String(
     formData.get("bonus_answer_position") ?? "",
@@ -56,8 +53,7 @@ export async function savePrediction(
     !qualiP3 ||
     !raceP1 ||
     !raceP2 ||
-    !raceP3 ||
-    (!bonusQuestionId && !fastestPitstopTeam)
+    !raceP3
   ) {
     return {
       status: "error",
@@ -190,8 +186,7 @@ export async function savePrediction(
   ].filter(Boolean);
 
   if (
-    selectedIds.some((driverId) => !allowedDriverIds.has(driverId)) ||
-    (!bonusQuestionId && !allowedConstructorTeams.has(fastestPitstopTeam))
+    selectedIds.some((driverId) => !allowedDriverIds.has(driverId))
   ) {
     return {
       status: "error",
@@ -216,8 +211,35 @@ export async function savePrediction(
     sprint_race_p3: isSprintWeekend ? sprintRaceP3 : null,
   };
 
-  if (!bonusQuestionId) {
-    predictionRow.fastest_pitstop_team = fastestPitstopTeam;
+  const { data: bonusQuestion, error: bonusQuestionError } = await supabase
+    .from("grand_prix_bonus_questions")
+    .select("id, question_type")
+    .eq("grand_prix_id", grandPrixId)
+    .maybeSingle<{ id: string; question_type: string }>();
+
+  if (bonusQuestionError || (bonusQuestion ? bonusQuestion.id !== bonusQuestionId : Boolean(bonusQuestionId))) {
+    return { status: "error", message: "De bonusvraag is gewijzigd of kon niet worden geladen. Vernieuw de pagina." };
+  }
+
+  const answer = bonusQuestion ? (() => {
+    switch (bonusQuestion.question_type) {
+      case "driver_finish_position":
+        return Number.isInteger(bonusAnswerPosition) && bonusAnswerPosition! >= 1 && bonusAnswerPosition! <= teamSelectionData.drivers.length
+          ? { answer_position: bonusAnswerPosition, answer_driver_id: null, answer_team: null } : null;
+      case "fastest_lap_driver":
+        return allowedDriverIds.has(bonusAnswerDriverId)
+          ? { answer_position: null, answer_driver_id: bonusAnswerDriverId, answer_team: null } : null;
+      case "best_team":
+      case "fastest_pitstop_team":
+        return allowedConstructorTeams.has(bonusAnswerTeam)
+          ? { answer_position: null, answer_driver_id: null, answer_team: bonusAnswerTeam } : null;
+      default:
+        return null;
+    }
+  })() : null;
+
+  if (bonusQuestion && !answer) {
+    return { status: "error", message: "Kies een geldig antwoord voor de bonusvraag" };
   }
 
   const { error: upsertError } = await supabase.from("predictions").upsert(
@@ -233,43 +255,12 @@ export async function savePrediction(
   }
 
   revalidatePath(`/leagues/${leagueId}/gp-spel`);
-  if (bonusQuestionId) {
-    const { data: bonusQuestion, error: bonusQuestionError } = await supabase
-      .from("grand_prix_bonus_questions")
-      .select("id, grand_prix_id, question_type")
-      .eq("id", bonusQuestionId)
-      .eq("grand_prix_id", grandPrixId)
-      .maybeSingle<{ id: string; grand_prix_id: string; question_type: string }>();
-
-    if (bonusQuestionError || !bonusQuestion) {
-      return {
-        status: "error",
-        message: "Er ging iets mis bij het opslaan van je bonusvoorspelling",
-      };
-    }
-
-    const answer = (() => {
-      switch (bonusQuestion.question_type) {
-        case "driver_finish_position":
-          return Number.isInteger(bonusAnswerPosition) && bonusAnswerPosition! >= 1 && bonusAnswerPosition! <= teamSelectionData.drivers.length
-            ? { answer_position: bonusAnswerPosition, answer_driver_id: null, answer_team: null } : null;
-        case "fastest_lap_driver":
-          return teamSelectionData.drivers.some((driver) => driver.id === bonusAnswerDriverId)
-            ? { answer_position: null, answer_driver_id: bonusAnswerDriverId, answer_team: null } : null;
-        case "best_team":
-          return allowedConstructorTeams.has(bonusAnswerTeam)
-            ? { answer_position: null, answer_driver_id: null, answer_team: bonusAnswerTeam } : null;
-        default:
-          return null;
-      }
-    })();
-    if (!answer) return { status: "error", message: "Kies een geldig antwoord voor de bonusvraag" };
-
+  if (bonusQuestion && answer) {
     const { error: bonusUpsertError } = await supabase
       .from("grand_prix_bonus_predictions")
       .upsert(
         {
-          grand_prix_bonus_question_id: bonusQuestionId,
+          grand_prix_bonus_question_id: bonusQuestion.id,
           user_id: user.id,
           ...answer,
         },

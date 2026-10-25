@@ -1,4 +1,4 @@
-export const BONUS_QUESTION_TYPES = ["driver_finish_position", "fastest_lap_driver", "best_team"] as const;
+export const BONUS_QUESTION_TYPES = ["driver_finish_position", "fastest_lap_driver", "best_team", "fastest_pitstop_team"] as const;
 
 export type BonusQuestionType = (typeof BONUS_QUESTION_TYPES)[number];
 
@@ -61,6 +61,8 @@ export const getBonusQuestionText = (
       return "Wie rijdt de snelste ronde?";
     case "best_team":
       return "Welk team scoort de meeste punten?";
+    case "fastest_pitstop_team":
+      return "Welk team maakt de snelste pitstop?";
   }
 };
 
