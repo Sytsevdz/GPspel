@@ -28,7 +28,7 @@ function ActionFeedback({ status, message }: GrandPrixResultActionState) {
   return <p className={`form-message ${status === "success" ? "success" : "error"}`}>{message}</p>;
 }
 
-export function PublishScoreActions({ grandPrixId, disabled = false }: { grandPrixId: string; disabled?: boolean }) {
+export function PublishScoreActions({ grandPrixId, isSprintWeekend, disabled = false }: { grandPrixId: string; isSprintWeekend: boolean; disabled?: boolean }) {
   const [qualificationState, qualificationAction] = useFormState(publishGrandPrixQualificationScores, INITIAL_STATE);
   const [sprintQualificationState, sprintQualificationAction] = useFormState(
     publishGrandPrixSprintQualificationScores,
@@ -45,19 +45,23 @@ export function PublishScoreActions({ grandPrixId, disabled = false }: { grandPr
       {disabled ? <p className="league-list-empty">Deze GP is geannuleerd. Publicatie van scores is uitgeschakeld.</p> : null}
 
       <div className="admin-action-stack">
-        <form action={sprintQualificationAction}>
-          <input type="hidden" name="grand_prix_id" value={grandPrixId} />
-          <input type="hidden" name="expected_grand_prix_id" value={grandPrixId} />
-          <PublishButton label="Sprint kwalificatie publiceren" pendingLabel="Publiceren..." disabled={disabled} />
-        </form>
-        <ActionFeedback {...sprintQualificationState} />
+        {isSprintWeekend ? (
+          <>
+            <form action={sprintQualificationAction}>
+              <input type="hidden" name="grand_prix_id" value={grandPrixId} />
+              <input type="hidden" name="expected_grand_prix_id" value={grandPrixId} />
+              <PublishButton label="Sprint kwalificatie publiceren" pendingLabel="Publiceren..." disabled={disabled} />
+            </form>
+            <ActionFeedback {...sprintQualificationState} />
 
-        <form action={sprintRaceAction}>
-          <input type="hidden" name="grand_prix_id" value={grandPrixId} />
-          <input type="hidden" name="expected_grand_prix_id" value={grandPrixId} />
-          <PublishButton label="Sprint race publiceren" pendingLabel="Publiceren..." disabled={disabled} />
-        </form>
-        <ActionFeedback {...sprintRaceState} />
+            <form action={sprintRaceAction}>
+              <input type="hidden" name="grand_prix_id" value={grandPrixId} />
+              <input type="hidden" name="expected_grand_prix_id" value={grandPrixId} />
+              <PublishButton label="Sprint race publiceren" pendingLabel="Publiceren..." disabled={disabled} />
+            </form>
+            <ActionFeedback {...sprintRaceState} />
+          </>
+        ) : null}
 
         <form action={qualificationAction}>
           <input type="hidden" name="grand_prix_id" value={grandPrixId} />

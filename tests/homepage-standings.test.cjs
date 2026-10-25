@@ -11,7 +11,10 @@ function load(file, mocks = {}) {
   const code = ts.transpileModule(fs.readFileSync(root + '/' + file, 'utf8'), {
     compilerOptions: {module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2020}
   }).outputText;
-  vm.runInNewContext(code, {exports, require: name => mocks[name] ?? {}, Date, Map, Set});
+  vm.runInNewContext(code, {exports, require: name => mocks[name] ?? {}, Date: class extends Date {
+    constructor(...args) { super(...(args.length ? args : ['2026-10-25T12:00:00Z'])); }
+    static now() { return Date.parse('2026-10-25T12:00:00Z'); }
+  }, Map, Set});
   return exports;
 }
 const timelineHelpers = load('src/lib/team-selection-data.ts', {
@@ -69,6 +72,26 @@ async function render(timeline, scores) {
   return JSON.parse(JSON.stringify(panels));
 }
 (async () => {
+  // Regression from PR #152: a finished Singapore must not hide USA's live qualification standings.
+  const singapore = {id: 'singapore', name: 'Singapore', status: 'finished', qualification_start: '2026-10-10T12:00:00Z', deadline: '2026-10-10T11:00:00Z', is_sprint_weekend: false};
+  const usa = {id: 'usa', name: 'USA', status: 'locked', qualification_start: '2026-10-24T12:00:00Z', deadline: '2026-10-23T12:00:00Z', is_sprint_weekend: true};
+  for (const phase of [
+    {team_quali_points: 10, quali_prediction_points: 2, total_points: 12},
+    {team_quali_points: 10, quali_prediction_points: 2, team_sprint_quali_points: 5, sprint_quali_prediction_points: 1, team_sprint_race_points: 6, sprint_race_prediction_points: 1, total_points: 25},
+    {team_quali_points: 10, quali_prediction_points: 2, team_sprint_quali_points: 5, sprint_quali_prediction_points: 1, team_sprint_race_points: 6, sprint_race_prediction_points: 1, team_race_points: 40, race_prediction_points: 5, total_points: 70},
+  ]) {
+    const panels = await render([singapore, usa, future], [
+      {grand_prix_id: singapore.id, user_id: '0', total_points: 100},
+      {grand_prix_id: usa.id, user_id: '0', team_race_points: null, race_prediction_points: null, ...phase},
+    ]);
+    assert.equal(panels[0].grandPrix.id, 'usa', 'USA with published points must take precedence over finished Singapore');
+    assert.equal(panels[0].grandPrix.id, timelineHelpers.getScoreGrandPrix([singapore, usa, future], '2026-10-25T12:00:00Z').grandPrix.id);
+    assert.equal(panels[0].grandPrix.name, 'USA');
+    assert.equal(panels[0].standings.find(x => x.userId === '0').totaalPunten, phase.total_points);
+    assert.equal(panels[0].standings.length, profiles.length); // Includes every player, with no league memberships.
+    assert.equal(panels[1].standings.find(x => x.userId === '0').totaalPunten, 100 + phase.total_points);
+  }
+  console.log('PASS: finished Singapore + published USA qualification/sprint/race selects USA; all players and season totals preserved.');
   for (const points of [12, 25, 70]) {
     const scores = [
       {grand_prix_id: previous.id, user_id: '0', total_points: 100},
@@ -99,3 +122,4 @@ async function render(timeline, scores) {
   assert.equal(empty.length, 1); // Season panel remains when there is no GP.
   console.log('PASS: qualification/sprint/race totals; league GP parity; all players without leagues; ties; zero/null/missing scores; unchanged season totals; finished fallback; pre-deadline details; cancelled/empty calendar; JSON-serializable panel data.');
 })().catch(error => {console.error(error); process.exitCode = 1});
+

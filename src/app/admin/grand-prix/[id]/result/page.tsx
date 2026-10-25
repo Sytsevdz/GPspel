@@ -215,6 +215,7 @@ export default async function GrandPrixResultPage({
         <PublishScoreActions
           grandPrixId={grandPrix.id}
           disabled={isCancelled}
+          isSprintWeekend={grandPrix.is_sprint_weekend}
         />
       </section>
     </main>
