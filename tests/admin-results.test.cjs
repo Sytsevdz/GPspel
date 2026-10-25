@@ -15,7 +15,11 @@ function load(file, mocks = {}) {
   const module = { exports: {} };
   new Function('require', 'module', 'exports', output)(id => {
     if (id in mocks) return mocks[id];
-    if (id.startsWith('@/')) return load(`src/${id.slice(2)}.ts`, mocks);
+    if (id === './publish-score-actions') return load('src/app/admin/grand-prix/[id]/result/publish-score-actions.tsx', mocks);
+    if (id.startsWith('@/')) {
+      const base = `src/${id.slice(2)}`;
+      return load(fs.existsSync(`${base}.ts`) ? `${base}.ts` : `${base}.tsx`, mocks);
+    }
     return require(id);
   }, module, module.exports);
   return module.exports;
@@ -151,4 +155,126 @@ test('dashboard groups all statuses, orders history newest first, and retains ev
   const html = renderToStaticMarkup(await Page({ searchParams: {} }));
   const ids = [...html.matchAll(/href="\/admin\/grand-prix\/([^"]+)"/g)].map(m => m[1]);
   assert.deepEqual(ids, ['locked', 'upcoming', 'open', 'cancelled', 'finished']);
+});
+
+const workflow = load('src/lib/result-workflow.ts');
+const unpublished = { qualification: false, sprintQualification: false, sprintRace: false, final: false };
+for (const sprint of [false, true]) {
+  test(`result workflow: ${sprint ? 'sprint' : 'regular'} sequence, publication and reset`, () => {
+    const phases = workflow.resultPhases(sprint);
+    assert.deepEqual(phases.map(p => p.id), sprint ? ['sprintQualification', 'sprintRace', 'qualification', 'final'] : ['qualification', 'final']);
+    let state = { published: unpublished, open: workflow.initialOpenPhases(phases, unpublished) };
+    for (let i = 0; i < phases.length; i++) {
+      assert.deepEqual(state.open, [phases[i].id]);
+      state = workflow.advanceResultPhase(state, phases, phases[i].id);
+      assert.equal(state.published[phases[i].id], true);
+    }
+    assert.deepEqual(state.open, []);
+    assert.deepEqual(workflow.advanceResultPhase(state, phases, 'reset'), { published: unpublished, open: [phases[0].id] });
+    assert.deepEqual(workflow.initialOpenPhases(phases, { ...unpublished, [phases[0].id]: true }), [phases[1].id]);
+  });
+}
+
+test('result editor preserves manual reopening, saved values, bonus fields and open phase across revalidation', async () => {
+  const hooks = []; let cursor = 0;
+  const react = { ...React,
+    useState(initial) {
+      const index = cursor++;
+      if (!(index in hooks)) hooks[index] = typeof initial === 'function' ? initial() : initial;
+      return [hooks[index], value => { hooks[index] = typeof value === 'function' ? value(hooks[index]) : value; }];
+    },
+    useCallback: callback => callback,
+    useMemo: callback => callback(),
+  };
+  const { ResultForm } = load('src/app/admin/grand-prix/[id]/result/result-form.tsx', {
+    react,
+    'next/image': { __esModule: true, default: () => null },
+    'react-dom': { useFormState: action => [{ status: 'idle' }, action] },
+    './publish-score-actions': { PublishScoreActions: () => null },
+    '@/app/actions/grand-prix-results': { saveGrandPrixResult: async () => ({ status: 'success', message: 'Opgeslagen' }) },
+    '@/app/team-bonus-card': { TeamBonusCard: () => null },
+    '@/lib/team-side-view-images': {}, '@/lib/team-selection-teams': {},
+  });
+  const props = {
+    grandPrixId: 'gp', isSprintWeekend: true, published: { ...unpublished, sprintQualification: true }, bonusQuestionType: 'fastest_lap_driver',
+    drivers: [{ id: 'driver', name: 'Driver', constructorTeam: 'Team' }], constructorTeams: ['Team'],
+    initialValues: { qualificationOrder: ['driver'], raceOrder: ['driver'], sprintQualificationOrder: ['driver'], sprintRaceOrder: ['driver'], fastestPitstopTeam: '', fastestLapDriverId: 'driver' },
+  };
+  function render(extra = {}) { cursor = 0; return ResultForm({ ...props, ...extra }); }
+  const details = tree => tree.props.children[1];
+  let tree = render();
+  assert.deepEqual(details(tree).map(d => d.props.open), [false, true, false, false]);
+  details(tree)[0].props.onToggle({ currentTarget: { open: true } });
+  tree = render();
+  assert.equal(details(tree)[0].props.open, true);
+  await tree.props.children[0].props.action({ status: 'idle' }, new FormData());
+  tree = render({ published: { ...unpublished } }); // stale refresh must not reset local progress
+  assert.deepEqual(details(tree).map(d => d.props.open), [true, true, false, false]);
+  const publication = details(tree)[1].props.children.at(-1);
+  publication.props.onPublished('sprintRace');
+  tree = render();
+  assert.deepEqual(details(tree).map(d => d.props.open), [true, false, true, false]);
+  details(tree)[2].props.onToggle({ currentTarget: { open: false } });
+  tree = render();
+  details(tree)[2].props.children.at(-1).props.onFailed('qualification');
+  tree = render();
+  assert.equal(details(tree)[2].props.open, true);
+  const children = [...tree.props.children];
+  children[0] = React.cloneElement(children[0], { action: undefined });
+  const html = renderToStaticMarkup(React.cloneElement(tree, {}, ...children));
+  assert.ok(html.includes('form="result-save-gp" name="fastest_lap_driver_id" value="driver"'));
+  assert.ok(html.includes('name="qualification_order" value="driver"'));
+});
+
+for (const status of ['success', 'error']) {
+  test(`publication ${status} ${status === 'success' ? 'advances' : 'keeps current phase and feedback'}; thrown errors remain retryable`, async () => {
+    let action;
+    const published = [];
+    const failed = [];
+    const { PublishScoreActions } = load('src/app/admin/grand-prix/[id]/result/publish-score-actions.tsx', {
+      react: { ...React, useEffect: effect => effect() },
+      'react-dom': { useFormState: callback => { action = callback; return [{ status, message: 'Existing feedback' }, callback]; }, useFormStatus: () => ({ pending: false }) },
+      '@/app/admin/confirm-submit-button': { ConfirmSubmitButton: () => null },
+      '@/app/actions/grand-prix-results': { publishGrandPrixQualificationScores: async () => { throw new Error('database unavailable'); } },
+      '../workflow-controller': { reportResultWorkflow() {} },
+    });
+    const html = renderToStaticMarkup(React.createElement(PublishScoreActions, { grandPrixId: 'gp', isSprintWeekend: false, phase: 'qualification', onPublished: phase => published.push(phase), onFailed: phase => failed.push(phase) }));
+    assert.deepEqual(published, status === 'success' ? ['qualification'] : []);
+    assert.deepEqual(failed, status === 'error' ? ['qualification'] : []);
+    assert.ok(html.includes('Existing feedback'));
+    assert.equal((await action({ status: 'idle' }, new FormData())).status, 'error');
+  });
+}
+
+test('publication indicator treats zero points as published and null as unpublished', () => {
+  const { isSessionPublished } = load('src/lib/session-publication.ts');
+  assert.equal(isSessionPublished({ points: 0 }, 'points'), true);
+  assert.equal(isSessionPublished({ points: null }, 'points'), false);
+});
+
+test('result page passes serializable publication flags from score components, independent of stored result order', async () => {
+  for (const hasScores of [false, true]) {
+    let received;
+    const supabase = {
+      auth: { getUser: async () => ({ data: { user: { id: 'admin' } } }) },
+      from(table) {
+        const data = table === 'profiles' ? { role: 'admin' }
+          : table === 'grand_prix' ? { id: 'gp', name: 'GP', status: 'locked', deadline: '2026-01-01', is_sprint_weekend: true }
+          : table === 'grand_prix_driver_results' ? [{ driver_id: 'driver', quali_position: 1, race_position: 1 }]
+          : table === 'grand_prix_scores' ? (hasScores ? [{ team_quali_points: 0, team_race_points: null, team_sprint_quali_points: 2, team_sprint_race_points: null }] : []) : null;
+        return { select() { return this; }, eq() { return this; }, maybeSingle: async () => ({ data }), returns: async () => ({ data }), then(resolve) { return Promise.resolve({ data }).then(resolve); } };
+      },
+    };
+    const { default: Page } = load('src/app/admin/grand-prix/[id]/result/page.tsx', {
+      'next/link': { __esModule: true, default: ({ children }) => React.createElement('a', null, children) },
+      'next/navigation': { redirect() { throw new Error('unexpected redirect'); } },
+      '@/lib/supabase': { createServerSupabaseClient: () => supabase },
+      '@/lib/grand-prix-drivers': { getGrandPrixDrivers: async () => [{ id: 'driver', name: 'Driver', constructor_team: 'Team' }] },
+      './result-form': { ResultForm: props => { received = props; return null; } },
+      './publish-score-actions': { PublishScoreActions: () => null },
+    });
+    renderToStaticMarkup(await Page({ params: { id: 'gp' } }));
+    assert.deepEqual(received.published, { ...unpublished, qualification: hasScores, sprintQualification: hasScores });
+    assert.deepEqual(JSON.parse(JSON.stringify(received)), received);
+  }
 });

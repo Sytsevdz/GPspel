@@ -1,9 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { reportResultWorkflow } from "../workflow-controller";
-import { useEffect, useMemo, useState } from "react";
-import { useFormState, useFormStatus } from "react-dom";
+import { PublishScoreActions } from "./publish-score-actions";
+import { resultPhases, initialOpenPhases, advanceResultPhase, type PublicationState } from "@/lib/result-workflow";
+import { useCallback, useMemo, useState } from "react";
+import { useFormState } from "react-dom";
 
 import {
   saveGrandPrixResult,
@@ -32,6 +33,8 @@ type ResultField = Exclude<keyof ResultValues, "fastestPitstopTeam" | "fastestLa
 
 type ResultFormProps = {
   grandPrixId: string;
+  published?: PublicationState;
+  publicationStatusUnknown?: boolean;
   isSprintWeekend: boolean;
   drivers: DriverOption[];
   initialValues: ResultValues;
@@ -41,12 +44,11 @@ type ResultFormProps = {
 
 const INITIAL_STATE: GrandPrixResultActionState = { status: "idle" };
 
-function SaveButton({ disabled }: { disabled: boolean }) {
-  const { pending } = useFormStatus();
+function SaveButton({ disabled, pending, label, formId }: { disabled: boolean; pending: boolean; label: string; formId: string }) {
 
   return (
-    <button type="submit" disabled={disabled || pending}>
-      {pending ? "Bezig met opslaan..." : "Uitslag opslaan"}
+    <button type="submit" form={formId} disabled={disabled || pending}>
+      {pending ? "Bezig met opslaan..." : label}
     </button>
   );
 }
@@ -139,16 +141,33 @@ function ReorderList({
 
 export function ResultForm({
   grandPrixId,
+  published = { qualification: false, sprintQualification: false, sprintRace: false, final: false },
+  publicationStatusUnknown = false,
   isSprintWeekend,
   drivers,
   initialValues,
   constructorTeams,
   bonusQuestionType,
 }: ResultFormProps) {
-  const [state, formAction] = useFormState(saveGrandPrixResult, INITIAL_STATE);
-  useEffect(() => {
-    if (state.status === "success") reportResultWorkflow(grandPrixId, "reset", isSprintWeekend);
-  }, [state, grandPrixId, isSprintWeekend]);
+  const [saving, setSaving] = useState(false);
+  const [state, formAction] = useFormState(async (previous: GrandPrixResultActionState, data: FormData) => {
+    setSaving(true);
+    try {
+      return await saveGrandPrixResult(previous, data);
+    } finally {
+      setSaving(false);
+    }
+  }, INITIAL_STATE);
+  const phases = resultPhases(isSprintWeekend);
+  const [workflow, setWorkflow] = useState(() => ({ published, open: initialOpenPhases(phases, published) }));
+  const onPublished = useCallback((phase: string) => {
+    setWorkflow(current => advanceResultPhase(current, resultPhases(isSprintWeekend), phase));
+  }, [isSprintWeekend]);
+  const onFailed = useCallback((phase: string) => {
+    const failed = resultPhases(isSprintWeekend).find(item => item.id === phase);
+    if (failed) setWorkflow(current => ({ ...current, open: Array.from(new Set([...current.open, failed.id])) }));
+  }, [isSprintWeekend]);
+  const formId = `result-save-${grandPrixId}`;
   const [values, setValues] = useState<ResultValues>(initialValues);
   const [pasteValues, setPasteValues] = useState<Record<ResultField, string>>({
     qualificationOrder: "",
@@ -307,7 +326,8 @@ export function ResultForm({
   };
 
   return (
-    <form action={formAction} className="predictions-form">
+    <div className="predictions-form">
+    <form id={formId} action={formAction}>
       <input type="hidden" name="grand_prix_id" value={grandPrixId} />
       <input
         type="hidden"
@@ -329,9 +349,32 @@ export function ResultForm({
         name="race_order"
         value={values.raceOrder.join(",")}
       />
+    </form>
+    {phases.map(phase => (
+      <details key={phase.id} className="predictions-section gp-workflow-section"
+        open={workflow.open.includes(phase.id)}
+        onToggle={event => {
+          const open = event.currentTarget.open;
+          setWorkflow(current => ({ ...current, open: open
+            ? Array.from(new Set([...current.open, phase.id]))
+            : current.open.filter(id => id !== phase.id) }));
+        }}>
+        <summary>
+          <h2>{phase.title}</h2>
+          <span className="gp-workflow-status">{workflow.published[phase.id] ? "Gepubliceerd" : publicationStatusUnknown ? "Publicatiestatus onbekend" : "Nog niet gepubliceerd"}</span>
+          <span className="gp-workflow-chevron" aria-hidden="true">⌄</span>
+        </summary>
+        <ReorderList title={phase.title} pasteLabel={`Plak ${phase.title.toLocaleLowerCase("nl-NL")}volgorde`}
+          pasteButtonLabel={`Verwerk ${phase.title.toLocaleLowerCase("nl-NL")}`}
+          order={values[phase.field]} driversById={driversById}
+          pasteValue={pasteValues[phase.field]} pasteError={pasteErrors[phase.field]}
+          onPasteChange={value => setPasteValues(current => ({ ...current, [phase.field]: value }))}
+          onImport={() => importOrder(phase.field)}
+          onMove={(from, to) => moveInList(phase.field, from, to)} />
+        {phase.id === "final" ? <>
       {bonusQuestionType === "fastest_lap_driver" ? <section className="predictions-section bonus-results-section">
         <div className="predictions-section-header"><h2>Snelste ronde</h2><p>Selecteer de coureur die de snelste ronde reed.</p></div>
-        <input type="hidden" name="fastest_lap_driver_id" value={values.fastestLapDriverId}/>
+        <input type="hidden" form={formId} name="fastest_lap_driver_id" value={values.fastestLapDriverId}/>
         <div className="bonus-answer-grid" role="group" aria-label="Snelste ronde">
           {drivers.map(driver => <button type="button" key={driver.id} aria-pressed={values.fastestLapDriverId === driver.id} className={`bonus-answer-tile ${values.fastestLapDriverId === driver.id ? "selected" : ""}`} onClick={()=>setValues(current=>({...current, fastestLapDriverId: driver.id}))}><strong>{driver.name}</strong><span>{driver.constructorTeam}</span></button>)}
         </div>
@@ -346,7 +389,7 @@ export function ResultForm({
         </div>
         <input
           type="hidden"
-          name="fastest_pitstop_team"
+          form={formId} name="fastest_pitstop_team"
           value={values.fastestPitstopTeam}
         />
         <TeamBonusCard
@@ -428,84 +471,11 @@ export function ResultForm({
         </div>
       ) : null}
 
-      <ReorderList
-        title="Kwalificatie"
-        pasteLabel="Plak kwalificatievolgorde"
-        pasteButtonLabel="Verwerk kwalificatie"
-        order={values.qualificationOrder}
-        driversById={driversById}
-        pasteValue={pasteValues.qualificationOrder}
-        pasteError={pasteErrors.qualificationOrder}
-        onPasteChange={(value) =>
-          setPasteValues((current) => ({
-            ...current,
-            qualificationOrder: value,
-          }))
-        }
-        onImport={() => importOrder("qualificationOrder")}
-        onMove={(from, to) => moveInList("qualificationOrder", from, to)}
-      />
-
-      {isSprintWeekend ? (
-        <ReorderList
-          title="Sprint kwalificatie"
-          pasteLabel="Plak sprint kwalificatievolgorde"
-          pasteButtonLabel="Verwerk sprint kwalificatie"
-          order={values.sprintQualificationOrder}
-          driversById={driversById}
-          pasteValue={pasteValues.sprintQualificationOrder}
-          pasteError={pasteErrors.sprintQualificationOrder}
-          onPasteChange={(value) =>
-            setPasteValues((current) => ({
-              ...current,
-              sprintQualificationOrder: value,
-            }))
-          }
-          onImport={() => importOrder("sprintQualificationOrder")}
-          onMove={(from, to) =>
-            moveInList("sprintQualificationOrder", from, to)
-          }
-        />
-      ) : null}
-
-      {isSprintWeekend ? (
-        <ReorderList
-          title="Sprint race"
-          pasteLabel="Plak sprint racevolgorde"
-          pasteButtonLabel="Verwerk sprint race"
-          order={values.sprintRaceOrder}
-          driversById={driversById}
-          pasteValue={pasteValues.sprintRaceOrder}
-          pasteError={pasteErrors.sprintRaceOrder}
-          onPasteChange={(value) =>
-            setPasteValues((current) => ({
-              ...current,
-              sprintRaceOrder: value,
-            }))
-          }
-          onImport={() => importOrder("sprintRaceOrder")}
-          onMove={(from, to) => moveInList("sprintRaceOrder", from, to)}
-        />
-      ) : null}
-
-      <ReorderList
-        title="Race"
-        pasteLabel="Plak racevolgorde"
-        pasteButtonLabel="Verwerk race"
-        order={values.raceOrder}
-        driversById={driversById}
-        pasteValue={pasteValues.raceOrder}
-        pasteError={pasteErrors.raceOrder}
-        onPasteChange={(value) =>
-          setPasteValues((current) => ({
-            ...current,
-            raceOrder: value,
-          }))
-        }
-        onImport={() => importOrder("raceOrder")}
-        onMove={(from, to) => moveInList("raceOrder", from, to)}
-      />
-
+        </> : null}
+        <SaveButton pending={saving} formId={formId} disabled={!canSave} label={`Sla ${phase.title.toLocaleLowerCase("nl-NL")} op`} />
+        <PublishScoreActions grandPrixId={grandPrixId} isSprintWeekend={isSprintWeekend} phase={phase.id} onPublished={onPublished} onFailed={onFailed} />
+      </details>
+    ))}
       {validationErrors.length > 0 && (
         <div className="form-message error" role="alert">
           <ul>
@@ -524,7 +494,7 @@ export function ResultForm({
         </p>
       )}
 
-      <SaveButton disabled={!canSave} />
-    </form>
+      <PublishScoreActions grandPrixId={grandPrixId} isSprintWeekend={isSprintWeekend} phase="reset" onPublished={onPublished} />
+    </div>
   );
 }
