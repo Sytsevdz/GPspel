@@ -41,7 +41,7 @@ export default function SpelregelsPage() {
         <section className="rules-section" aria-labelledby="deadline">
           <h2 id="deadline">Invullen en opslaan</h2>
           <p><strong>Eén GP-deadline voor alles</strong>, ook tijdens sprintweekenden. Je kunt je team en voorspellingen tot dat moment wijzigen; daarna staan ze vast.</p>
-          <p>Controleer je team, vul alle voorspellingen en de bonusvraag in en klik op <strong>Alles opslaan</strong>. Controleer de opslagbevestiging: zonder opgeslagen voorspelling krijg je daarvoor geen punten.</p>
+          <p>Controleer je team, vul alle voorspellingen en de eventuele bonusvraag in en klik op <strong>Alles opslaan</strong>. Controleer de opslagbevestiging: zonder opgeslagen voorspelling krijg je daarvoor geen punten.</p>
         </section>
 
         <section className="rules-section" aria-labelledby="voorspellingen">
@@ -101,10 +101,10 @@ export default function SpelregelsPage() {
               <tr><th scope="row">Eindpositie van een genoemde coureur</th><td>Positie</td></tr>
               <tr><th scope="row">Snelste ronde</th><td>Coureur</td></tr>
               <tr><th scope="row">F1-team met de meeste racepunten</th><td>Team</td></tr>
-              <tr><th scope="row">Snelste pitstop¹</th><td>Team</td></tr>
+              <tr><th scope="row">Snelste pitstop</th><td>Team</td></tr>
             </tbody>
           </table>
-          <p>¹ Zonder aparte bonusvraag geldt de pitstopvraag: 10 punten bij het juiste team.</p>
+          <p>Er is geen standaardbonusvraag. Zonder ingestelde bonusvraag kun je voor die GP geen bonuspunten verdienen. Het standaardpuntenaantal voor een ingestelde vraag is 10.</p>
           <p>Voor het beste F1-team tellen alleen de racepunten van zijn coureurs uit de tabel hierboven. Bij gelijkstand beslist de alfabetische teamnaam.</p>
         </section>
 
