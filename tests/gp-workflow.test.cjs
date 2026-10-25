@@ -67,3 +67,39 @@ test('management uses exactly the requested section order without passing server
   assert.deepEqual([...source.matchAll(/data-workflow-section="([^"]+)"/g)].map(m=>m[1]), ['participants','prices','settings','bonus','results','overview']);
   assert.match(source, /<WorkflowController[^>]+\/>/);
 });
+
+test('bonus redirect advances to results even after client state was lost', () => {
+  const f = fixture();
+  f.render([true,true,false,true,false,false], {
+    message: 'Bonusvraag opgeslagen', bonusFeedback: 'save-1',
+  });
+  assert.equal(f.elements[2].open, false, 'settings must stay collapsed');
+  assert.equal(f.elements[3].open, false, 'saved bonus must collapse');
+  assert.equal(f.elements[4].open, true, 'results must open');
+});
+
+test('bonus error after remount keeps bonus open without advancing', () => {
+  const f = fixture();
+  f.render([true,true,false,true,false,false], {
+    error: 'Bonusvraag opslaan mislukt', bonusFeedback: 'save-error',
+  });
+  assert.equal(f.elements[2].open, false);
+  assert.equal(f.elements[3].open, true);
+  assert.equal(f.elements[4].open, false);
+});
+
+test('bonus feedback is handled once; revalidation preserves manual toggles', () => {
+  const f = fixture();
+  const feedback = { message: 'Bonusvraag opgeslagen', bonusFeedback: 'save-1' };
+  const completed = [true,true,false,true,false,false];
+  f.render(completed, feedback);
+  f.elements[3].open = true; f.elements[3].toggle({target:f.elements[3]});
+  f.elements[4].open = false; f.elements[4].toggle({target:f.elements[4]});
+  f.render([...completed], feedback);
+  assert.equal(f.elements[3].open, true);
+  assert.equal(f.elements[4].open, false);
+  f.render([...completed], { ...feedback, bonusFeedback: 'save-2' });
+  assert.equal(f.elements[2].open, false);
+  assert.equal(f.elements[3].open, false);
+  assert.equal(f.elements[4].open, true);
+});

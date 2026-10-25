@@ -32,6 +32,7 @@ type GrandPrixManagementPageProps = {
     message?: string;
     error?: string;
     league?: string;
+    bonusFeedback?: string;
   };
 };
 
@@ -286,6 +287,8 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
   async function saveBonusQuestion(formData: FormData) {
     "use server";
 
+    // A unique UI receipt survives the redirect, including a fresh client mount.
+    const bonusFeedback = crypto.randomUUID();
     const grandPrixId = String(formData.get("grand_prix_id") ?? "").trim();
     const questionType = String(formData.get("question_type") ?? "").trim();
     const subjectDriverId = String(formData.get("subject_driver_id") ?? "").trim();
@@ -298,17 +301,17 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
       !Number.isInteger(points) ||
       points < 1
     ) {
-      redirect(`/admin/grand-prix/${params.id}?error=Vul+een+geldige+bonusvraag+in`);
+      redirect(`/admin/grand-prix/${params.id}?error=Vul+een+geldige+bonusvraag+in&bonusFeedback=${bonusFeedback}`);
     }
 
     const actionSupabase = createServerSupabaseClient();
     const { data: { user: actionUser }, error: actionUserError } = await actionSupabase.auth.getUser();
     if (actionUserError || !actionUser) {
-      redirect(`/admin/grand-prix/${params.id}?error=Je+hebt+geen+toegang+tot+deze+actie`);
+      redirect(`/admin/grand-prix/${params.id}?error=Je+hebt+geen+toegang+tot+deze+actie&bonusFeedback=${bonusFeedback}`);
     }
     const { data: actionProfile } = await actionSupabase.from("profiles").select("role").eq("id", actionUser.id).maybeSingle<{ role: string | null }>();
     if (actionProfile?.role !== "admin") {
-      redirect(`/admin/grand-prix/${params.id}?error=Je+hebt+geen+toegang+tot+deze+actie`);
+      redirect(`/admin/grand-prix/${params.id}?error=Je+hebt+geen+toegang+tot+deze+actie&bonusFeedback=${bonusFeedback}`);
     }
 
     const { error } = await actionSupabase.from("grand_prix_bonus_questions").upsert(
@@ -322,10 +325,10 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     );
 
     if (error) {
-      redirect(`/admin/grand-prix/${params.id}?error=Bonusvraag+opslaan+mislukt`);
+      redirect(`/admin/grand-prix/${params.id}?error=Bonusvraag+opslaan+mislukt&bonusFeedback=${bonusFeedback}`);
     }
 
-    redirect(`/admin/grand-prix/${params.id}?message=Bonusvraag+opgeslagen`);
+    redirect(`/admin/grand-prix/${params.id}?message=Bonusvraag+opgeslagen&bonusFeedback=${bonusFeedback}`);
   }
 
   async function saveDriverEntries(formData: FormData) {
@@ -510,8 +513,11 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     false, // Publication completion is tracked only after successful actions in this session.
     false,
   ];
-  const initialSection = ["participants", "prices", "settings", "bonus", "results"]
+  const defaultSection = ["participants", "prices", "settings", "bonus", "results"]
     .find((_, index) => !completedSections[index]);
+  const initialSection = searchParams.bonusFeedback
+    ? searchParams.error ? "bonus" : searchParams.message === "Bonusvraag opgeslagen" ? "results" : defaultSection
+    : defaultSection;
 
   return (
     <main className="leagues-page">
@@ -536,7 +542,7 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
         {searchParams.error ? <p className="form-message error">{searchParams.error}</p> : null}
         {searchParams.message ? <p className="form-message success">{searchParams.message}</p> : null}
 
-        <WorkflowController grandPrixId={managedGrandPrix.id} completed={completedSections} message={searchParams.message ?? null} error={searchParams.error ?? null} />
+        <WorkflowController grandPrixId={managedGrandPrix.id} completed={completedSections} message={searchParams.message ?? null} error={searchParams.error ?? null} bonusFeedback={searchParams.bonusFeedback ?? null} />
         <details className="predictions-section gp-workflow-section" data-workflow-section="participants" open={initialSection === "participants"}>
           <summary>
             <h2>GP-Deelnemers</h2>

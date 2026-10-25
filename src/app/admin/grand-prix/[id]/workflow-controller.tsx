@@ -9,7 +9,7 @@ const successMessages: Record<string, string> = {
   "Weekendtype bijgewerkt": "settings",
   "Bonusvraag opgeslagen": "bonus",
 };
-type Snapshot = { open: boolean[]; done: boolean[]; pending?: string; phases?: string[]; scrollY?: number };
+type Snapshot = { open: boolean[]; done: boolean[]; pending?: string; phases?: string[]; scrollY?: number; bonusFeedback?: string };
 const snapshots = new Map<string, Snapshot>();
 
 export function reportWorkflowSuccess(grandPrixId: string, section: string) {
@@ -36,8 +36,8 @@ export function reportResultWorkflow(grandPrixId: string, phase: string, sprint:
   }
 }
 
-export function WorkflowController({ grandPrixId, completed, message, error }: {
-  grandPrixId: string; completed: boolean[]; message: string | null; error: string | null;
+export function WorkflowController({ grandPrixId, completed, message, error, bonusFeedback }: {
+  grandPrixId: string; completed: boolean[]; message: string | null; error: string | null; bonusFeedback?: string | null;
 }) {
   useEffect(() => {
     const elements = sections.map((id) => document.querySelector<HTMLDetailsElement>(`[data-workflow-section="${id}"]`));
@@ -72,6 +72,18 @@ export function WorkflowController({ grandPrixId, completed, message, error }: {
       // Reset/cancel actions and failures must never advance the workflow.
       delete snapshot.pending;
     }
+    // Redirect feedback is independent of the transient submit listener. Consume
+    // each receipt once so subsequent revalidation respects manual toggles.
+    if (bonusFeedback && snapshot.bonusFeedback !== bonusFeedback) {
+      snapshot.bonusFeedback = bonusFeedback;
+      if (!error && message === "Bonusvraag opgeslagen") {
+        snapshot.open[2] = false;
+        advance("bonus");
+      } else if (error) {
+        snapshot.open[2] = false;
+        snapshot.open[3] = true;
+      }
+    }
     render();
     if (snapshot.scrollY !== undefined) {
       const scrollY = snapshot.scrollY;
@@ -102,6 +114,6 @@ export function WorkflowController({ grandPrixId, completed, message, error }: {
       document.removeEventListener("submit", submit, true);
       window.removeEventListener("gp-workflow-success", success);
     };
-  }, [grandPrixId, completed, message, error]);
+  }, [grandPrixId, completed, message, error, bonusFeedback]);
   return null;
 }
