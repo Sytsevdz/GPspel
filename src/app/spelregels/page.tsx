@@ -75,6 +75,12 @@ export default function SpelregelsPage() {
           </section>
         </section>
 
+        <section className="rules-section" aria-labelledby="bonusvragen">
+          <h2 id="bonusvragen">Bonusvragen</h2>
+          <p>Per GP kan één bonusvraag worden ingesteld: de eindpositie van een coureur, de snelste ronde, het beste team of de snelste pitstop.</p>
+          <p>Er is geen standaardbonusvraag. Zonder ingestelde vraag kun je voor die GP geen bonuspunten verdienen. Een juist antwoord levert het bij de vraag getoonde aantal punten op (standaard 10); een fout of ontbrekend antwoord levert 0 punten op.</p>
+        </section>
+
         <section className="rules-section" aria-labelledby="puntensysteem">
           <h2 id="puntensysteem">Puntensysteem</h2>
           <section className="rules-subsection" aria-labelledby="puntensysteem-team">

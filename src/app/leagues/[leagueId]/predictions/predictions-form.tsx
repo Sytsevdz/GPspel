@@ -78,7 +78,6 @@ type PredictionsFormProps = {
   isSprintWeekend?: boolean;
   publishedSlotPoints?: PublishedSlotPoints;
   readOnly?: boolean;
-  actualFastestPitstopTeam?: string | null;
   standalone?: boolean;
   savedVersion?: number;
   teamHasUnsavedChanges?: boolean;
@@ -314,7 +313,6 @@ export function PredictionsForm({
   publishedSlotPoints,
   bonusPrediction = null,
   readOnly = false,
-  actualFastestPitstopTeam = null,
   isSprintWeekend = false,
   standalone = true,
   savedVersion = 0,
@@ -481,7 +479,7 @@ export function PredictionsForm({
     requiredFields.every((field) => Boolean(values[field])) &&
     (bonusPrediction
       ? Boolean(values.bonusAnswerPosition)
-      : Boolean(values.fastestPitstopTeam));
+      : true);
   const canSave =
     hasAllSelections && validationErrors.length === 0 && !readOnly;
 
@@ -691,10 +689,10 @@ export function PredictionsForm({
           />
           <input
             type="hidden"
-            name={bonusPrediction.questionType === "driver_finish_position" ? "bonus_answer_position" : bonusPrediction.questionType === "best_team" ? "bonus_answer_team" : "bonus_answer_driver_id"}
+            name={bonusPrediction.questionType === "driver_finish_position" ? "bonus_answer_position" : (bonusPrediction.questionType === "best_team" || bonusPrediction.questionType === "fastest_pitstop_team") ? "bonus_answer_team" : "bonus_answer_driver_id"}
             value={values.bonusAnswerPosition}
           />
-          {bonusPrediction.questionType !== "best_team" ? (
+          {(bonusPrediction.questionType !== "best_team" && bonusPrediction.questionType !== "fastest_pitstop_team") ? (
             <BonusPredictionCard
               questionType={bonusPrediction.questionType}
               questionText={bonusPrediction.questionText}
@@ -733,12 +731,12 @@ export function PredictionsForm({
               </div>
             </button>
           ) : null}
-          {bonusPrediction.questionType === "best_team" ? (
+          {(bonusPrediction.questionType === "best_team" || bonusPrediction.questionType === "fastest_pitstop_team") ? (
             <TeamBonusCard
-              title="Beste team"
-              subtitle="Welk team scoort de meeste punten?"
-              emptyPredictionText="Nog geen beste team voorspeld"
-              actualTeamLabel="Werkelijk beste team"
+              title={bonusPrediction.questionType === "best_team" ? "Beste team" : "Snelste pitstop"}
+              subtitle={bonusPrediction.questionText}
+              emptyPredictionText="Nog geen team voorspeld"
+              actualTeamLabel={bonusPrediction.questionType === "best_team" ? "Werkelijk beste team" : "Werkelijk snelste pitstop-team"}
               selectedTeam={values.bonusAnswerPosition}
               actualTeam={bonusPrediction.actualTeam}
               points={publishedPoints?.bonus ?? null}
@@ -750,26 +748,7 @@ export function PredictionsForm({
             />
           ) : null}
         </section>
-      ) : (
-        <section className="predictions-section bonus-results-section">
-          <input
-            type="hidden"
-            name="fastest_pitstop_team"
-            value={values.fastestPitstopTeam}
-          />
-          <TeamBonusCard
-            selectedTeam={values.fastestPitstopTeam}
-            actualTeam={actualFastestPitstopTeam}
-            points={publishedPoints?.fastestPitstop ?? null}
-            showActual={publishedPoints !== undefined && publishedPoints.fastestPitstop !== null}
-            showPoints={publishedPoints !== undefined && publishedPoints.fastestPitstop !== null}
-            disabled={readOnly}
-            onOpenPicker={
-              readOnly ? undefined : () => setIsFastestPitstopPickerOpen(true)
-            }
-          />
-        </section>
-      )}
+      ) : <p>Voor deze GP is geen bonusvraag ingesteld.</p>}
 
       {bonusPrediction?.questionType === "fastest_lap_driver" && !readOnly && isFastestLapPickerOpen ? (
         <DriverPicker
@@ -787,7 +766,7 @@ export function PredictionsForm({
         />
       ) : null}
 
-      {(!bonusPrediction || bonusPrediction.questionType === "best_team") && !readOnly && isFastestPitstopPickerOpen ? (
+      {(bonusPrediction?.questionType === "best_team" || bonusPrediction?.questionType === "fastest_pitstop_team") && !readOnly && isFastestPitstopPickerOpen ? (
         <div
           className="podium-selection-overlay"
           role="presentation"
@@ -821,7 +800,7 @@ export function PredictionsForm({
               {constructorTeams.map((teamName) => {
                 const team = resolveTeamSelectionTeam(teamName);
                 const imageSize = getTeamSideImageSize("modalOption");
-                const isSelected = (bonusPrediction?.questionType === "best_team" ? values.bonusAnswerPosition : values.fastestPitstopTeam) === teamName;
+                const isSelected = values.bonusAnswerPosition === teamName;
 
                 return (
                   <button
@@ -833,7 +812,7 @@ export function PredictionsForm({
                       onInteracted?.();
                       setValues((current) => ({
                         ...current,
-                        ...(bonusPrediction?.questionType === "best_team" ? { bonusAnswerPosition: teamName } : { fastestPitstopTeam: teamName }),
+                        bonusAnswerPosition: teamName,
                       }));
                       setIsFastestPitstopPickerOpen(false);
                     }}

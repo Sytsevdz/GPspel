@@ -13,7 +13,7 @@ begin
     create type grand_prix_status as enum ('upcoming', 'open', 'locked', 'finished', 'cancelled');
   end if;
   if not exists (select 1 from pg_type where typname = 'grand_prix_bonus_question_type') then
-    create type grand_prix_bonus_question_type as enum ('driver_finish_position', 'fastest_lap_driver', 'best_team');
+    create type grand_prix_bonus_question_type as enum ('driver_finish_position', 'fastest_lap_driver', 'best_team', 'fastest_pitstop_team');
   end if;
 end$$;
 

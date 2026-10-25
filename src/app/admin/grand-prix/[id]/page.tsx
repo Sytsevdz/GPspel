@@ -648,11 +648,11 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
             <span className="gp-workflow-status" data-workflow-status />
             <span className="gp-workflow-chevron" aria-hidden="true">⌄</span>
           </summary>
-          <p>Configureer één bonusvraag voor deze Grand Prix.</p>
+          <p>Selecteer eventueel één bonusvraag. Zonder opgeslagen bonusvraag zijn er geen bonuspunten.</p>
           <BonusQuestionForm
             action={saveBonusQuestion}
             grandPrixId={managedGrandPrix.id}
-            initialType={bonusQuestion?.question_type ?? "driver_finish_position"}
+            initialType={bonusQuestion?.question_type ?? ""}
             initialDriverId={bonusQuestion?.subject_driver_id ?? ""}
             initialPoints={bonusQuestion?.points ?? 10}
             drivers={effectiveDrivers.map(({ id, name }) => ({ id, name }))}

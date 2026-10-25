@@ -506,12 +506,12 @@ export default async function HomePage() {
                       </div>
                     ) : null}
 
-                    {hasPublishedBonusPoints && displayedBonusQuestion?.question_type === "best_team" ? (
+                    {hasPublishedBonusPoints && (displayedBonusQuestion?.question_type === "best_team" || displayedBonusQuestion?.question_type === "fastest_pitstop_team") ? (
                       <TeamBonusCard
-                        title="Beste team"
-                        subtitle="Welk team scoort de meeste punten?"
-                        emptyPredictionText="Nog geen beste team voorspeld"
-                        actualTeamLabel="Werkelijk beste team"
+                        title={displayedBonusQuestion.question_type === "best_team" ? "Beste team" : "Snelste pitstop"}
+                        subtitle={getBonusQuestionText(displayedBonusQuestion.question_type)}
+                        emptyPredictionText="Nog geen team voorspeld"
+                        actualTeamLabel={displayedBonusQuestion.question_type === "best_team" ? "Werkelijk beste team" : "Werkelijk snelste pitstop-team"}
                         selectedTeam={displayedBonusPrediction.data?.answer_team}
                         actualTeam={displayedBonusAnswer.data?.answer_team}
                         points={userDisplayedScore.bonus_prediction_points ?? 0}
@@ -537,7 +537,7 @@ export default async function HomePage() {
                         showPoints
                         className="dashboard-bonus-card"
                       />
-                    ) : hasPublishedFastestPitstopPoints ? (
+                    ) : hasPublishedFastestPitstopPoints && (userDisplayedScore.fastest_pitstop_prediction_points ?? 0) > 0 ? (
                       <TeamBonusCard
                         selectedTeam={
                           userDisplayedPrediction?.fastest_pitstop_team

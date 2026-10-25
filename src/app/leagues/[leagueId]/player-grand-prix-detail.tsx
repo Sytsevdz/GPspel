@@ -598,12 +598,12 @@ export function PlayerGrandPrixDetail({
                           hasPublishedPredictionSlotScores
                         }
                       />
-                      {snapshot.bonusPrediction?.questionType === "best_team" ? (
+                      {(snapshot.bonusPrediction?.questionType === "best_team" || snapshot.bonusPrediction?.questionType === "fastest_pitstop_team") ? (
                         <TeamBonusCard
-                          title="Beste team"
-                          subtitle="Welk team scoort de meeste punten?"
-                          emptyPredictionText="Nog geen beste team voorspeld"
-                          actualTeamLabel="Werkelijk beste team"
+                          title={snapshot.bonusPrediction.questionType === "best_team" ? "Beste team" : "Snelste pitstop"}
+                          subtitle={snapshot.bonusPrediction.questionText}
+                          emptyPredictionText="Nog geen team voorspeld"
+                          actualTeamLabel={snapshot.bonusPrediction.questionType === "best_team" ? "Werkelijk beste team" : "Werkelijk snelste pitstop-team"}
                           selectedTeam={snapshot.bonusPrediction.selectedTeam}
                           actualTeam={snapshot.bonusPrediction.actualTeam}
                           points={snapshot.bonusPrediction.points}
