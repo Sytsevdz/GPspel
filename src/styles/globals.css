@@ -2970,3 +2970,65 @@ button.bonus-driver-slot:disabled {
 .gp-workflow-chevron { margin-left: auto; font-size: 1.4rem; }
 .gp-workflow-section[open] > summary { margin-bottom: 1rem; }
 .gp-workflow-section[open] > summary .gp-workflow-chevron { transform: rotate(180deg); }
+
+/* Compact rule tables retain the existing card and section styling. */
+.rules-card,
+.rules-section {
+  min-width: 0;
+}
+
+.rules-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+}
+
+.rules-table caption {
+  text-align: left;
+  padding-bottom: 0.5rem;
+  color: #e5e5e5;
+  font-weight: 600;
+}
+
+.rules-table th,
+.rules-table td {
+  padding: 0.4rem;
+  border-bottom: 1px solid #303030;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.rules-table th:first-child {
+  text-align: left;
+}
+
+.rules-table tbody th {
+  font-weight: 400;
+}
+
+.rules-points-grid {
+  display: grid;
+  gap: 1rem;
+  align-items: start;
+}
+
+.rules-price-details summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.rules-price-details[open] summary {
+  margin-bottom: 0.7rem;
+}
+
+.rules-price-details summary:focus-visible {
+  outline: 2px solid #e5e5e5;
+  outline-offset: 3px;
+}
+
+@media (min-width: 640px) {
+  .rules-points-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

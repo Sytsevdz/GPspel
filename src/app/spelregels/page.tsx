@@ -1,132 +1,131 @@
+const driverPoints = [
+  ["P1", 10, 25, 6, 15],
+  ["P2", 8, 18, 5, 12],
+  ["P3", 6, 15, 4, 10],
+  ["P4", 5, 12, 3, 8],
+  ["P5", 4, 10, 2, 6],
+  ["P6", 3, 8, 1, 4],
+  ["P7", 2, 6, 0, 3],
+  ["P8", 1, 4, 0, 2],
+  ["P9", 0, 2, 0, 1],
+  ["P10", 0, 1, 0, 0],
+] as const;
+
 export default function SpelregelsPage() {
   return (
     <main className="rules-page">
       <article className="rules-card">
         <header className="rules-section">
           <h1>Spelregels</h1>
+          <p>Stel per Grand Prix je team samen, voorspel de uitslagen en verdien punten.</p>
         </header>
 
-        <section className="rules-section" aria-labelledby="intro">
-          <h2 id="intro">Intro</h2>
-          <p>
-            In het GP Spel stel je per Grand Prix een team samen met 4 coureurs en doe je voorspellingen voor
-            kwalificatie en race. Je verdient punten met je teamkeuze én met correcte voorspellingen.
-          </p>
-        </section>
-
         <section className="rules-section" aria-labelledby="team-kiezen">
-          <h2 id="team-kiezen">Team kiezen</h2>
+          <h2 id="team-kiezen">Je team kiezen</h2>
           <ul>
-            <li>Je selecteert verplicht 4 coureurs.</li>
-            <li>Je totale budget is maximaal 100,0 miljoen.</li>
-            <li>Je mag maximaal 1 coureur per F1-team kiezen.</li>
-            <li>Na de deadline lockt je team voor die Grand Prix.</li>
-            <li>Bij een geannuleerde Grand Prix is er geen teamselectie en geen scoring.</li>
+            <li><strong>4 verschillende coureurs</strong> uit de deelnemers aan de GP.</li>
+            <li><strong>Maximaal 100,0 miljoen</strong> budget.</li>
+            <li><strong>Maximaal 1 coureur per F1-team.</strong></li>
           </ul>
+          <details className="rules-price-details">
+            <summary>Hoe werken coureursprijzen?</summary>
+            <ul>
+              <li>De prijsladder loopt van 38,0 tot 11,0 miljoen per GP.</li>
+              <li>Basis: racepunten uit eerdere afgeronde GP&apos;s, plus een kwalificatiebonus van 3 / 2 / 1 voor P1 / P2 / P3. Sprintresultaten tellen niet mee.</li>
+              <li>Bij gelijkstand: meeste racepunten, beste resultaat in de laatste afgeronde race, daarna alfabetisch op naam.</li>
+              <li>Ontbreken nieuwe prijzen? Dan kunnen eerdere prijzen gelden. Controleer altijd het getoonde budget.</li>
+            </ul>
+          </details>
         </section>
 
-        <section className="rules-section" aria-labelledby="coureurprijzen">
-          <h2 id="coureurprijzen">Coureurprijzen</h2>
-          <p>
-            Coureurprijzen worden opnieuw berekend per Grand Prix op basis van prestaties uit alleen eerdere
-            Grand Prix&apos;s met status <strong>finished</strong>.
-          </p>
-
-          <section className="rules-subsection" aria-labelledby="coureurprijzen-score">
-            <h3 id="coureurprijzen-score">Hoe wordt de score opgebouwd?</h3>
-            <ul>
-              <li>Racepunten worden meegenomen volgens de race-uitslag.</li>
-              <li>Kwalificatiebonus telt mee voor P1, P2 en P3.</li>
-              <li>Seizoensscore = racepunten + kwalificatiebonus uit eerdere finished GP&apos;s.</li>
-            </ul>
-          </section>
-
-          <section className="rules-subsection" aria-labelledby="coureurprijzen-ranking">
-            <h3 id="coureurprijzen-ranking">Ranking bij gelijke prestaties</h3>
-            <ol>
-              <li>Hoogste seizoensscore.</li>
-              <li>Daarna hoogste totaal racepunten.</li>
-              <li>Daarna beste resultaat in de laatste race.</li>
-              <li>Daarna alfabetische volgorde.</li>
-            </ol>
-          </section>
-
-          <section className="rules-subsection" aria-labelledby="coureurprijzen-prijsladder">
-            <h3 id="coureurprijzen-prijsladder">Prijsladder</h3>
-            <p>De prijsladder loopt van 38,0 miljoen (hoogst) tot 11,0 miljoen (laagst).</p>
-          </section>
+        <section className="rules-section" aria-labelledby="deadline">
+          <h2 id="deadline">Invullen en opslaan</h2>
+          <p><strong>Eén GP-deadline voor alles</strong>, ook tijdens sprintweekenden. Je kunt je team en voorspellingen tot dat moment wijzigen; daarna staan ze vast.</p>
+          <p>Controleer je team, vul alle voorspellingen en de eventuele bonusvraag in en klik op <strong>Alles opslaan</strong>. Controleer de opslagbevestiging: zonder opgeslagen voorspelling krijg je daarvoor geen punten.</p>
         </section>
 
         <section className="rules-section" aria-labelledby="voorspellingen">
           <h2 id="voorspellingen">Voorspellingen</h2>
-          <p>Per Grand Prix voorspel je de top 3 voor:</p>
           <ul>
-            <li>Kwalificatie</li>
-            <li>Race</li>
+            <li><strong>Elke GP:</strong> voorspel P1, P2 en P3 van kwalificatie en race.</li>
+            <li><strong>Sprintweekend:</strong> ook P1, P2 en P3 van sprintkwalificatie en sprint.</li>
+            <li>Drie verschillende coureurs per top 3. Ze hoeven niet in je team te zitten en mogen terugkomen in andere sessies.</li>
           </ul>
-
-          <section className="rules-subsection" aria-labelledby="voorspellingen-score">
-            <h3 id="voorspellingen-score">Scoring per voorspelde plek</h3>
-            <ul>
-              <li>10 punten: juiste coureur op de juiste plek.</li>
-              <li>5 punten: juiste coureur, maar op een andere plek binnen de top 3.</li>
-              <li>0 punten: verkeerde coureur.</li>
-            </ul>
-          </section>
+          <table className="rules-table">
+            <caption>Punten per voorspelde plek, voor elke sessie</caption>
+            <thead><tr><th scope="col">Voorspelling</th><th scope="col">Punten</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Juiste coureur, exacte plek</th><td>10</td></tr>
+              <tr><th scope="row">Juiste coureur, andere plek in top 3</th><td>5</td></tr>
+              <tr><th scope="row">Coureur buiten top 3</th><td>0</td></tr>
+            </tbody>
+          </table>
+          <p>Maximaal 30 per top 3: 60 per gewoon weekend, 120 per sprintweekend. Bijvoorbeeld: A–B–C voorspeld, B–A–C gereden = 5 + 5 + 10 = 20 punten.</p>
         </section>
 
-        <section className="rules-section" aria-labelledby="puntensysteem">
-          <h2 id="puntensysteem">Puntensysteem</h2>
-          <section className="rules-subsection" aria-labelledby="puntensysteem-team">
-            <h3 id="puntensysteem-team">Team punten</h3>
-            <ul>
-              <li>Kwalificatie: 10, 8, 6, 5, 4, 3, 2, 1 (P1 t/m P8)</li>
-              <li>Race: 25, 18, 15, 12, 10, 8, 6, 4, 2, 1 (P1 t/m P10)</li>
-            </ul>
-          </section>
-          <section className="rules-subsection" aria-labelledby="puntensysteem-totaal">
-            <h3 id="puntensysteem-totaal">Totaalscore</h3>
-            <p>Totaal per Grand Prix = teampunten + punten uit voorspellingen.</p>
-          </section>
+        <section className="rules-section" aria-labelledby="teampunten">
+          <h2 id="teampunten">Punten van je coureurs</h2>
+          <p>Tel de punten van je vier coureurs per sessie op. Buiten de genoemde posities krijg je 0 punten.</p>
+          <div className="rules-points-grid">
+            {[false, true].map((sprint) => (
+              <table className="rules-table" key={String(sprint)}>
+                <caption>{sprint ? "Sprintweekend: extra punten" : "Elke Grand Prix"}</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Positie</th>
+                    <th scope="col">{sprint ? <>Sprint-<br />kwalificatie</> : "Kwalificatie"}</th>
+                    <th scope="col">{sprint ? "Sprint" : "Race"}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {driverPoints.slice(0, sprint ? 9 : 10).map(([position, quali, race, sprintQuali, sprintRace]) => (
+                    <tr key={position}>
+                      <th scope="row">{position}</th>
+                      <td>{sprint ? sprintQuali : quali}</td>
+                      <td>{sprint ? sprintRace : race}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ))}
+          </div>
         </section>
 
-        <section className="rules-section" aria-labelledby="publicatiemomenten">
-          <h2 id="publicatiemomenten">Publicatiemomenten</h2>
+        <section className="rules-section" aria-labelledby="bonusvraag">
+          <h2 id="bonusvraag">Bonusvraag</h2>
+          <p>De vraag en het puntenaantal kunnen per GP verschillen. Exact goed = het getoonde aantal punten; fout of geen antwoord = 0.</p>
+          <table className="rules-table">
+            <caption>Mogelijke bonusvragen</caption>
+            <thead><tr><th scope="col">Vraag</th><th scope="col">Je kiest</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Eindpositie van een genoemde coureur</th><td>Positie</td></tr>
+              <tr><th scope="row">Snelste ronde</th><td>Coureur</td></tr>
+              <tr><th scope="row">F1-team met de meeste racepunten</th><td>Team</td></tr>
+              <tr><th scope="row">Snelste pitstop</th><td>Team</td></tr>
+            </tbody>
+          </table>
+          <p>Er is geen standaardbonusvraag. Zonder ingestelde bonusvraag kun je voor die GP geen bonuspunten verdienen. Het standaardpuntenaantal voor een ingestelde vraag is 10.</p>
+          <p>Voor het beste F1-team tellen alleen de racepunten van zijn coureurs uit de tabel hierboven. Bij gelijkstand beslist de alfabetische teamnaam.</p>
+        </section>
+
+        <section className="rules-section" aria-labelledby="klassementen">
+          <h2 id="klassementen">Totaalscore en klassementen</h2>
+          <p><strong>GP-totaal = coureurspunten + podiumvoorspellingen + bonuspunten.</strong></p>
           <ul>
-            <li>Na de kwalificatie verschijnt de tussenstand.</li>
-            <li>Na de race verschijnt de eindstand.</li>
+            <li><strong>GP-klassement:</strong> punten van één Grand Prix.</li>
+            <li><strong>Seizoensklassement:</strong> alle gepubliceerde GP-punten opgeteld.</li>
+            <li><strong>League:</strong> alleen de leden; <strong>algemeen:</strong> alle spelers. Meeste punten bovenaan, bij gelijkstand op naam.</li>
+            <li>Met deelnemingscodes kun je in meerdere leagues spelen. Je team en voorspellingen gelden in al je leagues.</li>
           </ul>
         </section>
 
-        <section className="rules-section" aria-labelledby="status-gp">
-          <h2 id="status-gp">Status van een Grand Prix</h2>
+        <section className="rules-section" aria-labelledby="publicatie">
+          <h2 id="publicatie">Tussenstanden en annuleringen</h2>
           <ul>
-            <li>
-              <strong>Bezig:</strong> de deadline is voorbij, maar de race is nog niet verwerkt.
-            </li>
-            <li>
-              <strong>Afgelopen:</strong> de race is verwerkt en de uitslag staat vast.
-            </li>
-            <li>
-              <strong>Geannuleerd:</strong> er is geen gameplay, geen teamselectie en geen scoring.
-            </li>
+            <li><strong>Tussenstand:</strong> verschijnt zodra scores per onderdeel zijn gepubliceerd en telt direct mee in het totaal. Nog niet gepubliceerd betekent niet automatisch 0 punten.</li>
+            <li><strong>Volledige GP-score:</strong> na verwerking en publicatie van alle sessies en bonuspunten.</li>
+            <li><strong>Geannuleerde GP:</strong> geen teamkeuze, voorspellingen of spelpunten; telt niet mee in het klassement.</li>
           </ul>
-        </section>
-
-        <section className="rules-section" aria-labelledby="leagues">
-          <h2 id="leagues">Leagues</h2>
-          <p>
-            In leagues speel je met een eigen groep (bijvoorbeeld vrienden of collega&apos;s). Iedereen speelt met
-            dezelfde spelregels; het verschil zit in de ranglijst binnen jullie league.
-          </p>
-        </section>
-
-        <section className="rules-section" aria-labelledby="nog-niet-actief">
-          <h2 id="nog-niet-actief">Wat nog niet actief is</h2>
-          <p>
-            Deze pagina beschrijft alleen onderdelen die nu in de gameflow gebruikt worden. Eventuele toekomstige
-            uitbreidingen tellen pas mee zodra ze in de app actief zijn.
-          </p>
         </section>
       </article>
     </main>
