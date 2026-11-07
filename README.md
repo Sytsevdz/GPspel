@@ -114,3 +114,23 @@ For production signups with email confirmation, make sure:
    - `http://localhost:3000/auth/callback` (for local dev)
 
 The app sends `emailRedirectTo` to `/auth/callback` so confirmation links return to the correct environment.
+
+## GP settings completion migration
+
+Before deploying the settings-completion change, apply
+`supabase/migrations/20261107000100_add_gp_settings_completion.sql` manually.
+The application reads the new column, so deploy the migration first. This task
+only supplies the SQL; it does not execute it.
+
+The migration treats all existing GPs as complete (the agreed compatibility
+policy, since historical settings saves cannot be reconstructed). It preserves
+all timing, weekend and status values. New GPs default to incomplete, even with
+prefilled fields; a successful timing or weekend-type save sets completion in
+the same database update. Re-running the migration does not complete new GPs.
+
+The new column inherits `grand_prix` table permissions and any deployed RLS
+policies. The checked-in schema intentionally does not enable RLS for this
+table; both application save actions check authentication and the admin role.
+No new policies, tables or service-role access are introduced. The management
+page remains a Server Component and passes only serializable workflow flags to
+the existing Client Component.

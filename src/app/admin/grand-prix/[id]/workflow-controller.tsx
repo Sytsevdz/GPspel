@@ -49,7 +49,7 @@ export function WorkflowController({ grandPrixId, completed, message, error, bon
     }
     const snapshot = state;
     // Database-backed indicators may become incomplete after a reset.
-    for (const index of [0, 1, 3]) snapshot.done[index] = completed[index];
+    for (const index of [0, 1, 2, 3]) snapshot.done[index] = completed[index];
     const render = () => elements.forEach((element, index) => {
       if (!element) return;
       element.open = snapshot.open[index];
@@ -61,7 +61,11 @@ export function WorkflowController({ grandPrixId, completed, message, error, bon
       if (index < 0 || index === 5) return;
       snapshot.done[index] = true;
       snapshot.open[index] = false;
-      snapshot.open[index + 1] = true;
+      // Settings may be saved again after later sections were completed.
+      const next = section === "settings"
+        ? snapshot.done.findIndex((done, candidate) => candidate > index && candidate < 5 && !done)
+        : index + 1;
+      if (next >= 0) snapshot.open[next] = true;
       render();
     };
     if (snapshot.pending === "results" && !error && message === "Uitslag voor deze GP is gereset") {

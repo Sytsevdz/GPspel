@@ -89,6 +89,7 @@ create table if not exists public.grand_prix (
   qualification_start timestamptz not null,
   deadline timestamptz not null,
   is_sprint_weekend boolean not null default false,
+  settings_completed boolean not null default false,
   status grand_prix_status not null default 'upcoming',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),

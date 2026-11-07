@@ -52,6 +52,7 @@ export async function updateGrandPrixDeadline(
     .update({
       deadline,
       qualification_start: qualificationStart,
+      settings_completed: true,
     })
     .eq("id", grandPrixId);
 

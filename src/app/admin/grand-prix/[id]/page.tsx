@@ -41,6 +41,7 @@ type GrandPrixRow = {
   name: string;
   status: GrandPrixStatus;
   is_sprint_weekend: boolean;
+  settings_completed: boolean;
   deadline: string;
   qualification_start: string;
 };
@@ -74,7 +75,7 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
 
   const { data: grandPrix } = await supabase
     .from("grand_prix")
-    .select("id, name, status, is_sprint_weekend, deadline, qualification_start")
+    .select("id, name, status, is_sprint_weekend, deadline, qualification_start, settings_completed")
     .eq("id", params.id)
     .maybeSingle<GrandPrixRow>();
 
@@ -277,7 +278,7 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
     if (actionProfile?.role !== "admin") {
       redirect(`/admin/grand-prix/${params.id}?error=Je+hebt+geen+toegang+tot+deze+actie`);
     }
-    const { error } = await actionSupabase.from("grand_prix").update({ is_sprint_weekend: isSprintWeekend }).eq("id", grandPrixId);
+    const { error } = await actionSupabase.from("grand_prix").update({ is_sprint_weekend: isSprintWeekend, settings_completed: true }).eq("id", grandPrixId);
     if (error) {
       redirect(`/admin/grand-prix/${params.id}?error=Er+ging+iets+mis+bij+het+bijwerken+van+het+weekendtype`);
     }
@@ -508,7 +509,7 @@ export default async function GrandPrixManagementPage({ params, searchParams }: 
   const completedSections = [
     explicitDrivers.length > 0,
     effectiveDrivers.length > 0 && effectiveDrivers.every((driver) => driverPricesById.has(driver.id)),
-    false, // No persisted settings completion signal exists.
+    managedGrandPrix.settings_completed,
     Boolean(bonusQuestion),
     false, // Publication completion is tracked only after successful actions in this session.
     false,
