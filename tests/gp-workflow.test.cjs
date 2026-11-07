@@ -47,7 +47,7 @@ test('manual open/close survives revalidation and successful deadline save advan
   f.elements[0].open = true; f.elements[0].toggle({target:f.elements[0]});
   f.elements[2].open = false; f.elements[2].toggle({target:f.elements[2]});
   f.render([...completed]); assert.equal(f.elements[0].open,true); assert.equal(f.elements[2].open,false);
-  f.reportWorkflowSuccess('gp','settings'); assert.equal(f.elements[2].open,false); assert.equal(f.elements[3].open,true);
+  f.reportWorkflowSuccess('gp','settings'); assert.equal(f.elements[2].open,false); assert.equal(f.elements[4].open,true);
 });
 test('results require all regular or sprint publications and reset invalidates completion', () => {
   for (const sprint of [false,true]) {
@@ -102,4 +102,54 @@ test('bonus feedback is handled once; revalidation preserves manual toggles', ()
   assert.equal(f.elements[2].open, false);
   assert.equal(f.elements[3].open, false);
   assert.equal(f.elements[4].open, true);
+});
+
+test('persisted settings control first visit, refresh and reopening with no client snapshot', () => {
+  for (const settingsDone of [false, true]) {
+    // Each fixture loads a new controller module, just like a full reload.
+    for (const visit of ['first visit', 'refresh', 'reopen']) {
+      const f = fixture();
+      f.render([true,true,settingsDone,false,false,false]);
+      assert.equal(f.elements[2].open, !settingsDone, visit);
+      assert.equal(f.elements[2].status.textContent, settingsDone ? 'Afgerond' : '', visit);
+      assert.equal(f.elements[3].open, settingsDone, visit);
+    }
+  }
+});
+
+test('settings save skips a completed bonus; persisted completion survives revalidation', () => {
+  const f = fixture();
+  f.render([true,true,false,true,false,false]);
+  f.reportWorkflowSuccess('gp', 'settings');
+  f.render([true,true,true,true,false,false]);
+  assert.equal(f.elements[2].status.textContent, 'Afgerond');
+  assert.equal(f.elements[2].open, false);
+  assert.equal(f.elements[3].open, false);
+  assert.equal(f.elements[4].open, true);
+  const reopened = fixture();
+  reopened.render([true,true,true,true,false,false]);
+  assert.equal(reopened.elements[4].open, true);
+});
+
+test('weekend save advances settings; failed save keeps new settings incomplete', () => {
+  for (const failed of [false, true]) {
+    const f = fixture(); f.render([true,true,false,true,false,false]);
+    f.submit(2);
+    f.render([true,true,!failed,true,false,false], failed
+      ? { error: 'Opslaan mislukt' } : { message: 'Weekendtype bijgewerkt' });
+    assert.equal(f.elements[2].open, failed);
+    assert.equal(f.elements[2].status.textContent, failed ? '' : 'Afgerond');
+    assert.equal(f.elements[4].open, !failed);
+  }
+});
+
+test('completed settings can still be opened and closed manually after refresh', () => {
+  const f = fixture(); const completed = [true,true,true,false,false,false];
+  f.render(completed);
+  for (const open of [true, false]) {
+    f.elements[2].open = open; f.elements[2].toggle({target:f.elements[2]});
+    f.render([...completed]);
+    assert.equal(f.elements[2].open, open);
+    assert.equal(f.elements[2].status.textContent, 'Afgerond');
+  }
 });
